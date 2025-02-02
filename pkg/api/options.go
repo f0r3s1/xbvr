@@ -73,6 +73,8 @@ type RequestSaveOptionsAdvanced struct {
 	UseAltSrcInFileMatching      bool      `json:"useAltSrcInFileMatching"`
 	UseAltSrcInScriptFilters     bool      `json:"useAltSrcInScriptFilters"`
 	IgnoreReleasedBefore         time.Time `json:"ignoreReleasedBefore"`
+	FlareSolverrAddress          string    `json:"flareSolverrAddress"`
+	UseFlareSolverr              bool      `json:"useFlareSolverr"`
 }
 
 type RequestSaveOptionsFunscripts struct {
@@ -506,6 +508,8 @@ func (i ConfigResource) saveOptionsAdvanced(req *restful.Request, resp *restful.
 	config.Config.Advanced.UseAltSrcInFileMatching = r.UseAltSrcInFileMatching
 	config.Config.Advanced.UseAltSrcInScriptFilters = r.UseAltSrcInScriptFilters
 	config.Config.Advanced.IgnoreReleasedBefore = r.IgnoreReleasedBefore
+	config.Config.Advanced.FlareSolverrAddress = r.FlareSolverrAddress
+	config.Config.Advanced.UseFlareSolverr = r.UseFlareSolverr
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)

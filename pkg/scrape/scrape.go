@@ -13,6 +13,7 @@ import (
 	"github.com/gocolly/colly/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/xbapps/xbvr/pkg/common"
+	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
 	"golang.org/x/net/html"
 )
@@ -21,38 +22,59 @@ var log = &common.Log
 
 var UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
 
+// FlareSolverrEnabled sites registry
+var flareSolverrSites = make(map[string]bool)
+
+func RegisterFlareSolverrSite(domain string) {
+	flareSolverrSites[domain] = true
+}
+
+func IsFlareSolverrEnabled(domain string) bool {
+	return config.Config.Advanced.UseFlareSolverr && flareSolverrSites[domain]
+}
+
 func createCollector(domains ...string) *colly.Collector {
+	// Check if any domain is FlareSolverr enabled
+	for _, domain := range domains {
+		if IsFlareSolverrEnabled(domain) {
+			return createFlareSolverrCollector(domains...)
+		}
+	}
+
 	c := colly.NewCollector(
 		colly.AllowedDomains(domains...),
 		colly.CacheDir(getScrapeCacheDir()),
 		colly.UserAgent(UserAgent),
 	)
 
-	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
 		log.Errorf("Error visiting %s %s", r.Request.URL, err)
 	})
 
 	c = createCallbacks(c)
+	c = setRateLimits(c, domains...)
 
-	// see if the domain has a limit and set it
+	return c
+}
+
+func setRateLimits(c *colly.Collector, domains ...string) *colly.Collector {
+	if Limiters == nil {
+		LoadScraperRateLimits()
+	}
+
 	for _, domain := range domains {
-		if Limiters == nil {
-			LoadScraperRateLimits()
-		}
 		limiter := GetRateLimiter(domain)
 		if limiter != nil {
-			randomdelay := limiter.maxDelay - limiter.minDelay
+			randomDelay := limiter.maxDelay - limiter.minDelay
 			delay := limiter.minDelay
 			c.Limit(&colly.LimitRule{
 				DomainGlob:  "*",
-				Delay:       delay,       // Delay between requests to domains matching the glob
-				RandomDelay: randomdelay, // Max additional random delay added to the delay
+				Delay:       delay,			// Delay between requests to domains matching the glob
+				RandomDelay: randomDelay,	// Max additional random delay added to the delay
 			})
 			break
 		}
 	}
-
 	return c
 }
 
@@ -188,6 +210,7 @@ func getTextFromHTMLWithSelector(data string, sel string) string {
 	}
 	return strings.TrimSpace(doc.Find(sel).Text())
 }
+
 func CreateCollector(domains ...string) *colly.Collector {
 	return createCollector(domains...)
 }

@@ -9,6 +9,7 @@
             <b-tab-item label="Actor Settings"/>
             <b-tab-item label="Create Custom Site"/>
             <b-tab-item :label="$t('Alternate Sites')"/>
+            <b-tab-item :label="$t('Scraping Settings')"/>
       </b-tabs>
 
       <!-- Screen Details Tab -->
@@ -165,6 +166,31 @@
         </div>
       </div>
 
+      <div class="columns" v-if="activeTab == 4">
+        <div class="column">
+          <section>
+            <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
+              <b-input 
+                v-model="flareSolverrAddress" 
+                placeholder="http://localhost:8191" 
+                type="text" 
+                :disabled="!useFlareSolverr">
+              </b-input>
+            </b-field>
+            <b-field>
+              <b-tooltip :label="$t('Use FlareSolverr to bypass scraping protection on supported sites')" :delay="500" type="is-warning">
+                <b-switch v-model="useFlareSolverr" type="is-default">
+                  {{ $t('Enable FlareSolverr for Scraping') }} <a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a>
+                </b-switch>
+              </b-tooltip>
+            </b-field>
+
+            <b-field>
+              <b-button type="is-primary" @click="save">Save</b-button>
+            </b-field>
+          </section>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -311,6 +337,23 @@ export default {
       },
       set (value) {
         this.$store.state.optionsAdvanced.advanced.ignoreReleasedBefore = value
+      }
+    },
+    flareSolverrAddress: {
+      get () {
+        return this.$store.state.optionsAdvanced.advanced.flareSolverrAddress
+      },
+      set (value) {
+        this.$store.state.optionsAdvanced.advanced.flareSolverrAddress = value
+      }
+    },
+    useFlareSolverr: {
+      get () {
+        return this.$store.state.optionsAdvanced.advanced.useFlareSolverr
+      },
+      set (value) {
+        this.$store.state.optionsAdvanced.advanced.useFlareSolverr = value
+
       }
     },
     listOfMainSites: {
