@@ -69,8 +69,8 @@ func setRateLimits(c *colly.Collector, domains ...string) *colly.Collector {
 			delay := limiter.minDelay
 			c.Limit(&colly.LimitRule{
 				DomainGlob:  "*",
-				Delay:       delay,			// Delay between requests to domains matching the glob
-				RandomDelay: randomDelay,	// Max additional random delay added to the delay
+				Delay:       delay,       // Delay between requests to domains matching the glob
+				RandomDelay: randomDelay, // Max additional random delay added to the delay
 			})
 			break
 		}
