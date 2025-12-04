@@ -265,7 +265,7 @@
         </div>
       </div>
 
-      <div class="columns" v-if="activeTab == 4">
+      <div class="columns" v-if="activeTab == 6">
         <div class="column">
           <section>
             <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
