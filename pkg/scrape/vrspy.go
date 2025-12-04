@@ -18,7 +18,7 @@ const (
 	scraperID = "vrspy"
 	siteID    = "VRSpy"
 	domain    = "vrspy.com"
-	baseURL   = "https://" + domain
+	baseURL   = "https://www." + domain
 )
 
 func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, singleScrapeAdditionalInfo string, limitScraping bool) error {
@@ -111,6 +111,29 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 				sc.ActorDetails[actorName] = models.ActorDetails{
 					Source:     scraperID,
 					ProfileUrl: e.Request.AbsoluteURL(e.ChildAttr("a", "href")),
+				}
+			}
+
+			// Check for duration
+			if strings.Contains(infoText, "Duration") {
+				durationText := e.ChildText("span")
+				if durationText == "" && strings.Contains(infoText, ":") {
+					durationText = strings.TrimSpace(strings.Split(infoText, ":")[1])
+				}
+
+				if durationText != "" {
+					// Simplified duration extraction
+					parts := strings.Split(durationText, ":")
+					var hours, mins, secs int
+					if len(parts) == 3 {
+						hours, _ = strconv.Atoi(parts[0])
+						mins, _ = strconv.Atoi(parts[1])
+						secs, _ = strconv.Atoi(parts[2])
+					} else if len(parts) == 2 {
+						mins, _ = strconv.Atoi(parts[0])
+						secs, _ = strconv.Atoi(parts[1])
+					}
+					sc.Duration = (hours*3600 + mins*60 + secs) / 60
 				}
 			}
 		})

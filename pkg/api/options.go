@@ -27,6 +27,7 @@ import (
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
+	"github.com/xbapps/xbvr/pkg/scrape"
 	"github.com/xbapps/xbvr/pkg/tasks"
 )
 
@@ -43,29 +44,34 @@ type VersionCheckResponse struct {
 }
 
 type RequestSaveOptionsWeb struct {
-	TagSort             string `json:"tagSort"`
-	SceneHidden         bool   `json:"sceneHidden"`
-	SceneWatchlist      bool   `json:"sceneWatchlist"`
-	SceneFavourite      bool   `json:"sceneFavourite"`
-	SceneWishlist       bool   `json:"sceneWishlist"`
-	SceneWatched        bool   `json:"sceneWatched"`
-	SceneEdit           bool   `json:"sceneEdit"`
-	SceneDuration       bool   `json:"sceneDuration"`
-	SceneCuepoint       bool   `json:"sceneCuepoint"`
-	ShowHspFile         bool   `json:"showHspFile"`
-	ShowSubtitlesFile   bool   `json:"showSubtitlesFile"`
-	SceneTrailerlist    bool   `json:"sceneTrailerlist"`
-	ShowScriptHeatmap   bool   `json:"showScriptHeatmap"`
-	ShowAllHeatmaps     bool   `json:"showAllHeatmaps"`
-	ShowOpenInNewWindow bool   `json:"showOpenInNewWindow"`
-	UpdateCheck         bool   `json:"updateCheck"`
-	IsAvailOpacity      int    `json:"isAvailOpacity"`
+	TagSort              string `json:"tagSort"`
+	SceneHidden          bool   `json:"sceneHidden"`
+	SceneWatchlist       bool   `json:"sceneWatchlist"`
+	SceneFavourite       bool   `json:"sceneFavourite"`
+	SceneWishlist        bool   `json:"sceneWishlist"`
+	SceneWatched         bool   `json:"sceneWatched"`
+	SceneEdit            bool   `json:"sceneEdit"`
+	SceneDuration        bool   `json:"sceneDuration"`
+	SceneCuepoint        bool   `json:"sceneCuepoint"`
+	ShowHspFile          bool   `json:"showHspFile"`
+	ShowSubtitlesFile    bool   `json:"showSubtitlesFile"`
+	SceneTrailerlist     bool   `json:"sceneTrailerlist"`
+	ShowScriptHeatmap    bool   `json:"showScriptHeatmap"`
+	ShowAllHeatmaps      bool   `json:"showAllHeatmaps"`
+	ShowOpenInNewWindow  bool   `json:"showOpenInNewWindow"`
+	UpdateCheck          bool   `json:"updateCheck"`
+	IsAvailOpacity       int    `json:"isAvailOpacity"`
+	SceneCardAspectRatio string `json:"sceneCardAspectRatio"`
+	SceneCardScaleToFit  bool   `json:"sceneCardScaleToFit"`
+	ActorCardAspectRatio string `json:"actorCardAspectRatio"`
+	ActorCardScaleToFit  bool   `json:"actorCardScaleToFit"`
 }
 
 type RequestSaveOptionsAdvanced struct {
 	ShowInternalSceneId          bool      `json:"showInternalSceneId"`
 	ShowHSPApiLink               bool      `json:"showHSPApiLink"`
 	ShowSceneSearchField         bool      `json:"showSceneSearchField"`
+	ScraperProxy                 string    `json:"scraperProxy"`
 	StashApiKey                  string    `json:"stashApiKey"`
 	ScrapeActorAfterScene        bool      `json:"scrapeActorAfterScene"`
 	UseImperialEntry             bool      `json:"useImperialEntry"`
@@ -200,11 +206,23 @@ type RequestSCustomSiteCreate struct {
 }
 
 type GetStorageResponse struct {
-	Volumes    []models.Volume `json:"volumes"`
-	MatchOhash bool            `json:"match_ohash"`
+	Volumes           []models.Volume `json:"volumes"`
+	MatchOhash        bool            `json:"match_ohash"`
+	VideoExt          []string        `json:"video_ext"`
+	ForbiddenVideoExt []string        `json:"forbidden_video_ext"`
+	DefaultVideoExt   []string        `json:"default_video_ext"`
 }
 type RequestSaveOptionsStorage struct {
-	MatchOhash bool `json:"match_ohash"`
+	MatchOhash bool     `json:"match_ohash"`
+	VideoExt   []string `json:"video_ext"`
+}
+
+type RequestSaveCollectorConfig struct {
+	DomainKey string                          `json:"domain_key"`
+	Headers   []scrape.ScrapeHttpKeyValue     `json:"headers"`
+	Cookies   []scrape.ScrapeHttpCookieDetail `json:"cookies"`
+	Body      string                          `json:"body"`
+	Other     []scrape.ScrapeHttpKeyValue     `json:"other"`
 }
 
 type ConfigResource struct{}
@@ -314,6 +332,11 @@ func (i ConfigResource) WebService() *restful.WebService {
 	// "Cuepoints section endpoints"
 	ws.Route(ws.PUT("/custom-sites/create").To(i.createCustomSite).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	// "Collector Config endpoints"
+	ws.Route(ws.GET("/collector-config-list").To(i.getCollectorConfigs))
+	ws.Route(ws.POST("/save-collector-config").To(i.saveCollectorConfigs))
+	ws.Route(ws.DELETE("/delete-collector-config").To(i.deleteCollectorConfig))
 
 	return ws
 }
@@ -485,6 +508,10 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.ShowOpenInNewWindow = r.ShowOpenInNewWindow
 	config.Config.Web.UpdateCheck = r.UpdateCheck
 	config.Config.Web.IsAvailOpacity = r.IsAvailOpacity
+	config.Config.Web.SceneCardAspectRatio = r.SceneCardAspectRatio
+	config.Config.Web.SceneCardScaleToFit = r.SceneCardScaleToFit
+	config.Config.Web.ActorCardAspectRatio = r.ActorCardAspectRatio
+	config.Config.Web.ActorCardScaleToFit = r.ActorCardScaleToFit
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
@@ -502,6 +529,7 @@ func (i ConfigResource) saveOptionsAdvanced(req *restful.Request, resp *restful.
 	config.Config.Advanced.ShowHSPApiLink = r.ShowHSPApiLink
 	config.Config.Advanced.ShowSceneSearchField = r.ShowSceneSearchField
 	config.Config.Advanced.StashApiKey = r.StashApiKey
+	config.Config.Advanced.ScraperProxy = r.ScraperProxy
 	config.Config.Advanced.ScrapeActorAfterScene = r.ScrapeActorAfterScene
 	config.Config.Advanced.UseImperialEntry = r.UseImperialEntry
 	config.Config.Advanced.LinkScenesAfterSceneScraping = r.LinkScenesAfterSceneScraping
@@ -578,6 +606,15 @@ func (i ConfigResource) listStorage(req *restful.Request, resp *restful.Response
 	var out GetStorageResponse
 	out.Volumes = vol
 	out.MatchOhash = config.Config.Storage.MatchOhash
+
+	// Fallback to default video extensions if none are set
+	if len(config.Config.Storage.VideoExt) == 0 {
+		out.VideoExt = config.DefaultVideoExtensions
+	} else {
+		out.VideoExt = config.Config.Storage.VideoExt
+	}
+	out.ForbiddenVideoExt = config.ForbiddenVideoExtensions
+	out.DefaultVideoExt = config.DefaultVideoExtensions
 	resp.WriteHeaderAndEntity(http.StatusOK, out)
 }
 
@@ -729,7 +766,10 @@ func (i ConfigResource) deleteScenes(req *restful.Request, resp *restful.Respons
 func (i ConfigResource) getState(req *restful.Request, resp *restful.Response) {
 	var out GetStateResponse
 
-	tasks.UpdateState()
+	// Only update DLNA state if not migrating to avoid constant DB writes
+	if !config.State.Migration.IsRunning {
+		tasks.UpdateState()
+	}
 
 	out.Config = config.Config
 	out.CurrentState = config.State
@@ -1077,7 +1117,88 @@ func (i ConfigResource) saveOptionsStorage(req *restful.Request, resp *restful.R
 	}
 
 	config.Config.Storage.MatchOhash = r.MatchOhash
+
+	// Filter, normalize, and deduplicate extensions
+	var allowedExt []string
+	extSet := make(map[string]struct{})
+	for _, ext := range r.VideoExt {
+		cleanExt := strings.TrimSpace(strings.ToLower(ext))
+		if cleanExt == "" || cleanExt == "." || strings.Contains(cleanExt, " ") {
+			continue
+		}
+		if !strings.HasPrefix(cleanExt, ".") {
+			cleanExt = "." + cleanExt
+		}
+		// Only allow extensions that are a dot followed by alphanumeric characters
+		matched, _ := regexp.MatchString(`^\.[a-z0-9]+$`, cleanExt)
+		if !matched {
+			continue
+		}
+		forbidden := false
+		for _, f := range config.ForbiddenVideoExtensions {
+			if cleanExt == f {
+				forbidden = true
+				break
+			}
+		}
+		if forbidden {
+			continue
+		}
+		if _, exists := extSet[cleanExt]; !exists {
+			extSet[cleanExt] = struct{}{}
+			allowedExt = append(allowedExt, cleanExt)
+		}
+	}
+	if len(allowedExt) == 0 {
+		allowedExt = config.DefaultVideoExtensions
+	}
+	config.Config.Storage.VideoExt = allowedExt
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
+}
+
+func (i ConfigResource) getCollectorConfigs(req *restful.Request, resp *restful.Response) {
+	list := scrape.GetAllScrapeHttpConfigs()
+	resp.WriteHeaderAndEntity(http.StatusOK, &list)
+}
+
+func (i ConfigResource) saveCollectorConfigs(req *restful.Request, resp *restful.Response) {
+	var r RequestSaveCollectorConfig
+
+	if err := req.ReadEntity(&r); err != nil {
+		APIError(req, resp, http.StatusInternalServerError, err)
+		log.Error(err)
+		return
+	}
+
+	if r.DomainKey == "" {
+		APIError(req, resp, http.StatusInternalServerError, nil)
+		log.Error("Could not save collector config - name for config not found")
+		return
+	}
+	var config scrape.ScrapeHttpConfig
+	config.Cookies = r.Cookies
+	config.Headers = r.Headers
+	config.Body = r.Body
+	config.Other = r.Other
+	scrape.SaveScrapeHttpConfig(r.DomainKey, config)
+}
+func (i ConfigResource) deleteCollectorConfig(req *restful.Request, resp *restful.Response) {
+	var r RequestSaveCollectorConfig
+
+	if err := req.ReadEntity(&r); err != nil {
+		APIError(req, resp, http.StatusInternalServerError, err)
+		log.Error(err)
+		return
+	}
+
+	if r.DomainKey == "" {
+		APIError(req, resp, http.StatusInternalServerError, nil)
+		log.Error("Could not delete collector config - name for config not found")
+		return
+	}
+	var kv models.KV
+	kv.Key = r.DomainKey
+	kv.Delete()
 }

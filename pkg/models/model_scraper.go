@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"sync/atomic"
+	"time"
 )
 
 var scrapers []Scraper
@@ -48,6 +49,7 @@ type ScrapedScene struct {
 
 	ActorDetails map[string]ActorDetails `json:"actor_details"`
 	MasterSiteId string                  `json:"master_site_id"`
+	Timestamps   string                  `json:"timestamps"`
 }
 
 type ActorDetails struct {
@@ -65,6 +67,7 @@ type TrailerScrape struct {
 	ContentPath    string `json:"content_path"`     // points to the content url uses jsonpath syntax
 	EncodingPath   string `json:"encoding_path"`    // optional, points to the encoding for the source using jsonpath syntax, eg h264, h265
 	QualityPath    string `json:"quality_path"`     // points to the quality using jsonpath syntax, eg 1440p, 5k
+	KVHttpConfig   string `json:"kv_http_config"`
 }
 
 func (s *ScrapedScene) ToJSON() ([]byte, error) {
@@ -110,7 +113,7 @@ func (wg *ScrapeWG) Done() {
 
 func (wg *ScrapeWG) Wait(n int64) {
 	for atomic.LoadInt64(&wg.count) >= n && atomic.LoadInt64(&wg.count) != 0 {
-		continue
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

@@ -13,6 +13,7 @@ const state = {
     useAltSrcInFileMatching: true,
     useAltSrcInScriptFilters: true,
     ignoreReleasedBefore: null,
+    collectorConfigs: null,
     flareSolverrAddress: '',
     useFlareSolverr: false
   }
@@ -23,6 +24,11 @@ const mutations = {}
 const actions = {
   async load ({ state }) {
     state.loading = true
+    ky.get('/api/options/collector-config-list')
+      .json()
+      .then(data => {
+        state.advanced.collectorConfigs = data
+      })
     ky.get('/api/options/state')
       .json()
       .then(data => {
@@ -30,6 +36,7 @@ const actions = {
         state.advanced.showHSPApiLink = data.config.advanced.showHSPApiLink
         state.advanced.showSceneSearchField = data.config.advanced.showSceneSearchField
         state.advanced.stashApiKey = data.config.advanced.stashApiKey
+        state.advanced.scraperProxy = data.config.advanced.scraperProxy
         state.advanced.scrapeActorAfterScene = data.config.advanced.scrapeActorAfterScene
         state.advanced.useImperialEntry = data.config.advanced.useImperialEntry
         state.advanced.linkScenesAfterSceneScraping = data.config.advanced.linkScenesAfterSceneScraping
@@ -50,6 +57,7 @@ const actions = {
         state.advanced.showHSPApiLink = data.showHSPApiLink
         state.advanced.showSceneSearchField = data.showSceneSearchField
         state.advanced.stashApiKey = data.stashApiKey
+        state.advanced.scraperProxy = data.scraperProxy
         state.advanced.scrapeActorAfterScene = data.scrapeActorAfterScene
         state.advanced.useImperialEntry = data.useImperialEntry
         state.advanced.linkScenesAfterSceneScraping = data.linkScenesAfterSceneScraping

@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/config"
+	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
 	"golang.org/x/net/html"
 )
@@ -46,6 +47,11 @@ func createCollector(domains ...string) *colly.Collector {
 		colly.CacheDir(getScrapeCacheDir()),
 		colly.UserAgent(UserAgent),
 	)
+	// use proxy if configured
+	if config.Config.Advanced.ScraperProxy != "" {
+		common.Log.Infof("Using proxy for scraping: %s.", config.Config.Advanced.ScraperProxy)
+		c.SetProxy(config.Config.Advanced.ScraperProxy)
+	}
 
 	c.OnError(func(r *colly.Response, err error) {
 		log.Errorf("Error visiting %s %s", r.Request.URL, err)
@@ -63,6 +69,8 @@ func setRateLimits(c *colly.Collector, domains ...string) *colly.Collector {
 	}
 
 	for _, domain := range domains {
+		SetupCollector(GetCoreDomain(domain)+"-scraper", c)
+		log.Debugf("Using Header/Cookies from %s", GetCoreDomain(domain)+"-scraper")
 		limiter := GetRateLimiter(domain)
 		if limiter != nil {
 			randomDelay := limiter.maxDelay - limiter.minDelay
@@ -213,4 +221,17 @@ func getTextFromHTMLWithSelector(data string, sel string) string {
 
 func CreateCollector(domains ...string) *colly.Collector {
 	return createCollector(domains...)
+}
+
+func GetCoreDomain(domain string) string {
+	if strings.HasPrefix(domain, "http") {
+		parsedURL, _ := url.Parse(domain)
+		domain = parsedURL.Hostname()
+	}
+	parts := strings.Split(domain, ".")
+	if len(parts) > 2 && parts[0] == "www" {
+		parts = parts[1:]
+	}
+
+	return strings.Join(parts[:len(parts)-1], ".")
 }
