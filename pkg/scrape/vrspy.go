@@ -113,48 +113,38 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 					ProfileUrl: e.Request.AbsoluteURL(e.ChildAttr("a", "href")),
 				}
 			}
-
-			// Check for duration
-			if strings.Contains(infoText, "Duration") {
-				durationText := e.ChildText("span")
-				if durationText == "" && strings.Contains(infoText, ":") {
-					durationText = strings.TrimSpace(strings.Split(infoText, ":")[1])
-				}
-
-				if durationText != "" {
-					// Simplified duration extraction
-					parts := strings.Split(durationText, ":")
-					var hours, mins, secs int
-					if len(parts) == 3 {
-						hours, _ = strconv.Atoi(parts[0])
-						mins, _ = strconv.Atoi(parts[1])
-						secs, _ = strconv.Atoi(parts[2])
-					} else if len(parts) == 2 {
-						mins, _ = strconv.Atoi(parts[0])
-						secs, _ = strconv.Atoi(parts[1])
-					}
-					sc.Duration = (hours*3600 + mins*60 + secs) / 60
-				}
-			}
 		})
 
 		// Date & Duration
 		e.ForEach(`div.video-details-info-items div.video-details-info-item`, func(id int, e *colly.HTMLElement) {
-			label := strings.TrimSpace(e.Text)
-			if strings.Contains(label, "Release date:") {
+			text := strings.TrimSpace(e.Text)
+			
+			if strings.Contains(text, "Release date:") {
 				dateStr := strings.TrimSpace(e.ChildText("span"))
 				if tmpDate, err := goment.New(dateStr, "DD MMMM YYYY"); err == nil {
 					sc.Released = tmpDate.Format("YYYY-MM-DD")
 				}
+				log.Infof("📅 Extracted release date: %s -> %s", dateStr, sc.Released)
 			}
-			if strings.Contains(label, "Duration:") {
+			
+			if strings.Contains(text, "Duration:") {
 				durationStr := strings.TrimSpace(e.ChildText("span"))
 				parts := strings.Split(durationStr, ":")
 				if len(parts) == 3 {
-					hours, _ := strconv.Atoi(parts[0])
-					minutes, _ := strconv.Atoi(parts[1])
-					// We're ignoring seconds since the Duration field is in minutes
-					sc.Duration = hours*60 + minutes
+					hours, errH := strconv.Atoi(strings.TrimSpace(parts[0]))
+					minutes, errM := strconv.Atoi(strings.TrimSpace(parts[1]))
+					if errH == nil && errM == nil {
+						// Convert to minutes (ignoring seconds)
+						sc.Duration = hours*60 + minutes
+						log.Infof("⏱️ Extracted duration: %s -> %d minutes", durationStr, sc.Duration)
+					}
+				} else if len(parts) == 2 {
+					// Handle MM:SS format
+					minutes, errM := strconv.Atoi(strings.TrimSpace(parts[0]))
+					if errM == nil {
+						sc.Duration = minutes
+						log.Infof("⏱️ Extracted duration: %s -> %d minutes", durationStr, sc.Duration)
+					}
 				}
 			}
 		})
