@@ -1,5 +1,5 @@
 # Build stage with CGO enabled
-FROM golang:1.22-bookworm AS builder
+FROM golang:1.24-bookworm AS builder
 
 WORKDIR /app
 COPY . .
