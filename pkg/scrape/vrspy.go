@@ -118,7 +118,7 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		// Date & Duration
 		e.ForEach(`div.video-details-info-items div.video-details-info-item`, func(id int, e *colly.HTMLElement) {
 			text := strings.TrimSpace(e.Text)
-			
+
 			if strings.Contains(text, "Release date:") {
 				dateStr := strings.TrimSpace(e.ChildText("span"))
 				if tmpDate, err := goment.New(dateStr, "DD MMMM YYYY"); err == nil {
@@ -126,7 +126,7 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 				}
 				log.Infof("📅 Extracted release date: %s -> %s", dateStr, sc.Released)
 			}
-			
+
 			if strings.Contains(text, "Duration:") {
 				durationStr := strings.TrimSpace(e.ChildText("span"))
 				parts := strings.Split(durationStr, ":")
