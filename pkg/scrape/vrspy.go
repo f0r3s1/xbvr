@@ -60,7 +60,7 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 	trackRequests(siteCollector)
 
 	sceneCollector.OnHTML(`html`, func(e *colly.HTMLElement) {
-		log.Infof("🔍 Processing scene page: %s", e.Request.URL)
+		log.Infof("📄 [OnHTML-Scene] Processing scene page: %s", e.Request.URL)
 
 		sc := models.ScrapedScene{}
 		sc.ScraperID = scraperID
@@ -171,11 +171,16 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 
 	// Scene discovery with thumbnail and title capture
 	siteCollector.OnHTML(`div.item-wrapper`, func(e *colly.HTMLElement) {
+		log.Infof("📦 [OnHTML-Listing] Found item wrapper")
+
 		sceneURL := e.ChildAttr("div.item div.photo a.photo-preview", "href")
 		if !strings.HasPrefix(sceneURL, "/video/") {
+			log.Warnf("⚠️  Skipping invalid scene URL: %s", sceneURL)
 			return
 		}
 		sceneURL = e.Request.AbsoluteURL(sceneURL)
+		log.Infof("🎬 Found scene: %s", sceneURL)
+
 		coverImg := e.ChildAttr("div.item div.photo a.photo-preview img.cover", "src")
 		title := strings.TrimSpace(e.ChildText("div.item div.info.info--grid div.top a div.title"))
 
@@ -221,23 +226,29 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 
 	if singleSceneURL != "" {
 		processed.Store(singleSceneURL, true)
-		log.Infof("🚀 Visiting single scene: %s", singleSceneURL)
+		log.Infof("🚀 [Main] Visiting single scene: %s", singleSceneURL)
 		sceneCollector.Visit(singleSceneURL)
+		log.Infof("📍 [Main] Visit() called, now waiting...")
 	} else {
 		initialPage := baseURL + "/videos"
 		processed.Store(initialPage, true)
-		log.Infof("🚀 Visiting initial listing page: %s", initialPage)
+		log.Infof("🚀 [Main] Visiting initial listing page: %s", initialPage)
 		siteCollector.Visit(initialPage)
+		log.Infof("📍 [Main] Visit() called, now waiting...")
 	}
 
 	// Proper synchronization
-	log.Infof("⏳ Waiting for siteCollector to finish...")
+	log.Infof("⏳ [Main] Waiting for siteCollector to finish...")
 	siteCollector.Wait()
-	log.Infof("⏳ Waiting for sceneCollector to finish...")
+	log.Infof("⏳ [Main] siteCollector.Wait() completed")
+
+	log.Infof("⏳ [Main] Waiting for sceneCollector to finish...")
 	sceneCollector.Wait()
-	log.Infof("⏳ Waiting for FlareSolverr requests to finish...")
+	log.Infof("⏳ [Main] sceneCollector.Wait() completed")
+
+	log.Infof("⏳ [Main] Waiting for FlareSolverr requests to finish...")
 	flareWG.Wait()
-	log.Infof("✅ All collectors finished")
+	log.Infof("✅ [Main] All collectors finished")
 
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
