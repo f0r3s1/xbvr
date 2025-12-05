@@ -156,10 +156,19 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 	})
 
 	if singleSceneURL != "" {
+		log.Infof("🚀 Visiting single scene: %s", singleSceneURL)
 		sceneCollector.Visit(singleSceneURL)
 	} else {
-		siteCollector.Visit(URL + "videos/?sort=latest")
+		visitURL := URL + "videos/?sort=latest"
+		log.Infof("🚀 Visiting initial listing page: %s", visitURL)
+		siteCollector.Visit(visitURL)
 	}
+
+	log.Infof("⏳ Waiting for siteCollector to finish...")
+	siteCollector.Wait()
+	log.Infof("⏳ Waiting for sceneCollector to finish...")
+	sceneCollector.Wait()
+	log.Infof("✅ All collectors finished")
 
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
