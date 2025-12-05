@@ -183,7 +183,7 @@ func convertHeaders(headers map[string]string) http.Header {
 
 func createFlareSolverrCollector(domains ...string) *colly.Collector {
 	transport := newFlareSolverrTransport()
-	
+
 	log.Infof("✅ FlareSolverr collector initialized for domains: %v", domains)
 
 	// Check if any domain has rate limiting
