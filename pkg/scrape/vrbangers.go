@@ -23,6 +23,8 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 	ajaxCollector.CacheDir = ""
 
 	sceneCollector.OnHTML(`html`, func(e *colly.HTMLElement) {
+		log.Infof("📄 [OnHTML-Scene] Processing scene page: %s", e.Request.URL)
+
 		sc := models.ScrapedScene{}
 		sc.ScraperID = scraperID
 		sc.SceneType = "VR"
@@ -32,6 +34,7 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 
 		parts := strings.Split(strings.Replace(sc.HomepageURL, "//", "/", -1), "/")
 		if len(parts) < 4 {
+			log.Warnf("⚠️  Could not parse content_id from URL: %s", sc.HomepageURL)
 			return
 		}
 		content_id := parts[3]
@@ -140,11 +143,17 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 	})
 
 	siteCollector.OnHTML(`div.grid-video-item__title a`, func(e *colly.HTMLElement) {
+		log.Infof("📦 [OnHTML-Listing] Found video link")
+
 		url := strings.Split(e.Attr("href"), "?")[0]
 		sceneURL := e.Request.AbsoluteURL(url)
+		log.Infof("🎬 Found scene: %s", sceneURL)
 
 		if !funk.ContainsString(knownScenes, sceneURL) {
+			log.Infof("🔗 Visiting scene page: %s", sceneURL)
 			sceneCollector.Visit(sceneURL)
+		} else {
+			log.Debugf("⏭️  Skipping known scene: %s", sceneURL)
 		}
 	})
 
@@ -156,19 +165,25 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 	})
 
 	if singleSceneURL != "" {
-		log.Infof("🚀 Visiting single scene: %s", singleSceneURL)
+		log.Infof("🚀 [Main] Visiting single scene: %s", singleSceneURL)
 		sceneCollector.Visit(singleSceneURL)
+		log.Infof("📍 [Main] Visit() called, now waiting...")
 	} else {
 		visitURL := URL + "videos/?sort=latest"
-		log.Infof("🚀 Visiting initial listing page: %s", visitURL)
+		log.Infof("🚀 [Main] Visiting initial listing page: %s", visitURL)
 		siteCollector.Visit(visitURL)
+		log.Infof("📍 [Main] Visit() called, now waiting...")
 	}
 
-	log.Infof("⏳ Waiting for siteCollector to finish...")
+	log.Infof("⏳ [Main] Waiting for siteCollector to finish...")
 	siteCollector.Wait()
-	log.Infof("⏳ Waiting for sceneCollector to finish...")
+	log.Infof("⏳ [Main] siteCollector.Wait() completed")
+
+	log.Infof("⏳ [Main] Waiting for sceneCollector to finish...")
 	sceneCollector.Wait()
-	log.Infof("✅ All collectors finished")
+	log.Infof("⏳ [Main] sceneCollector.Wait() completed")
+
+	log.Infof("✅ [Main] All collectors finished")
 
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
