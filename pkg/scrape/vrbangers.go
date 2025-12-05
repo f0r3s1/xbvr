@@ -188,6 +188,12 @@ func ARPorn(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan
 }
 
 func init() {
+	RegisterFlareSolverrSite("vrbangers.com")
+	RegisterFlareSolverrSite("vrbtrans.com")
+	RegisterFlareSolverrSite("vrbgay.com")
+	RegisterFlareSolverrSite("vrconk.com")
+	RegisterFlareSolverrSite("blowvr.com")
+	RegisterFlareSolverrSite("arporn.com")
 	registerScraper("vrbangers", "VRBangers", "https://vrbangers.com/favicon/apple-touch-icon-144x144.png", "vrbangers.com", VRBangers)
 	registerScraper("vrbtrans", "VRBTrans", "https://vrbtrans.com/favicon/apple-touch-icon-144x144.png", "vrbtrans.com", VRBTrans)
 	registerScraper("vrbgay", "VRBGay", "https://vrbgay.com/favicon/apple-touch-icon-144x144.png", "vrbgay.com", VRBGay)

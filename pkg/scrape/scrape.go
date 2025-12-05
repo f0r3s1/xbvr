@@ -30,13 +30,14 @@ func RegisterFlareSolverrSite(domain string) {
 }
 
 func IsFlareSolverrEnabled(domain string) bool {
-	return config.Config.Advanced.UseFlareSolverr && flareSolverrSites[domain]
+	return config.Config.Advanced.UseFlareSolverr && flareSolverrSites[domain] && config.Config.Advanced.FlareSolverrAddress != ""
 }
 
 func createCollector(domains ...string) *colly.Collector {
 	// Check if any domain is FlareSolverr enabled
 	for _, domain := range domains {
 		if IsFlareSolverrEnabled(domain) {
+			log.Infof("🔥 Using FlareSolverr for domain: %s (Address: %s)", domain, config.Config.Advanced.FlareSolverrAddress)
 			return createFlareSolverrCollector(domains...)
 		}
 	}
