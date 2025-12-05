@@ -221,17 +221,23 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 
 	if singleSceneURL != "" {
 		processed.Store(singleSceneURL, true)
+		log.Infof("🚀 Visiting single scene: %s", singleSceneURL)
 		sceneCollector.Visit(singleSceneURL)
 	} else {
 		initialPage := baseURL + "/videos"
 		processed.Store(initialPage, true)
+		log.Infof("🚀 Visiting initial listing page: %s", initialPage)
 		siteCollector.Visit(initialPage)
 	}
 
 	// Proper synchronization
+	log.Infof("⏳ Waiting for siteCollector to finish...")
 	siteCollector.Wait()
+	log.Infof("⏳ Waiting for sceneCollector to finish...")
 	sceneCollector.Wait()
+	log.Infof("⏳ Waiting for FlareSolverr requests to finish...")
 	flareWG.Wait()
+	log.Infof("✅ All collectors finished")
 
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
