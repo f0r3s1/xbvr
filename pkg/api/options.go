@@ -261,6 +261,9 @@ func (i ConfigResource) WebService() *restful.WebService {
 	ws.Route(ws.PUT("/sites/scrape_stash/{site}").To(i.toggleScrapeStash).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.PUT("/sites/use_flaresolverr/{site}").To(i.toggleUseFlareSolverr).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.POST("/scraper/force-site-update").To(i.forceSiteUpdate).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -386,6 +389,11 @@ func (i ConfigResource) toggleLimitScraping(req *restful.Request, resp *restful.
 func (i ConfigResource) toggleScrapeStash(req *restful.Request, resp *restful.Response) {
 	i.toggleSiteField(req, resp, "ScrapeStash")
 }
+
+func (i ConfigResource) toggleUseFlareSolverr(req *restful.Request, resp *restful.Response) {
+	i.toggleSiteField(req, resp, "UseFlareSolverr")
+}
+
 func (i ConfigResource) toggleSiteField(req *restful.Request, resp *restful.Response, field string) {
 	db, _ := models.GetDB()
 	defer db.Close()
@@ -414,6 +422,8 @@ func (i ConfigResource) toggleSiteField(req *restful.Request, resp *restful.Resp
 	case "ScrapeStash":
 		site.ScrapeStash = !site.ScrapeStash
 		db.Model(&models.Scene{}).Where("scrape_stash = ?", site.ID).Update("scrape_stash", site.LimitScraping)
+	case "UseFlareSolverr":
+		site.UseFlareSolverr = !site.UseFlareSolverr
 	}
 	site.Save()
 

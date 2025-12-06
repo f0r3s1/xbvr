@@ -76,7 +76,7 @@ Make sure you have following installed:
 - Go 1.24
 - Node.js 22.x
 - Yarn 1.17.x
-- air (run `go install github.com/cosmtrek/air@latest` outside project directory)
+- air (run `go install github.com/air-verse/air@latest` outside project directory)
 
 Once all of the above is installed, running `yarn dev` from project directory launches file-watchers providing livereload for both Go and JavaScript.
 

@@ -6,13 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gocolly/colly/v2"
-	"github.com/sirupsen/logrus"
 	"github.com/xbapps/xbvr/pkg/config"
+)
+
+// Global shared transport for FlareSolverr to reuse browser session
+var (
+	sharedFlareSolverrTransport *flareSolverrTransport
+	sharedTransportMu           sync.Mutex
 )
 
 type flareSolverrTransport struct {
@@ -20,67 +27,61 @@ type flareSolverrTransport struct {
 	sessionID string
 	client    *http.Client
 	baseURL   string
-	limited   bool
 }
 
-func newFlareSolverrTransport() *flareSolverrTransport {
-	return &flareSolverrTransport{
-		client: &http.Client{
-			Timeout: 300 * time.Second,
-			Transport: &http.Transport{
-				DisableKeepAlives: false,
-				MaxConnsPerHost:   10,
+func getSharedFlareSolverrTransport() *flareSolverrTransport {
+	sharedTransportMu.Lock()
+	defer sharedTransportMu.Unlock()
+
+	currentURL := config.Config.Advanced.FlareSolverrAddress
+
+	// Create new transport if none exists or if URL changed
+	if sharedFlareSolverrTransport == nil || sharedFlareSolverrTransport.baseURL != currentURL {
+		sharedFlareSolverrTransport = &flareSolverrTransport{
+			client: &http.Client{
+				Timeout: 300 * time.Second,
+				Transport: &http.Transport{
+					DisableKeepAlives: false,
+					MaxConnsPerHost:   1,
+				},
 			},
-		},
-		baseURL: config.Config.Advanced.FlareSolverrAddress,
-		limited: false,
+			baseURL: currentURL,
+		}
 	}
-}
-
-func (fst *flareSolverrTransport) SetLimited(limited bool) {
-	fst.limited = limited
+	return sharedFlareSolverrTransport
 }
 
 func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Lock only for session creation, not the whole request
 	fst.mu.Lock()
-	defer fst.mu.Unlock()
-
-	if fst.limited {
-		ScraperRateLimiterWait(req.URL.Host)
+	if fst.sessionID == "" {
+		if err := fst.createSession(); err != nil {
+			fst.mu.Unlock()
+			return nil, fmt.Errorf("session creation failed: %w", err)
+		}
 	}
+	sessionID := fst.sessionID
+	fst.mu.Unlock()
+
+	// Random delay 100-300ms (~200ms avg = ~50 requests per 10 seconds)
+	delay := time.Duration(100+rand.Intn(200)) * time.Millisecond
+	time.Sleep(delay)
 
 	ctx, cancel := context.WithTimeout(req.Context(), 300*time.Second)
 	defer cancel()
 	req = req.WithContext(ctx)
 
-	log.WithFields(logrus.Fields{
-		"type":      "flare",
-		"url":       req.URL.String(),
-		"method":    req.Method,
-		"flareAddr": fst.baseURL,
-	}).Info("🚀 Starting FlareSolverr request")
+	// Log actual request (not just queued)
+	log.Infof("FlareSolverr fetching: %s", req.URL.String())
 
 	if fst.baseURL == "" {
-		log.WithFields(logrus.Fields{
-			"type": "flare",
-		}).Error("❌ FlareSolverr address is empty - cannot make request")
 		return nil, fmt.Errorf("flaresolverr address not configured")
-	}
-
-	if fst.sessionID == "" {
-		if err := fst.createSession(); err != nil {
-			log.WithFields(logrus.Fields{
-				"type":  "flare",
-				"error": err.Error(),
-			}).Error("❌ Failed to create FlareSolverr session")
-			return nil, fmt.Errorf("session creation failed: %w", err)
-		}
 	}
 
 	payload := map[string]interface{}{
 		"cmd":        "request.get",
 		"url":        req.URL.String(),
-		"session":    fst.sessionID,
+		"session":    sessionID,
 		"maxTimeout": 120000,
 	}
 
@@ -88,13 +89,11 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 	flareReq, _ := http.NewRequestWithContext(ctx, "POST", fst.baseURL+"/v1", bytes.NewReader(jsonPayload))
 	flareReq.Header.Set("Content-Type", "application/json")
 
+	log.Debugf("FlareSolverr requesting: %s", req.URL.String())
+
 	resp, err := fst.client.Do(flareReq)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"type":      "flare",
-			"error":     err.Error(),
-			"flareAddr": fst.baseURL,
-		}).Error("❌ FlareSolverr request failed - is the service running?")
+		log.Errorf("FlareSolverr request failed: %v", err)
 		ScraperRateLimiterCheckErrors(req.URL.Host, err)
 		return nil, err
 	}
@@ -112,28 +111,14 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 
 	body, _ := io.ReadAll(resp.Body)
 	if err := json.Unmarshal(body, &result); err != nil {
-		log.WithFields(logrus.Fields{
-			"type":  "flare",
-			"error": err.Error(),
-		}).Error("❌ Failed to parse FlareSolverr response")
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	if result.Status != "ok" {
-		log.WithFields(logrus.Fields{
-			"type":    "flare",
-			"status":  result.Status,
-			"message": result.Message,
-		}).Error("❌ FlareSolverr API error")
-		return nil, fmt.Errorf("flare solverr error: %s (%s)", result.Status, result.Message)
+		return nil, fmt.Errorf("flaresolverr error: %s (%s)", result.Status, result.Message)
 	}
 
-	log.WithFields(logrus.Fields{
-		"type":   "flare",
-		"url":    req.URL.String(),
-		"status": result.Solution.Status,
-		"length": len(result.Solution.Response),
-	}).Info("✅ Successful FlareSolverr response")
+	log.Debugf("FlareSolverr response: %s (%d bytes)", req.URL.String(), len(result.Solution.Response))
 
 	headers := convertHeaders(result.Solution.Headers)
 	if headers.Get("Content-Type") == "" {
@@ -148,13 +133,9 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 }
 
 func (fst *flareSolverrTransport) createSession() error {
-	log.WithFields(logrus.Fields{
-		"type":      "flare",
-		"flareAddr": fst.baseURL,
-	}).Info("🆕 Creating new FlareSolverr session")
+	log.Infof("Creating FlareSolverr session at %s", fst.baseURL)
 
 	if fst.baseURL == "" {
-		log.Error("❌ FlareSolverr address is empty - cannot create session")
 		return fmt.Errorf("flaresolverr address not configured")
 	}
 
@@ -169,12 +150,7 @@ func (fst *flareSolverrTransport) createSession() error {
 
 	resp, err := fst.client.Do(req)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"type":      "flare",
-			"error":     err.Error(),
-			"flareAddr": fst.baseURL,
-		}).Error("❌ Failed to connect to FlareSolverr - is it running?")
-		return fmt.Errorf("session creation request failed: %w", err)
+		return fmt.Errorf("failed to connect to FlareSolverr: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -184,28 +160,15 @@ func (fst *flareSolverrTransport) createSession() error {
 		Session string `json:"session"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.WithFields(logrus.Fields{
-			"type":  "flare",
-			"error": err.Error(),
-		}).Error("❌ Failed to parse FlareSolverr session response")
 		return fmt.Errorf("session creation parse error: %w", err)
 	}
 
 	if result.Status != "ok" {
-		log.WithFields(logrus.Fields{
-			"type":    "flare",
-			"status":  result.Status,
-			"message": result.Message,
-		}).Error("❌ FlareSolverr session creation returned non-ok status")
 		return fmt.Errorf("session creation failed: %s (%s)", result.Status, result.Message)
 	}
 
 	fst.sessionID = result.Session
-	log.WithFields(logrus.Fields{
-		"type":    "flare",
-		"session": result.Session,
-		"status":  result.Status,
-	}).Info("✅ FlareSolverr session created successfully")
+	log.Infof("FlareSolverr session created: %s", result.Session)
 	return nil
 }
 
@@ -218,23 +181,29 @@ func convertHeaders(headers map[string]string) http.Header {
 }
 
 func createFlareSolverrCollector(domains ...string) *colly.Collector {
-	transport := newFlareSolverrTransport()
+	transport := getSharedFlareSolverrTransport()
 
-	log.Infof("✅ FlareSolverr collector initialized for domains: %v", domains)
-
-	// Check if any domain has rate limiting
-	if Limiters == nil {
-		LoadScraperRateLimits()
+	// Pre-create session so it's ready before scraping
+	transport.mu.Lock()
+	if transport.sessionID == "" {
+		transport.createSession()
 	}
+	transport.mu.Unlock()
+
+	// Expand domains to include www. variants
+	expandedDomains := make([]string, 0, len(domains)*2)
 	for _, domain := range domains {
-		if limiter := GetRateLimiter(domain); limiter != nil {
-			transport.SetLimited(true)
-			break
+		expandedDomains = append(expandedDomains, domain)
+		if !strings.HasPrefix(domain, "www.") {
+			expandedDomains = append(expandedDomains, "www."+domain)
 		}
 	}
 
+	log.Debugf("FlareSolverr collector for: %v", expandedDomains)
+
+	// Use async mode so scrapers can queue multiple visits
 	c := colly.NewCollector(
-		colly.AllowedDomains(domains...),
+		colly.AllowedDomains(expandedDomains...),
 		colly.Async(true),
 	)
 
@@ -243,15 +212,21 @@ func createFlareSolverrCollector(domains ...string) *colly.Collector {
 		Timeout:   300 * time.Second,
 	})
 
+	// FlareSolverr is inherently slow (browser-based), no need for extra delays
+	// Parallelism 1 is required since we share a single browser session
 	c.Limit(&colly.LimitRule{
 		DomainGlob:  "*",
-		Parallelism: 2,
-		Delay:       2 * time.Second,
+		Parallelism: 1,
+		Delay:       0,
 	})
 
-	// Apply the same callbacks as regular collectors
+	// Apply the same callbacks and setup as regular collectors
 	c = createCallbacks(c)
-	c = setRateLimits(c, domains...)
+
+	// Setup headers/cookies for domains
+	for _, domain := range domains {
+		SetupCollector(GetCoreDomain(domain)+"-scraper", c)
+	}
 
 	return c
 }

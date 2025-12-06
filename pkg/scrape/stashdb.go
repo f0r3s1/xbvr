@@ -141,11 +141,10 @@ fingerprints{
   submissions
 }
 duration
-  tags {
-    id
-	name
+tags {
+  id
+  name
 }
-=======
 code  
 deleted
 `

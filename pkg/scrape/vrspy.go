@@ -26,42 +26,13 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 	logScrapeStart(scraperID, siteID)
 
 	var (
-		flareWG        sync.WaitGroup
 		sceneCollector = createCollector(domain)
 		siteCollector  = createCollector(domain)
 		mu             sync.Mutex
 		processed      sync.Map
 	)
 
-	sceneCollector.OnScraped(func(r *colly.Response) {
-		log.Infof("🏁 Finished processing scene: %s", r.Request.URL)
-	})
-
-	siteCollector.OnScraped(func(r *colly.Response) {
-		log.Infof("🏁 Finished processing listing: %s", r.Request.URL)
-	})
-
-	trackRequests := func(c *colly.Collector) {
-		c.OnRequest(func(r *colly.Request) {
-			flareWG.Add(1)
-			log.Infof("🌐 Starting request: %s", r.URL)
-		})
-		c.OnResponse(func(r *colly.Response) {
-			defer flareWG.Done()
-			log.Infof("✅ Received %d bytes from %s", len(r.Body), r.Request.URL)
-		})
-		c.OnError(func(r *colly.Response, err error) {
-			defer flareWG.Done()
-			log.Errorf("❌ Error fetching %s: %v", r.Request.URL, err)
-		})
-	}
-
-	trackRequests(sceneCollector)
-	trackRequests(siteCollector)
-
 	sceneCollector.OnHTML(`html`, func(e *colly.HTMLElement) {
-		log.Infof("📄 [OnHTML-Scene] Processing scene page: %s", e.Request.URL)
-
 		sc := models.ScrapedScene{}
 		sc.ScraperID = scraperID
 		sc.SceneType = "VR"
@@ -79,19 +50,18 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		})
 
 		if sc.SiteID == "" {
-			log.Warnf("❌ Could not determine SiteID for %s", sc.HomepageURL)
 			return
 		}
 		sc.SceneID = scraperID + "-" + sc.SiteID
 
-		// Title - Use the stored title from listing page if available
+		// Title
 		if storedTitle, exists := processed.Load(e.Request.URL.String() + "_title"); exists {
 			sc.Title = storedTitle.(string)
 		} else {
 			sc.Title = strings.TrimSpace(e.ChildText(`div.video-title-container h1`))
 		}
 
-		// Cover image - Use the stored cover from listing page
+		// Cover image
 		if storedCover, exists := processed.Load(e.Request.URL.String()); exists {
 			sc.Covers = append(sc.Covers, storedCover.(string))
 		}
@@ -124,7 +94,6 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 				if tmpDate, err := goment.New(dateStr, "DD MMMM YYYY"); err == nil {
 					sc.Released = tmpDate.Format("YYYY-MM-DD")
 				}
-				log.Infof("📅 Extracted release date: %s -> %s", dateStr, sc.Released)
 			}
 
 			if strings.Contains(text, "Duration:") {
@@ -134,16 +103,12 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 					hours, errH := strconv.Atoi(strings.TrimSpace(parts[0]))
 					minutes, errM := strconv.Atoi(strings.TrimSpace(parts[1]))
 					if errH == nil && errM == nil {
-						// Convert to minutes (ignoring seconds)
 						sc.Duration = hours*60 + minutes
-						log.Infof("⏱️ Extracted duration: %s -> %d minutes", durationStr, sc.Duration)
 					}
 				} else if len(parts) == 2 {
-					// Handle MM:SS format
 					minutes, errM := strconv.Atoi(strings.TrimSpace(parts[0]))
 					if errM == nil {
 						sc.Duration = minutes
-						log.Infof("⏱️ Extracted duration: %s -> %d minutes", durationStr, sc.Duration)
 					}
 				}
 			}
@@ -152,7 +117,6 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		// Gallery
 		e.ForEach(`div.video-gallery img.thumbnail-cover`, func(id int, e *colly.HTMLElement) {
 			imgURL := e.Request.AbsoluteURL(e.Attr("src"))
-			// Remove width parameter and add webp format
 			if strings.Contains(imgURL, "?width=") {
 				baseURL := strings.Split(imgURL, "?")[0]
 				imgURL = baseURL + "?format=webp"
@@ -169,86 +133,76 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		out <- sc
 	})
 
-	// Scene discovery with thumbnail and title capture
+	// Scene discovery
 	siteCollector.OnHTML(`div.item-wrapper`, func(e *colly.HTMLElement) {
-		log.Infof("📦 [OnHTML-Listing] Found item wrapper")
+		// Find scene URL
+		var sceneURL string
+		e.ForEach("a", func(i int, el *colly.HTMLElement) {
+			href := el.Attr("href")
+			if strings.Contains(href, "/video/") && sceneURL == "" {
+				sceneURL = href
+			}
+		})
 
-		sceneURL := e.ChildAttr("div.item div.photo a.photo-preview", "href")
 		if !strings.HasPrefix(sceneURL, "/video/") {
-			log.Warnf("⚠️  Skipping invalid scene URL: %s", sceneURL)
 			return
 		}
 		sceneURL = e.Request.AbsoluteURL(sceneURL)
-		log.Infof("🎬 Found scene: %s", sceneURL)
 
-		coverImg := e.ChildAttr("div.item div.photo a.photo-preview img.cover", "src")
-		title := strings.TrimSpace(e.ChildText("div.item div.info.info--grid div.top a div.title"))
+		// Get cover and title
+		coverImg := e.ChildAttr("img.cover", "src")
+		if coverImg == "" {
+			coverImg = e.ChildAttr("img", "src")
+		}
+		title := strings.TrimSpace(e.ChildText("div.title"))
+		if title == "" {
+			title = strings.TrimSpace(e.ChildText(".title"))
+		}
 
 		mu.Lock()
 		defer mu.Unlock()
 
 		if !funk.ContainsString(knownScenes, sceneURL) {
 			if _, exists := processed.Load(sceneURL); !exists {
-				// Store both cover image and title from list page
 				processed.Store(sceneURL, coverImg)
 				processed.Store(sceneURL+"_title", title)
-				log.Infof("🎬 Found scene: %s (Cover: %s, Title: %s)", sceneURL, coverImg, title)
 				sceneCollector.Visit(sceneURL)
 			}
 		}
 	})
 
-	siteCollector.OnHTML(`#video-section`, func(e *colly.HTMLElement) {
-		// Check if we have a "no videos found" message
-		if e.ChildText(`div.data-notfound-message`) != "" {
-			return // Stop if no more videos
-		}
+	// Pagination - only if not limit scraping
+	if !limitScraping {
+		siteCollector.OnHTML(`#video-section`, func(e *colly.HTMLElement) {
+			if e.ChildText(`div.data-notfound-message`) != "" {
+				return
+			}
 
-		pageNum := 1
+			pageNum := 1
+			if page := e.Request.URL.Query().Get("page"); page != "" {
+				pageNum, _ = strconv.Atoi(page)
+			}
 
-		// Extract current page number if it exists
-		if page := e.Request.URL.Query().Get("page"); page != "" {
-			pageNum, _ = strconv.Atoi(page)
-		}
+			nextPage := fmt.Sprintf("%s/videos?sort=new&page=%d", baseURL, pageNum+1)
 
-		// Construct next page URL
-		nextPage := fmt.Sprintf("%s/videos?sort=new&page=%d", baseURL, pageNum+1)
+			mu.Lock()
+			defer mu.Unlock()
 
-		mu.Lock()
-		defer mu.Unlock()
-
-		if _, exists := processed.Load(nextPage); !exists && !limitScraping {
-			processed.Store(nextPage, true)
-			log.Infof("⏭️ Trying next page: %s", nextPage)
-			siteCollector.Visit(nextPage)
-		}
-	})
-
-	if singleSceneURL != "" {
-		processed.Store(singleSceneURL, true)
-		log.Infof("🚀 [Main] Visiting single scene: %s", singleSceneURL)
-		sceneCollector.Visit(singleSceneURL)
-		log.Infof("📍 [Main] Visit() called, now waiting...")
-	} else {
-		initialPage := baseURL + "/videos"
-		processed.Store(initialPage, true)
-		log.Infof("🚀 [Main] Visiting initial listing page: %s", initialPage)
-		siteCollector.Visit(initialPage)
-		log.Infof("📍 [Main] Visit() called, now waiting...")
+			if _, exists := processed.Load(nextPage); !exists {
+				processed.Store(nextPage, true)
+				siteCollector.Visit(nextPage)
+			}
+		})
 	}
 
-	// Proper synchronization
-	log.Infof("⏳ [Main] Waiting for siteCollector to finish...")
+	if singleSceneURL != "" {
+		sceneCollector.Visit(singleSceneURL)
+	} else {
+		siteCollector.Visit(baseURL + "/videos")
+	}
+
 	siteCollector.Wait()
-	log.Infof("⏳ [Main] siteCollector.Wait() completed")
-
-	log.Infof("⏳ [Main] Waiting for sceneCollector to finish...")
 	sceneCollector.Wait()
-	log.Infof("⏳ [Main] sceneCollector.Wait() completed")
-
-	log.Infof("⏳ [Main] Waiting for FlareSolverr requests to finish...")
-	flareWG.Wait()
-	log.Infof("✅ [Main] All collectors finished")
 
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
@@ -258,6 +212,5 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 }
 
 func init() {
-	RegisterFlareSolverrSite("vrspy.com")
 	registerScraper(scraperID, siteID, baseURL+"/favicon.ico", domain, VRSpy)
 }

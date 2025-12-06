@@ -31,7 +31,7 @@
       </div>
 
       <div class="column">
-        <div style="padding-top:2em">
+        <div class="options-content">
           <Storage v-show="active==='storage'"/>
           <Cache v-show="active==='cache'"/>
           <Previews v-show="active==='previews'"/>
@@ -71,12 +71,23 @@ export default {
   components: { Storage, SceneDataScrapers, SceneCreate, Funscripts, SceneDataImportExport, InterfaceWeb, InterfaceDLNA, InterfaceDeoVR, Cache, Previews, Schedules, InterfaceAdvanced,SceneMatchParams },
   data: function () {
     return {
-      active: 'storage'
+      active: this.$route.query.tab || localStorage.getItem('optionsActiveTab') || 'storage'
     }
   },
   methods: {
     setActive: function (e) {
       this.active = e
+      localStorage.setItem('optionsActiveTab', e)
+      // Update URL without navigation
+      if (this.$route.query.tab !== e) {
+        this.$router.replace({ query: { ...this.$route.query, tab: e } }).catch(() => {})
+      }
+    }
+  },
+  mounted () {
+    // Restore tab from URL query if present
+    if (this.$route.query.tab) {
+      this.active = this.$route.query.tab
     }
   },
   computed: {
@@ -98,3 +109,9 @@ export default {
   },
 }
 </script>
+
+<style scoped>
+.options-content {
+  padding-top: 0.5rem;
+}
+</style>

@@ -1,106 +1,155 @@
 <template>
-  <div class="content">
+  <div class="container">
     <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
-    <div class="columns">
-      <div class="column">
-        <h3 class="title">{{$t('Scrape scenes from studios')}}</h3>
+    <div class="content">
+      <!-- Header -->
+      <div class="scraper-header">
+        <h3>{{$t('Scrape scenes from studios')}}</h3>
+        <div class="header-right">
+          <b-button type="is-primary" icon-left="play" @click="taskScrape('_enabled')">
+            {{$t('Run selected scrapers')}}
+          </b-button>
+        </div>
       </div>
-      <div class="column buttons" align="right">
-        <a class="button is-primary" v-on:click="taskScrape('_enabled')">{{$t('Run selected scrapers')}}</a>
-      </div>
-    </div>
-    <b-table :data="scraperList" ref="scraperTable">
-      <b-table-column field="is_enabled" :label="$t('Enabled')" v-slot="props" width="60" sortable>
-          <span><b-switch v-model ="props.row.is_enabled" @input="$store.dispatch('optionsSites/toggleSite', {id: props.row.id})"/></span>
+      <hr/>
+    
+    <!-- Table -->
+    <b-table :data="scraperList" ref="scraperTable" class="scrapers-table" :mobile-cards="true">
+      <!-- Enable Toggle -->
+      <b-table-column field="is_enabled" :label="$t('On')" v-slot="props" width="50" sortable>
+        <b-switch v-model="props.row.is_enabled" @input="$store.dispatch('optionsSites/toggleSite', {id: props.row.id})" size="is-small"/>
       </b-table-column>
-      <b-table-column field="icon" width="50" v-slot="props" cell-class="narrow">
-            <span class="image is-32x32">
-              <vue-load-image>
-                <img slot="image" :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/>
-                <img slot="preloader" src="/ui/images/blank.png"/>
-                <img slot="error" src="/ui/images/blank.png"/>
-              </vue-load-image>
-            </span>
-      </b-table-column>
+      
+      <!-- Studio Info (Icon + Name combined for mobile) -->
       <b-table-column field="sitename" :label="$t('Studio')" sortable searchable v-slot="props">
-        <b-tooltip class="is-warning" :active="props.row.has_scraper == false" :label="$t('Scraper does not exist')"  :delay="250" >
-          <a @click="navigateToStudio(props.row.sitename)" :class="[props.row.has_scraper ? 'has-text-link' : 'has-text-danger']" style="cursor: pointer;">{{ props.row.sitename }}</a>
-        </b-tooltip>
-      </b-table-column>
-      <b-table-column field="source" :label="$t('Source')" sortable searchable v-slot="props">
-        {{ props.row.source }}
-      </b-table-column>
-      <b-table-column field="last_update" :label="$t('Last scrape')" sortable v-slot="props">
-            <span :class="[runningScrapers.includes(props.row.id) ? 'invisible' : '']">
-              <span v-if="props.row.last_update !== '0001-01-01T00:00:00Z'">
-                {{formatDistanceToNow(parseISO(props.row.last_update))}} ago</span>
-              <span v-else>{{$t('Never scraped')}}</span>
-            </span>
-            <span :class="[runningScrapers.includes(props.row.id) ? '' : 'invisible']">
-              <span class="pulsate is-info">{{$t('Scraping now...')}}</span>
-            </span>
-      </b-table-column>
-      <b-table-column field="limit_scraping" :label="$t('Limit Scraping')" v-slot="props" width="60" sortable>
-        <b-tooltip class="is-info" :label="$t('Limit scraping to newest scenes on the website. Turn off if you are missing scenes.')" :delay="250" >
-          <span><b-switch v-model ="props.row.limit_scraping" @input="$store.dispatch('optionsSites/toggleLimitScraping', {id: props.row.id})"/></span>
-        </b-tooltip>
-      </b-table-column>
-      <b-table-column field="subscribed" :label="$t('Subscribed')" v-slot="props" width="60" sortable>
-        <b-tooltip class="is-info" :label="$t('Highlights this studio in the scene view and includes scenes in the &quot;Has subscription&quot; attribute filter')" :delay="250" >
-          <span v-if="props.row.master_site_id==''"><b-switch v-model ="props.row.subscribed" @input="$store.dispatch('optionsSites/toggleSubscribed', {id: props.row.id})"/></span>
-        </b-tooltip>
-      </b-table-column>
-      <b-table-column field="scrape_stash" :label="$t('Scrape Stash')" v-slot="props" width="60" sortable>
-        <b-tooltip class="is-info" :label="$t('Enables scraping Stashdb for Actors')" :delay="250" >
-          <span v-if="props.row.master_site_id==''"><b-switch v-model ="props.row.scrape_stash" @input="$store.dispatch('optionsSites/toggleScrapeStash', {id: props.row.id})"/></span>
-        </b-tooltip>
-      </b-table-column>
-      <b-table-column field="options" v-slot="props" width="30">
-        <div class="menu">
-          <b-dropdown aria-role="list" class="is-pulled-right" position="is-bottom-left">
-            <template slot="trigger">
-              <b-icon icon="dots-vertical mdi-18px"></b-icon>
-            </template>
-            <b-dropdown-item v-if="props.row.has_scraper" aria-role="listitem" @click="taskScrape(props.row.id)">
-              {{$t('Run this scraper')}}
-            </b-dropdown-item>
-            <b-dropdown-item v-if="props.row.has_scraper && props.row.id != 'baberoticavr'" aria-role="listitem" @click="taskScrapeScene(props.row.id)">
-              {{$t('Scrape Single Scene')}}
-            </b-dropdown-item>
-            <b-dropdown-item v-if="props.row.has_scraper && props.row.master_site_id==''" aria-role="listitem" @click="forceSiteUpdate(props.row.name, props.row.id)">
-              {{$t('Force update scenes')}}
-            </b-dropdown-item>
-            <b-dropdown-item v-if="props.row.has_scraper && props.row.master_site_id!=''" aria-role="listitem" @click="removeSceneLinks(props.row, true)">
-              {{$t('Remove Scene Links')}}
-            </b-dropdown-item>
-            <b-dropdown-item v-if="props.row.has_scraper && props.row.master_site_id!=''" aria-role="listitem" @click="removeSceneLinks(props.row, false)">
-              {{$t('Remove Scene Links (Keep edits)')}}
-            </b-dropdown-item>
-            <b-dropdown-item aria-role="listitem" @click="deleteScenes(props.row)">
-              {{$t('Delete scraped scenes')}}
-            </b-dropdown-item>
-            <b-dropdown-item aria-role="listitem" @click="scrapeActors(props.row.name, props.row.id)" v-if="props.row.master_site_id==''">
-              {{$t('Scrape Actor Details from Site')}}
-            </b-dropdown-item>
-          </b-dropdown>
+        <div class="studio-cell">
+          <span class="studio-icon image is-24x24">
+            <vue-load-image>
+              <img slot="image" :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/>
+              <img slot="preloader" src="/ui/images/blank.png"/>
+              <img slot="error" src="/ui/images/blank.png"/>
+            </vue-load-image>
+          </span>
+          <span class="studio-info">
+            <b-tooltip class="is-warning" :active="props.row.has_scraper == false" :label="$t('Scraper does not exist')" :delay="250">
+              <a @click="navigateToStudio(props.row.sitename)" :class="[props.row.has_scraper ? 'has-text-link' : 'has-text-danger']">
+                {{ props.row.sitename }}
+              </a>
+            </b-tooltip>
+            <span class="source-tag" v-if="props.row.master_site_id">{{ getMasterSiteNameShort(props.row.master_site_id) }}</span>
+          </span>
         </div>
       </b-table-column>
-      <b-table-column field="master_site_id" :label="$t('Main Site')" v-slot="props" width="60" sortable>
-        <span>
-          <a @click="editMatchParams(props.row)" title="Edit Scene Matching Parameters" v-if="props.row.master_site_id != ''"> 
-            <b-icon pack="mdi" icon="cog-outline" size="is-small"/>
-          </a>
-          {{getMasterSiteName(props.row.master_site_id)}}
+      
+      <!-- Last Scrape -->
+      <b-table-column field="last_update" :label="$t('Last scrape')" sortable v-slot="props">
+        <span v-if="!runningScrapers.includes(props.row.id)">
+          <span v-if="props.row.last_update !== '0001-01-01T00:00:00Z'" class="last-scrape">
+            {{formatDistanceToNow(parseISO(props.row.last_update))}}
+          </span>
+          <span v-else class="never-scraped">{{$t('Never')}}</span>
         </span>
+        <span v-else class="pulsate is-info">{{$t('Running...')}}</span>
+      </b-table-column>
+      
+      <!-- Settings (consolidated toggles) -->
+      <b-table-column field="settings" :label="$t('Settings')" v-slot="props" width="200">
+        <div class="settings-badges">
+          <!-- Limit scraping - all sites -->
+          <b-tooltip :label="$t('Limit to newest scenes')" :delay="250">
+            <span class="setting-badge" :class="{ 'is-active': props.row.limit_scraping }" 
+                  @click="$store.dispatch('optionsSites/toggleLimitScraping', {id: props.row.id})">
+              <b-icon icon="filter" size="is-small"/>
+            </span>
+          </b-tooltip>
+          <!-- Main sites only: subscribed, stash, flaresolverr -->
+          <template v-if="props.row.master_site_id==''">
+            <b-tooltip :label="$t('Subscribed')" :delay="250">
+              <span class="setting-badge" :class="{ 'is-active': props.row.subscribed }" 
+                    @click="$store.dispatch('optionsSites/toggleSubscribed', {id: props.row.id})">
+                <b-icon icon="star" size="is-small"/>
+              </span>
+            </b-tooltip>
+            <b-tooltip :label="$t('Scrape Stashdb')" :delay="250">
+              <span class="setting-badge" :class="{ 'is-active': props.row.scrape_stash }" 
+                    @click="$store.dispatch('optionsSites/toggleScrapeStash', {id: props.row.id})">
+                <b-icon icon="database" size="is-small"/>
+              </span>
+            </b-tooltip>
+            <b-tooltip :label="$t('Use FlareSolverr')" :delay="250">
+              <span class="setting-badge flare-badge" :class="{ 'is-active': props.row.use_flaresolverr }" 
+                    @click="$store.dispatch('optionsSites/toggleUseFlareSolverr', {id: props.row.id})">
+                <b-icon icon="fire" size="is-small"/>
+              </span>
+            </b-tooltip>
+          </template>
+          <!-- Alternate sites: link to master + edit params -->
+          <template v-else>
+            <b-tooltip :label="$t('Use FlareSolverr')" :delay="250">
+              <span class="setting-badge flare-badge" :class="{ 'is-active': props.row.use_flaresolverr }" 
+                    @click="$store.dispatch('optionsSites/toggleUseFlareSolverr', {id: props.row.id})">
+                <b-icon icon="fire" size="is-small"/>
+              </span>
+            </b-tooltip>
+            <b-tooltip :label="$t('Edit Matching Parameters')" :delay="250">
+              <span class="setting-badge" @click="editMatchParams(props.row)">
+                <b-icon icon="cog" size="is-small"/>
+              </span>
+            </b-tooltip>
+          </template>
+          <!-- Matching params for main sites that have them -->
+          <b-tooltip :label="$t('Matching Parameters')" :delay="250" v-if="props.row.master_site_id=='' && props.row.matching_params">
+            <span class="setting-badge" @click="editMatchParams(props.row)">
+              <b-icon icon="cog" size="is-small"/>
+            </span>
+          </b-tooltip>
+        </div>
+      </b-table-column>
+      
+      <!-- Actions Menu -->
+      <b-table-column field="options" v-slot="props" width="40">
+        <b-dropdown aria-role="list" position="is-bottom-left">
+          <template #trigger>
+            <b-button icon-right="dots-vertical" size="is-small" type="is-text"/>
+          </template>
+          <b-dropdown-item v-if="props.row.has_scraper" aria-role="listitem" @click="taskScrape(props.row.id)">
+            <b-icon icon="play" size="is-small"/> {{$t('Run scraper')}}
+          </b-dropdown-item>
+          <b-dropdown-item v-if="props.row.has_scraper" aria-role="listitem" @click="taskScrapeQuick(props.row.id)">
+            <b-icon icon="lightning-bolt" size="is-small"/> {{$t('Quick scrape (first page)')}}
+          </b-dropdown-item>
+          <b-dropdown-item v-if="props.row.has_scraper && props.row.id != 'baberoticavr'" aria-role="listitem" @click="taskScrapeScene(props.row.id)">
+            <b-icon icon="file-document-outline" size="is-small"/> {{$t('Single scene')}}
+          </b-dropdown-item>
+          <hr class="dropdown-divider" v-if="props.row.has_scraper">
+          <b-dropdown-item v-if="props.row.has_scraper && props.row.master_site_id==''" aria-role="listitem" @click="forceSiteUpdate(props.row.name, props.row.id)">
+            <b-icon icon="refresh" size="is-small"/> {{$t('Force update')}}
+          </b-dropdown-item>
+          <b-dropdown-item v-if="props.row.has_scraper && props.row.master_site_id!=''" aria-role="listitem" @click="removeSceneLinks(props.row, true)">
+            <b-icon icon="link-off" size="is-small"/> {{$t('Remove links')}}
+          </b-dropdown-item>
+          <b-dropdown-item v-if="props.row.has_scraper && props.row.master_site_id!=''" aria-role="listitem" @click="removeSceneLinks(props.row, false)">
+            <b-icon icon="link-variant-remove" size="is-small"/> {{$t('Remove links (keep edits)')}}
+          </b-dropdown-item>
+          <b-dropdown-item aria-role="listitem" @click="deleteScenes(props.row)" class="has-text-danger">
+            <b-icon icon="delete" size="is-small"/> {{$t('Delete scenes')}}
+          </b-dropdown-item>
+          <hr class="dropdown-divider" v-if="props.row.master_site_id==''">
+          <b-dropdown-item aria-role="listitem" @click="scrapeActors(props.row.name, props.row.id)" v-if="props.row.master_site_id==''">
+            <b-icon icon="account-search" size="is-small"/> {{$t('Scrape actors')}}
+          </b-dropdown-item>
+        </b-dropdown>
       </b-table-column>
     </b-table>
-    <div class="columns">
-      <div class="column">
-      </div>
-        <div class="column buttons" align="right">
-          <a class="button is-small" v-on:click="toggleAllLimitScraping()">{{$t('Toggle Limit Scraping of all visible sites')}}</a>
-          <a class="button is-small" v-on:click="toggleAllSubscriptions()">{{$t('Toggle Subscriptions of all visible sites')}}</a>
-        </div>
+    
+    <!-- Footer Actions -->
+    <div class="footer-actions">
+      <b-button size="is-small" @click="toggleAllLimitScraping()" icon-left="filter">
+        {{$t('Toggle Limit All')}}
+      </b-button>
+      <b-button size="is-small" @click="toggleAllSubscriptions()" icon-left="star">
+        {{$t('Toggle Subscribe All')}}
+      </b-button>
     </div>
 
     <b-modal :active.sync="isSingleScrapeModalActive"
@@ -134,6 +183,7 @@
       </div>
     </b-modal>
 
+    </div>
   </div>
 
 </template>
@@ -173,6 +223,9 @@ export default {
     },
     taskScrape (scraper) {
       ky.get(`/api/task/scrape?site=${scraper}`)
+    },
+    taskScrapeQuick (scraper) {
+      ky.get(`/api/task/scrape?site=${scraper}&quick=true`)
     },
     taskScrapeScene (scraper) {
       this.currentScraper=scraper      
@@ -334,7 +387,18 @@ export default {
       if (siteId=="") {
         return ""
       }
-      return  this.scraperList.find(element => element.id === siteId).name;
+      const site = this.scraperList.find(element => element.id === siteId);
+      return site ? site.name : siteId;
+    },
+    getMasterSiteNameShort(siteId){
+      if (siteId=="") {
+        return ""
+      }
+      const site = this.scraperList.find(element => element.id === siteId);
+      if (!site) return siteId;
+      // Return shortened name (first word or first 15 chars)
+      const name = site.sitename || site.name;
+      return name.length > 15 ? name.substring(0, 15) + '...' : name;
     },
     navigateToStudio(studioName) {
       // Set the site filter and navigate to scenes page
@@ -377,58 +441,184 @@ export default {
 </script>
 
 <style scoped>
+  .scraper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .scraper-header h3 {
+    margin-bottom: 0;
+  }
+
+  .scrapers-table {
+    font-size: 0.95rem;
+  }
+
+  .studio-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .studio-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  .studio-icon img {
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+  }
+
+  .studio-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .source-tag {
+    font-size: 0.7rem;
+    color: #888;
+    background: #f0f0f0;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .last-scrape {
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .never-scraped {
+    font-size: 0.85rem;
+    color: #999;
+    font-style: italic;
+  }
+
+  .settings-badges {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .setting-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    background: #f0f0f0;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .setting-badge:hover {
+    background: #e0e0e0;
+    color: #666;
+  }
+
+  .setting-badge.is-active {
+    background: #3273dc;
+    color: white;
+  }
+
+  .setting-badge.flare-badge.is-active {
+    background: #ff6b35;
+    color: white;
+  }
+
+  .setting-badge.flare-badge:hover {
+    background: #ff8c5a;
+  }
+
+  .setting-badge.is-active:hover {
+    background: #2366d1;
+  }
+
+  .linked-site {
+    font-size: 0.85rem;
+  }
+
+  .linked-site a {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #666;
+  }
+
+  .linked-site a:hover {
+    color: #3273dc;
+  }
+
+  .footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+  }
+
   .running {
     opacity: 0.6;
     pointer-events: none;
   }
 
-  .card {
-    overflow: visible;
-    height: 100%;
-  }
-
-  .card-content {
-    padding-top: 1em;
-    padding-left: 1em;
-  }
-
-  .avatar {
-    margin-right: 1em;
-  }
-
-  p {
-    margin-bottom: 0.5em !important;
-  }
-
-  h5 {
-    margin-bottom: 0.25em !important;
-  }
-
-  .invisible {
-    display: none;
-  }
   .pulsate {
-    -webkit-animation: pulsate 0.8s linear;
-    -webkit-animation-iteration-count: infinite;
-    opacity: 0.5;
+    animation: pulsate 0.8s linear infinite;
+    color: #3273dc;
+    font-weight: 500;
   }
 
-  @-webkit-keyframes pulsate {
-    0% {
-      opacity: 0.5;
+  @keyframes pulsate {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1.0; }
+  }
+
+  /* Responsive adjustments */
+  @media screen and (max-width: 768px) {
+    .scraper-header {
+      flex-direction: column;
+      align-items: stretch;
     }
-    50% {
-      opacity: 1.0;
+
+    .header-right {
+      display: flex;
+      justify-content: center;
     }
-    100% {
-      opacity: 0.5;
+
+    .settings-badges {
+      flex-wrap: wrap;
+    }
+
+    .footer-actions {
+      flex-direction: column;
+    }
+
+    .footer-actions .button {
+      width: 100%;
     }
   }
 </style>
 
 <style>
-  .content table td.narrow{
-    padding-top: 5px;
-    padding-bottom: 2px;
+  .scrapers-table .table td {
+    vertical-align: middle;
+  }
+
+  .scrapers-table .b-table .table-wrapper {
+    overflow-x: auto;
   }
 </style>

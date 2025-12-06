@@ -154,7 +154,9 @@ const actions = {
     state.filterOpts = await ky.get('/api/scene/filters', {timeout: 300000}).json()
 
     // Reverse list of release months for display purposes
-    state.filterOpts.release_month = state.filterOpts.release_month.reverse()
+    if (state.filterOpts.release_month) {
+      state.filterOpts.release_month = state.filterOpts.release_month.reverse()
+    }
   },
   async load ({ state, getters, commit }, params) {
     const iOffset = params.offset || 0

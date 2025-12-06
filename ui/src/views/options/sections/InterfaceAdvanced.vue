@@ -11,7 +11,6 @@
             <b-tab-item :label="$t('Alternate Sites')"/>
             <b-tab-item :label="$t('Proxy')"/>
             <b-tab-item :label="$t('Cookies/Headers')"/>
-            <b-tab-item :label="$t('Scraping Settings')"/>
       </b-tabs>
 
       <!-- Screen Details Tab -->
@@ -174,6 +173,22 @@
             <b-field :label="$t('Proxy')" label-position="on-border">
               <b-input v-model="scraperProxy" :placeholder="$t('Optional: http proxy')"></b-input>
             </b-field>
+
+            <hr/>
+
+            <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
+              <b-input 
+                v-model="flareSolverrAddress" 
+                placeholder="http://localhost:8191" 
+                type="text">
+              </b-input>
+            </b-field>
+            <b-message type="is-info" size="is-small">
+              <p><strong>FlareSolverr</strong> helps bypass Cloudflare protection.</p>
+              <p>Set the address here, then enable per-site in the <strong>Scrapers</strong> page using the <b-icon icon="fire" size="is-small"/> toggle.</p>
+              <p><a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a></p>
+            </b-message>
+
             <b-field>
               <b-button type="is-primary" @click="save">Save</b-button>
             </b-field>
@@ -265,31 +280,7 @@
         </div>
       </div>
 
-      <div class="columns" v-if="activeTab == 6">
-        <div class="column">
-          <section>
-            <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
-              <b-input 
-                v-model="flareSolverrAddress" 
-                placeholder="http://localhost:8191" 
-                type="text" 
-                :disabled="!useFlareSolverr">
-              </b-input>
-            </b-field>
-            <b-field>
-              <b-tooltip :label="$t('Use FlareSolverr to bypass scraping protection on supported sites')" :delay="500" type="is-warning">
-                <b-switch v-model="useFlareSolverr" type="is-default">
-                  {{ $t('Enable FlareSolverr for Scraping') }} <a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a>
-                </b-switch>
-              </b-tooltip>
-            </b-field>
 
-            <b-field>
-              <b-button type="is-primary" @click="save">Save</b-button>
-            </b-field>
-          </section>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -638,5 +629,9 @@ export default {
 </script>
 
 <style scoped>
-
+section > .field,
+section > .b-tooltip,
+section > hr {
+  margin-bottom: 0.75rem;
+}
 </style>

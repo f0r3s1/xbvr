@@ -245,5 +245,17 @@
   "Scraping Settings": "Scraping Settings",
   "FlareSolverr Address": "FlareSolverr Address",
   "Enable FlareSolverr for Scraping": "Enable FlareSolverr for Scraping",
-  "Use FlareSolverr to bypass scraping protection on supported sites": "Use FlareSolverr to bypass scraping protection on supported sites"
+  "Use FlareSolverr to bypass scraping protection on supported sites": "Use FlareSolverr to bypass scraping protection on supported sites",
+  "Never": "Never",
+  "Limit to newest scenes": "Limit to newest scenes",
+  "Scrape Stashdb": "Scrape Stashdb",
+  "Use FlareSolverr": "Use FlareSolverr",
+  "Run scraper": "Run scraper",
+  "Quick scrape (first page)": "Quick scrape (first page)",
+  "Single scene": "Single scene",
+  "Force update": "Force update",
+  "Delete scenes": "Delete scenes",
+  "Scrape actors": "Scrape actors",
+  "Toggle Limit All": "Toggle Limit All",
+  "Toggle Subscribe All": "Toggle Subscribe All"
 }
