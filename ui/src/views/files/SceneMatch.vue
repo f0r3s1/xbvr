@@ -8,7 +8,7 @@
       @keydown.o="prevFile"
       @keydown.p="nextFile"
     />
-    <div class="modal-background"></div>
+    <div class="modal-background" @click="close"></div>
     <div class="modal-card">
       <header class="modal-card-head">
         <p class="modal-card-title">{{ $t("Match file to scene") }}</p>

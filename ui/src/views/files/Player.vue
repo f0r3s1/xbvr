@@ -1,6 +1,6 @@
 <template>
   <div class="modal is-active">
-    <div class="modal-background"></div>
+    <div class="modal-background" @click="close"></div>
     <div class="modal-content">
       <video ref="player"
              width="640" height="640" class="video-js vjs-default-skin"
