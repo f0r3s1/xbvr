@@ -14,7 +14,7 @@
       @keydown.48="setRating(0)"
     />
 
-    <div class="modal-background"></div>
+    <div class="modal-background" @click="close"></div>
 
     <div class="modal-card">
       <section class="modal-card-body">

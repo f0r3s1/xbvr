@@ -1,6 +1,6 @@
 <template>
   <div class="modal is-active">
-    <div class="modal-background"></div>
+    <div class="modal-background" @click="close"></div>
     <div class="modal-card">
       <header class="modal-card-head">
         <p class="modal-card-title">{{ $t("Create Custom Scene") }}</p>

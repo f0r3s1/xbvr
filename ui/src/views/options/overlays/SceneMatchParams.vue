@@ -4,7 +4,7 @@
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
       @keyup.esc="close"
     />
-    <div class="modal-background"></div>
+    <div class="modal-background" @click="close"></div>
     <div class="modal-card" v-if="site != null">
       <header class="modal-card-head">
         <p class="modal-card-title">{{ $t("Matching parameters")}}: {{ site.name }}</p>        

@@ -5,7 +5,7 @@
       @keyup.esc="close"
       @keyup.s="save"/>
 
-    <div class="modal-background"></div>
+    <div class="modal-background" @click="close"></div>
 
     <div class="modal-card">
       <header class="modal-card-head">
