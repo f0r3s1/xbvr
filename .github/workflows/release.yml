@@ -41,10 +41,15 @@ jobs:
         run: |
           IMAGE_NAME=ghcr.io/${{ github.repository }}
           TAG=${{ github.ref_name }}
+          COMMIT=${{ github.sha }}
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           
           docker buildx build \
             --push \
             --platform linux/amd64 \
+            --build-arg VERSION=${TAG} \
+            --build-arg COMMIT=${COMMIT:0:7} \
+            --build-arg DATE=${DATE} \
             --tag ${IMAGE_NAME}:${TAG} \
             --tag ${IMAGE_NAME}:latest \
             .

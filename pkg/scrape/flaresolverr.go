@@ -113,12 +113,18 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
+	// Clear body slice to allow GC
+	body = nil
 
 	if result.Status != "ok" {
 		return nil, fmt.Errorf("flaresolverr error: %s (%s)", result.Status, result.Message)
 	}
 
-	log.Debugf("FlareSolverr response: %s (%d bytes)", req.URL.String(), len(result.Solution.Response))
+	responseBytes := []byte(result.Solution.Response)
+	// Clear the string from result to allow GC
+	result.Solution.Response = ""
+
+	log.Debugf("FlareSolverr response: %s (%d bytes)", req.URL.String(), len(responseBytes))
 
 	headers := convertHeaders(result.Solution.Headers)
 	if headers.Get("Content-Type") == "" {
@@ -128,7 +134,7 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 	return &http.Response{
 		StatusCode: result.Solution.Status,
 		Header:     headers,
-		Body:       io.NopCloser(bytes.NewReader([]byte(result.Solution.Response))),
+		Body:       io.NopCloser(bytes.NewReader(responseBytes)),
 	}, nil
 }
 
@@ -201,10 +207,9 @@ func createFlareSolverrCollector(domains ...string) *colly.Collector {
 
 	log.Debugf("FlareSolverr collector for: %v", expandedDomains)
 
-	// Use async mode so scrapers can queue multiple visits
+	// Don't use async mode - FlareSolverr is sequential anyway and async causes memory buildup
 	c := colly.NewCollector(
 		colly.AllowedDomains(expandedDomains...),
-		colly.Async(true),
 	)
 
 	c.SetClient(&http.Client{
@@ -212,7 +217,7 @@ func createFlareSolverrCollector(domains ...string) *colly.Collector {
 		Timeout:   300 * time.Second,
 	})
 
-	// FlareSolverr is inherently slow (browser-based), no need for extra delays
+	// FlareSolverr is inherently slow (browser-based), sequential processing
 	// Parallelism 1 is required since we share a single browser session
 	c.Limit(&colly.LimitRule{
 		DomainGlob:  "*",
@@ -229,4 +234,74 @@ func createFlareSolverrCollector(domains ...string) *colly.Collector {
 	}
 
 	return c
+}
+
+// FlareSolverrGet performs an HTTP GET request through FlareSolverr
+// This is useful for API-based scrapers that use resty instead of colly
+func FlareSolverrGet(url string) (string, error) {
+	transport := getSharedFlareSolverrTransport()
+
+	// Ensure session is created
+	transport.mu.Lock()
+	if transport.sessionID == "" {
+		if err := transport.createSession(); err != nil {
+			transport.mu.Unlock()
+			return "", fmt.Errorf("session creation failed: %w", err)
+		}
+	}
+	sessionID := transport.sessionID
+	transport.mu.Unlock()
+
+	// Random delay 100-300ms
+	delay := time.Duration(100+rand.Intn(200)) * time.Millisecond
+	time.Sleep(delay)
+
+	log.Infof("FlareSolverr GET: %s", url)
+
+	if transport.baseURL == "" {
+		return "", fmt.Errorf("flaresolverr address not configured")
+	}
+
+	payload := map[string]interface{}{
+		"cmd":        "request.get",
+		"url":        url,
+		"session":    sessionID,
+		"maxTimeout": 120000,
+	}
+
+	jsonPayload, _ := json.Marshal(payload)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "POST", transport.baseURL+"/v1", bytes.NewReader(jsonPayload))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := transport.client.Do(req)
+	if err != nil {
+		log.Errorf("FlareSolverr request failed: %v", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Status   string `json:"status"`
+		Message  string `json:"message"`
+		Solution struct {
+			Response string `json:"response"`
+			Status   int    `json:"status"`
+		} `json:"solution"`
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if result.Status != "ok" {
+		return "", fmt.Errorf("flaresolverr error: %s (%s)", result.Status, result.Message)
+	}
+
+	log.Debugf("FlareSolverr GET response: %s (%d bytes)", url, len(result.Solution.Response))
+	return result.Solution.Response, nil
 }
