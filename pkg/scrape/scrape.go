@@ -22,28 +22,60 @@ var log = &common.Log
 
 var UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
 
-// FlareSolverrEnabled sites registry
-var flareSolverrSites = make(map[string]bool)
+// DomainToSiteID maps domain to site ID for FlareSolverr lookup
+var DomainToSiteID = make(map[string]string)
 
-func RegisterFlareSolverrSite(domain string) {
-	flareSolverrSites[domain] = true
+// RegisterDomainSiteMapping maps a domain to a site ID
+func RegisterDomainSiteMapping(domain string, siteID string) {
+	DomainToSiteID[domain] = siteID
 }
 
+// IsFlareSolverrEnabled checks if FlareSolverr is enabled for a domain
 func IsFlareSolverrEnabled(domain string) bool {
-	return config.Config.Advanced.UseFlareSolverr && flareSolverrSites[domain] && config.Config.Advanced.FlareSolverrAddress != ""
+	// Check if FlareSolverr address is configured
+	if config.Config.Advanced.FlareSolverrAddress == "" {
+		return false
+	}
+	// Get site ID from domain mapping
+	siteID, exists := DomainToSiteID[domain]
+	if !exists {
+		return false
+	}
+	// Check per-site setting in database
+	db, _ := models.GetDB()
+	defer db.Close()
+	var site models.Site
+	if err := db.Where("id = ?", siteID).First(&site).Error; err != nil {
+		return false
+	}
+	return site.UseFlareSolverr
 }
 
 func createCollector(domains ...string) *colly.Collector {
-	// Check if any domain is FlareSolverr enabled
+	// Check if any domain has FlareSolverr enabled
 	for _, domain := range domains {
 		if IsFlareSolverrEnabled(domain) {
-			log.Infof("🔥 Using FlareSolverr for domain: %s (Address: %s)", domain, config.Config.Advanced.FlareSolverrAddress)
+			log.Debugf("Using FlareSolverr for domain: %s", domain)
 			return createFlareSolverrCollector(domains...)
 		}
 	}
 
+	return createBasicCollector(domains...)
+}
+
+// createBasicCollector creates a collector without FlareSolverr (for API-based scrapers)
+func createBasicCollector(domains ...string) *colly.Collector {
+	// Expand domains to include www. variants
+	expandedDomains := make([]string, 0, len(domains)*2)
+	for _, domain := range domains {
+		expandedDomains = append(expandedDomains, domain)
+		if !strings.HasPrefix(domain, "www.") {
+			expandedDomains = append(expandedDomains, "www."+domain)
+		}
+	}
+
 	c := colly.NewCollector(
-		colly.AllowedDomains(domains...),
+		colly.AllowedDomains(expandedDomains...),
 		colly.CacheDir(getScrapeCacheDir()),
 		colly.UserAgent(UserAgent),
 	)
@@ -105,6 +137,10 @@ func createCallbacks(c *colly.Collector) *colly.Collector {
 		log.Infoln("visiting", r.URL.String())
 	})
 
+	c.OnResponse(func(r *colly.Response) {
+		log.Debugf("Response from %s: %d bytes, status %d", r.Request.URL, len(r.Body), r.StatusCode)
+	})
+
 	c.OnError(func(r *colly.Response, err error) {
 		attempt := r.Ctx.GetAny("attempt").(int)
 
@@ -134,11 +170,19 @@ func getScrapeCacheDir() string {
 
 func registerScraper(id string, name string, avatarURL string, domain string, f models.ScraperFunc) {
 	models.RegisterScraper(id, name, avatarURL, domain, f, "")
+	// Register domain to site ID mapping for FlareSolverr lookup
+	if domain != "" {
+		RegisterDomainSiteMapping(domain, id)
+	}
 }
 
 func registerAlternateScraper(id string, name string, avatarURL string, domain string, masterSiteId string, f models.ScraperFunc) {
 	// alternate scrapers are to scrape scenes available at other sites to match against a scenes from the studio's site, eg scrape VRHush scenes from SLR and match to scenes from VRHush
 	models.RegisterScraper(id, name, avatarURL, domain, f, masterSiteId)
+	// Register domain to site ID mapping for FlareSolverr lookup
+	if domain != "" {
+		RegisterDomainSiteMapping(domain, id)
+	}
 }
 
 func logScrapeStart(id string, name string) {

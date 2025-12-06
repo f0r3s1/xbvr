@@ -103,7 +103,7 @@ func CleanTags() {
 	CountTags()
 }
 
-func runScrapers(knownScenes []string, toScrape string, updateSite bool, collectedScenes chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string) error {
+func runScrapers(knownScenes []string, toScrape string, updateSite bool, collectedScenes chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string, forceLimit bool) error {
 	defer scrape.DeleteScrapeCache()
 
 	scrapers := models.GetScrapers()
@@ -130,7 +130,8 @@ func runScrapers(knownScenes []string, toScrape string, updateSite bool, collect
 				if site.ID == scraper.ID {
 					wg.Add(1)
 					go func(scraper models.Scraper) {
-						scraper.Scrape(&wg, updateSite, knownScenes, collectedScenes, singleSceneURL, singeScrapeAdditionalInfo, site.LimitScraping)
+						limitScraping := site.LimitScraping || forceLimit
+						scraper.Scrape(&wg, updateSite, knownScenes, collectedScenes, singleSceneURL, singeScrapeAdditionalInfo, limitScraping)
 						var site models.Site
 						err := site.GetIfExist(scraper.ID)
 						if err != nil {
@@ -286,7 +287,7 @@ func ReapplyEdits() {
 
 func ScrapeSingleScene(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo string) models.Scene {
 	var newScene models.Scene
-	Scrape(toScrape, singleSceneURL, singeScrapeAdditionalInfo)
+	Scrape(toScrape, singleSceneURL, singeScrapeAdditionalInfo, false)
 	commonDb, _ := models.GetCommonDB()
 	commonDb.
 		Preload("Tags").
@@ -301,7 +302,7 @@ func ScrapeSingleScene(toScrape string, singleSceneURL string, singeScrapeAdditi
 	return models.Scene{}
 
 }
-func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo string) {
+func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo string, forceLimit bool) {
 	if !models.CheckLock("scrape") {
 		models.CreateLock("scrape")
 		defer models.RemoveLock("scrape")
@@ -337,7 +338,7 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 		go sceneDBWriter(&wg, &sceneCount, collectedScenes, &processedScenes, &processedScenesLock)
 
 		// Start scraping
-		if e := runScrapers(knownScenes, toScrape, true, collectedScenes, singleSceneURL, singeScrapeAdditionalInfo); e != nil {
+		if e := runScrapers(knownScenes, toScrape, true, collectedScenes, singleSceneURL, singeScrapeAdditionalInfo, forceLimit); e != nil {
 			tlog.Info(e)
 		} else {
 			// Notify DB Writer threads that there are no more scenes
@@ -498,7 +499,7 @@ func ExportBundle() {
 		var scrapedScenes []models.ScrapedScene
 		go sceneSliceAppender(&scrapedScenes, collectedScenes)
 
-		runScrapers(knownScenes, "_enabled", false, collectedScenes, "", "")
+		runScrapers(knownScenes, "_enabled", false, collectedScenes, "", "", false)
 
 		out := ContentBundle{
 			Timestamp:     time.Now().UTC(),

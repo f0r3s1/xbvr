@@ -81,7 +81,7 @@ func SetupCron() {
 
 func scrapeCron() {
 	if !session.HasActiveSession() {
-		tasks.Scrape("_enabled", "", "")
+		tasks.Scrape("_enabled", "", "", false)
 	}
 	log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
 }

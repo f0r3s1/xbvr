@@ -2411,6 +2411,13 @@ func Migrate() {
 				return nil
 			},
 		},
+		{
+			ID: "0087-add-site-use-flaresolverr",
+			Migrate: func(tx *gorm.DB) error {
+				// Add use_flare_solverr column to sites table
+				return tx.AutoMigrate(&models.Site{}).Error
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

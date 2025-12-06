@@ -134,7 +134,8 @@ func (i TaskResource) scrape(req *restful.Request, resp *restful.Response) {
 	if qSiteID == "" {
 		qSiteID = "_enabled"
 	}
-	go tasks.Scrape(qSiteID, "", "")
+	qQuick := req.QueryParameter("quick")
+	go tasks.Scrape(qSiteID, "", "", qQuick == "true")
 }
 func (i TaskResource) singleScrape(req *restful.Request, resp *restful.Response) {
 	var scrapeParams RequestSingleScrape

@@ -21,8 +21,11 @@
                 <b-switch v-model="rescrapeEnabled">Enable schedule</b-switch>
               </b-field>
               <b-field v-if="rescrapeEnabled">
-                <b-slider v-model="rescrapeHourInterval" :min="1" :max="23" :step="1" ></b-slider>
-                <div class="column is-one-third" style="margin-left:.75em">{{`Run every ${this.rescrapeHourInterval} hour${this.rescrapeHourInterval > 1 ? 's': ''}`}}</div>
+                <b-slider v-model="rescrapeIntervalIndex" :min="0" :max="intervalSteps.length - 1" :step="1" 
+                  :custom-formatter="val => intervalSteps[val].label"
+                  ticks lazy>
+                </b-slider>
+                <div class="column is-one-third" style="margin-left:.75em">{{ intervalSteps[rescrapeIntervalIndex].label }}</div>
               </b-field>
               <b-field>
                 <b-switch v-if="rescrapeEnabled" v-model="useRescrapeTimeRange">Limit time of day</b-switch>
@@ -139,8 +142,11 @@
                 <b-switch v-model="actorRescrapeEnabled">Enable schedule</b-switch>
               </b-field>
               <b-field v-if="actorRescrapeEnabled">
-                <b-slider v-model="actorRescrapeHourInterval" :min="1" :max="23" :step="1" ></b-slider>
-                <div class="column is-one-third" style="margin-left:.75em">{{`Run every ${this.actorRescrapeHourInterval} hour${this.actorRescrapeHourInterval > 1 ? 's': ''}`}}</div>
+                <b-slider v-model="actorRescrapeIntervalIndex" :min="0" :max="intervalSteps.length - 1" :step="1" 
+                  :custom-formatter="val => intervalSteps[val].label"
+                  ticks lazy>
+                </b-slider>
+                <div class="column is-one-third" style="margin-left:.75em">{{ intervalSteps[actorRescrapeIntervalIndex].label }}</div>
               </b-field>
               <b-field>
                 <b-switch v-if="actorRescrapeEnabled" v-model="useActorRescrapeTimeRange">Limit time of day</b-switch>
@@ -178,8 +184,11 @@
                 </b-tooltip>
               </b-field>
               <b-field v-if="stashdbRescrapeEnabled">
-                <b-slider v-model="stashdbRescrapeHourInterval" :min="1" :max="23" :step="1" ></b-slider>
-                <div class="column is-one-third" style="margin-left:.75em">{{`Run every ${this.stashdbRescrapeHourInterval} hour${this.stashdbRescrapeHourInterval > 1 ? 's': ''}`}}</div>
+                <b-slider v-model="stashdbRescrapeIntervalIndex" :min="0" :max="intervalSteps.length - 1" :step="1" 
+                  :custom-formatter="val => intervalSteps[val].label"
+                  ticks lazy>
+                </b-slider>
+                <div class="column is-one-third" style="margin-left:.75em">{{ intervalSteps[stashdbRescrapeIntervalIndex].label }}</div>
               </b-field>
               <b-field>
                 <b-switch v-if="stashdbRescrapeEnabled" v-model="useStashdbRescrapeTimeRange">Limit time of day</b-switch>
@@ -286,6 +295,7 @@ export default {
       useRescrapeTimeRange: false,
       useRescanTimeRange: false,
       rescrapeHourInterval: 0,
+      rescrapeIntervalIndex: 0,
       rescrapeMinuteStart: 0,
       rescanMinuteStart: 0,
       rescanHourInterval: 0,
@@ -301,6 +311,7 @@ export default {
       actorRescrapeEnabled: false,
       actorRescrapeTimeRange:[0,23],
       actorRescrapeHourInterval: 0,
+      actorRescrapeIntervalIndex: 0,
       actorRescrapeMinuteStart: 0,
       lastActorRescrapeTimeRange: [0,23],
       useActorRescrapeTimeRange: false,      
@@ -308,6 +319,7 @@ export default {
       stashdbRescrapeEnabled: false,
       stashdbRescrapeTimeRange:[0,23],
       stashdbRescrapeHourInterval: 0,
+      stashdbRescrapeIntervalIndex: 0,
       stashdbRescrapeMinuteStart: 0,
       lastStashdbRescrapeTimeRange: [0,23],
       useStashdbRescrapeTimeRange: false,      
@@ -322,7 +334,46 @@ export default {
       timeRange: ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
         '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
         '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-        '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00']
+        '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00'],
+      intervalSteps: [
+        // Hours 1-23
+        { hours: 1, label: '1 hour' },
+        { hours: 2, label: '2 hours' },
+        { hours: 3, label: '3 hours' },
+        { hours: 4, label: '4 hours' },
+        { hours: 5, label: '5 hours' },
+        { hours: 6, label: '6 hours' },
+        { hours: 7, label: '7 hours' },
+        { hours: 8, label: '8 hours' },
+        { hours: 9, label: '9 hours' },
+        { hours: 10, label: '10 hours' },
+        { hours: 11, label: '11 hours' },
+        { hours: 12, label: '12 hours' },
+        { hours: 13, label: '13 hours' },
+        { hours: 14, label: '14 hours' },
+        { hours: 15, label: '15 hours' },
+        { hours: 16, label: '16 hours' },
+        { hours: 17, label: '17 hours' },
+        { hours: 18, label: '18 hours' },
+        { hours: 19, label: '19 hours' },
+        { hours: 20, label: '20 hours' },
+        { hours: 21, label: '21 hours' },
+        { hours: 22, label: '22 hours' },
+        { hours: 23, label: '23 hours' },
+        // Days 1-7
+        { hours: 24, label: '1 day' },
+        { hours: 48, label: '2 days' },
+        { hours: 72, label: '3 days' },
+        { hours: 96, label: '4 days' },
+        { hours: 120, label: '5 days' },
+        { hours: 144, label: '6 days' },
+        // Weeks 1-4
+        { hours: 168, label: '1 week' },
+        { hours: 240, label: '10 days' },
+        { hours: 336, label: '2 weeks' },
+        { hours: 504, label: '3 weeks' },
+        { hours: 720, label: '30 days' }
+      ]
     }
   },
   async mounted () {
@@ -380,6 +431,22 @@ export default {
       }
       return timeRange
     },
+    hoursToIndex (hours) {
+      // Find the closest index for a given hours value
+      let closestIndex = 0
+      let closestDiff = Math.abs(this.intervalSteps[0].hours - hours)
+      for (let i = 1; i < this.intervalSteps.length; i++) {
+        const diff = Math.abs(this.intervalSteps[i].hours - hours)
+        if (diff < closestDiff) {
+          closestDiff = diff
+          closestIndex = i
+        }
+      }
+      return closestIndex
+    },
+    indexToHours (index) {
+      return this.intervalSteps[index].hours
+    },
     async loadState () {
       this.isLoading = true
       await ky.get('/api/options/state')
@@ -387,6 +454,7 @@ export default {
         .then(data => {
           this.rescrapeEnabled = data.config.cron.rescrapeSchedule.enabled
           this.rescrapeHourInterval = data.config.cron.rescrapeSchedule.hourInterval
+          this.rescrapeIntervalIndex = this.hoursToIndex(this.rescrapeHourInterval)
           this.useRescrapeTimeRange = data.config.cron.rescrapeSchedule.useRange
           this.rescrapeMinuteStart = data.config.cron.rescrapeSchedule.minuteStart
           this.rescanEnabled = data.config.cron.rescanSchedule.enabled
@@ -399,10 +467,12 @@ export default {
           this.previewMinuteStart = data.config.cron.previewSchedule.minuteStart
           this.actorRescrapeEnabled = data.config.cron.actorRescrapeSchedule.enabled
           this.actorRescrapeHourInterval = data.config.cron.actorRescrapeSchedule.hourInterval
+          this.actorRescrapeIntervalIndex = this.hoursToIndex(this.actorRescrapeHourInterval)
           this.useActorRescrapeTimeRange = data.config.cron.actorRescrapeSchedule.useRange
           this.actorRescrapeMinuteStart = data.config.cron.actorRescrapeSchedule.minuteStart          
           this.stashdbRescrapeEnabled = data.config.cron.stashdbRescrapeSchedule.enabled
           this.stashdbRescrapeHourInterval = data.config.cron.stashdbRescrapeSchedule.hourInterval
+          this.stashdbRescrapeIntervalIndex = this.hoursToIndex(this.stashdbRescrapeHourInterval)
           this.useStashdbRescrapeTimeRange = data.config.cron.stashdbRescrapeSchedule.useRange
           this.stashdbRescrapeMinuteStart = data.config.cron.stashdbRescrapeSchedule.minuteStart          
           this.linkScenesEnabled = data.config.cron.linkScenesSchedule.enabled
@@ -476,7 +546,7 @@ export default {
       await ky.post('/api/options/task-schedule', {
         json: {
           rescrapeEnabled: this.rescrapeEnabled,
-          rescrapeHourInterval: this.rescrapeHourInterval,
+          rescrapeHourInterval: this.indexToHours(this.rescrapeIntervalIndex),
           rescrapeUseRange: this.useRescrapeTimeRange,
           rescrapeMinuteStart: this.rescrapeMinuteStart,
           rescrapeHourStart: this.rescrapeTimeRange[0],
@@ -497,14 +567,14 @@ export default {
           previewHourEnd: this.previewTimeRange[1],
           previewStartDelay:this.previewStartDelay,
           actorRescrapeEnabled: this.actorRescrapeEnabled,
-          actorRescrapeHourInterval: this.actorRescrapeHourInterval,
+          actorRescrapeHourInterval: this.indexToHours(this.actorRescrapeIntervalIndex),
           actorRescrapeUseRange: this.useActorRescrapeTimeRange,
           actorRescrapeMinuteStart: this.actorRescrapeMinuteStart,
           actorRescrapeHourStart: this.actorRescrapeTimeRange[0],
           actorRescrapeHourEnd: this.actorRescrapeTimeRange[1],
           actorRescrapeStartDelay:this.actorRescrapeStartDelay          ,
           stashdbRescrapeEnabled: this.stashdbRescrapeEnabled,
-          stashdbRescrapeHourInterval: this.stashdbRescrapeHourInterval,
+          stashdbRescrapeHourInterval: this.indexToHours(this.stashdbRescrapeIntervalIndex),
           stashdbRescrapeUseRange: this.useStashdbRescrapeTimeRange,
           stashdbRescrapeMinuteStart: this.stashdbRescrapeMinuteStart,
           stashdbRescrapeHourStart: this.stashdbRescrapeTimeRange[0],

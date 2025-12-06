@@ -23,6 +23,9 @@ const actions = {
   async toggleScrapeStash ({ state }, params) {
     state.items = await ky.put(`/api/options/sites/scrape_stash/${params.id}`, { json: {} }).json()
   },
+  async toggleUseFlareSolverr ({ state }, params) {
+    state.items = await ky.put(`/api/options/sites/use_flaresolverr/${params.id}`, { json: {} }).json()
+  },
 }
 
 export default {
