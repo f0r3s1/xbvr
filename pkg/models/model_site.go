@@ -62,7 +62,7 @@ func InitSites() {
 			db.Where(&Site{ID: scrapers[i].ID}).FirstOrCreate(&st)
 			st.Name = scrapers[i].Name
 			st.AvatarURL = scrapers[i].AvatarURL
-			st.IsBuiltin = true
+			st.IsBuiltin = !strings.Contains(scrapers[i].Name, "(Custom")
 			st.MasterSiteID = scrapers[i].MasterSiteId
 			st.Save()
 		}

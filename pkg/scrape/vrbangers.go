@@ -15,6 +15,20 @@ import (
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
+// fetchURLWithFlareSolverr fetches a URL using FlareSolverr if enabled for the domain, otherwise uses resty
+func fetchURLWithFlareSolverr(url string, domain string) (string, error) {
+	if IsFlareSolverrEnabled(domain) {
+		return FlareSolverrGet(url)
+	}
+	r, err := resty.New().R().
+		SetHeader("User-Agent", UserAgent).
+		Get(url)
+	if err != nil {
+		return "", err
+	}
+	return r.String(), nil
+}
+
 func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, scraperID string, siteID string, URL string, limitScraping bool) error {
 	defer wg.Done()
 	logScrapeStart(scraperID, siteID)
@@ -29,16 +43,12 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 
 		// Get scene data from API
 		apiURL := contentBaseURL + "/api/content/v1/videos/" + slug
-		r, err := resty.New().R().
-			SetHeader("User-Agent", UserAgent).
-			Get(apiURL)
+		jsonData, err := fetchURLWithFlareSolverr(apiURL, siteName)
 
 		if err != nil {
 			log.Warnf("Failed to fetch scene %s: %v", slug, err)
 			return
 		}
-
-		jsonData := r.String()
 
 		if gjson.Get(jsonData, "status.message").String() != "Ok" {
 			return
@@ -91,16 +101,24 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 			sc.Duration = int(apiDuration / 60)
 		}
 
-		// Cover from API - use heroImg for better quality, fallback to poster
-		// Try to get a reasonably sized image (L = 1400px is good balance)
-		heroImgURL := gjson.Get(jsonData, "data.item.heroImg.permalink").String()
-		if heroImgURL != "" {
-			sc.Covers = append(sc.Covers, contentBaseURL+heroImgURL)
-		} else {
-			posterURL := gjson.Get(jsonData, "data.item.poster.permalink").String()
-			if posterURL != "" {
-				sc.Covers = append(sc.Covers, contentBaseURL+posterURL)
-			}
+		// Cover from API - use poster with L size preview for better quality
+		// The poster object has previews array with different sizes like gallery images
+		posterURL := gjson.Get(jsonData, "data.item.poster.previews.#(sizeAlias==L).permalink").String()
+		if posterURL == "" {
+			posterURL = gjson.Get(jsonData, "data.item.poster.previews.#(sizeAlias==XL).permalink").String()
+		}
+		if posterURL == "" {
+			posterURL = gjson.Get(jsonData, "data.item.poster.permalink").String()
+		}
+		if posterURL == "" {
+			// Fallback to heroImg
+			posterURL = gjson.Get(jsonData, "data.item.heroImg.previews.#(sizeAlias==L).permalink").String()
+		}
+		if posterURL == "" {
+			posterURL = gjson.Get(jsonData, "data.item.heroImg.permalink").String()
+		}
+		if posterURL != "" {
+			sc.Covers = append(sc.Covers, contentBaseURL+posterURL)
 		}
 
 		// Gallery from API - use L size (1400px) for good quality but faster loading
@@ -188,14 +206,12 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 
 		apiURL := fmt.Sprintf("%s/api/content/v1/videos?page=1&type=videos&sort=latest&show_custom_video=1&bonus-video=1&limit=%d", contentBaseURL, limit)
 
-		r, err := resty.New().R().
-			SetHeader("User-Agent", UserAgent).
-			Get(apiURL)
+		jsonResponse, err := fetchURLWithFlareSolverr(apiURL, siteName)
 
 		if err != nil {
 			log.Errorf("Failed to fetch video listing from API: %v", err)
 		} else {
-			items := gjson.Get(r.String(), "data.items")
+			items := gjson.Get(jsonResponse, "data.items")
 			items.ForEach(func(_, scene gjson.Result) bool {
 				slug := scene.Get("slug").String()
 				if slug != "" {

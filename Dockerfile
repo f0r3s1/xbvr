@@ -1,6 +1,11 @@
 # Build stage with CGO enabled
 FROM golang:1.24-bookworm AS builder
 
+# Build arguments for version info
+ARG VERSION=CURRENT
+ARG COMMIT=HEAD
+ARG DATE=unknown
+
 WORKDIR /app
 COPY . .
 
@@ -12,8 +17,8 @@ RUN apt-get update && \
     libsqlite3-dev \
     pkg-config
 
-# Build with CGO enabled
-RUN CGO_ENABLED=1 go build -o xbvr
+# Build with CGO enabled and version info
+RUN CGO_ENABLED=1 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o xbvr
 
 # Runtime stage
 FROM ubuntu:22.04

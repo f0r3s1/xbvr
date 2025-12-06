@@ -36,7 +36,8 @@
                 {{ props.row.sitename }}
               </a>
             </b-tooltip>
-            <span class="source-tag" v-if="props.row.master_site_id">{{ getMasterSiteNameShort(props.row.master_site_id) }}</span>
+            <span class="source-tag" v-if="props.row.master_site_id">{{ getMasterSiteName(props.row.master_site_id) }}</span>
+            <span class="custom-tag" v-if="!props.row.is_builtin">{{$t('Custom')}}</span>
           </span>
         </div>
       </b-table-column>
@@ -483,6 +484,9 @@ export default {
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
   }
 
   .source-tag {
@@ -491,8 +495,24 @@ export default {
     background: #f0f0f0;
     padding: 0.15rem 0.4rem;
     border-radius: 3px;
+    flex-shrink: 1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    flex-shrink: 0;
+  }
+
+  .custom-tag {
+    font-size: 0.7rem;
+    color: #fff;
+    background: #9b59b6;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    flex-shrink: 1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .last-scrape {
