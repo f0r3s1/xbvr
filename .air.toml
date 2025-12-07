@@ -10,4 +10,3 @@ cmd = 'go build -o dist/xbvr -tags="json1" main.go'
 full_bin = 'dist/xbvr'
 include_ext = ['go']
 exclude_dir = ['node_modules', 'cache', 'dist', 'ui', 'tmp']
-delay = 2000
