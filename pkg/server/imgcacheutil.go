@@ -2,8 +2,6 @@ package server
 
 import (
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/fcjr/aia-transport-go"
 )
@@ -13,60 +11,13 @@ type ForceCacheTransport struct {
 	Transport http.RoundTripper
 }
 
-// getRefererForURL generates an appropriate Referer header for the given URL.
-// This helps bypass anti-hotlinking protection by making requests appear to come from the same site.
-func getRefererForURL(u *url.URL) string {
-	if u == nil || u.Host == "" {
-		return ""
-	}
-	// Return the origin (scheme + host) as the referer
-	return u.Scheme + "://" + u.Host + "/"
-}
-
 // RoundTrip transport function that will force a Cache-Control of 5 years
 // on all HTTP 2xx responses, so that httpcache used by imageproxy will continue
 // to handle the cache as fresh, even when no cache header is set by upstream
 // server.
-// It also adds appropriate headers to bypass anti-hotlinking protection.
 func (s *ForceCacheTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	// Clone the request to avoid modifying the original
-	req := r.Clone(r.Context())
-
-	// Add Referer header if not present - this helps bypass anti-hotlinking protection
-	// Some sites like VRBangers block requests without a proper Referer
-	if req.Header.Get("Referer") == "" {
-		referer := getRefererForURL(req.URL)
-		if referer != "" {
-			req.Header.Set("Referer", referer)
-		}
-	}
-
-	// Add common browser headers to make requests look more legitimate
-	// This helps bypass User-Agent based blocking
-	if req.Header.Get("Accept") == "" {
-		req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-	}
-	if req.Header.Get("Accept-Language") == "" {
-		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	}
-	if req.Header.Get("Sec-Fetch-Dest") == "" {
-		req.Header.Set("Sec-Fetch-Dest", "image")
-	}
-	if req.Header.Get("Sec-Fetch-Mode") == "" {
-		req.Header.Set("Sec-Fetch-Mode", "no-cors")
-	}
-	if req.Header.Get("Sec-Fetch-Site") == "" {
-		// Determine if this is same-origin or cross-site based on referer
-		if strings.Contains(req.URL.Host, "vrbangers") ||
-			strings.Contains(req.URL.Host, "content.vrbangers") {
-			req.Header.Set("Sec-Fetch-Site", "same-site")
-		} else {
-			req.Header.Set("Sec-Fetch-Site", "cross-site")
-		}
-	}
-
 	// Perform original request
-	resp, err := s.Transport.RoundTrip(req)
+	resp, err := s.Transport.RoundTrip(r)
 	if err != nil {
 		return nil, err
 	}
