@@ -10,7 +10,7 @@ function defaultValue (v, d) {
 
 const defaultFilterState = {
   dlState: 'available',
-  cardSize: '2',  // 1 is now XS and 2 is now S
+  cardSize: localStorage.getItem('sceneCardSize') || '2',  // 1 is now XS and 2 is now S
 
   lists: [],
   isAvailable: true,

@@ -81,6 +81,9 @@ type RequestSaveOptionsAdvanced struct {
 	IgnoreReleasedBefore         time.Time `json:"ignoreReleasedBefore"`
 	FlareSolverrAddress          string    `json:"flareSolverrAddress"`
 	UseFlareSolverr              bool      `json:"useFlareSolverr"`
+	ImageProxyURL                string    `json:"imageProxyUrl"`
+	ImageProxyApiKeyName         string    `json:"imageProxyApiKeyName"`
+	ImageProxyApiKeyValue        string    `json:"imageProxyApiKeyValue"`
 }
 
 type RequestSaveOptionsFunscripts struct {
@@ -548,6 +551,9 @@ func (i ConfigResource) saveOptionsAdvanced(req *restful.Request, resp *restful.
 	config.Config.Advanced.IgnoreReleasedBefore = r.IgnoreReleasedBefore
 	config.Config.Advanced.FlareSolverrAddress = r.FlareSolverrAddress
 	config.Config.Advanced.UseFlareSolverr = r.UseFlareSolverr
+	config.Config.Advanced.ImageProxyURL = r.ImageProxyURL
+	config.Config.Advanced.ImageProxyApiKeyName = r.ImageProxyApiKeyName
+	config.Config.Advanced.ImageProxyApiKeyValue = r.ImageProxyApiKeyValue
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)

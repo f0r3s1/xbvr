@@ -92,6 +92,7 @@ export default {
       },
       set (value) {
         this.$store.state.sceneList.filters.cardSize = value
+        localStorage.setItem('sceneCardSize', value)
       }
     },
     cardSizeClass () {

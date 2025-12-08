@@ -189,6 +189,39 @@
               <p><a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a></p>
             </b-message>
 
+            <hr/>
+
+            <h4>{{ $t('Image Proxy Fallback') }}</h4>
+            <b-message type="is-info" size="is-small">
+              <p><strong>Image Proxy Fallback</strong> provides an alternative way to fetch images when direct access fails.</p>
+              <p>If an image request fails or returns a non-image response, XBVR will retry through this proxy.</p>
+              <p>The proxy URL should accept a URL parameter to specify the target image.</p>
+            </b-message>
+
+            <b-field :label="$t('Proxy URL')" label-position="on-border">
+              <b-input 
+                v-model="imageProxyUrl" 
+                placeholder="https://example.com/proxy" 
+                type="text">
+              </b-input>
+            </b-field>
+
+            <b-field :label="$t('API Key Parameter Name')" label-position="on-border">
+              <b-input 
+                v-model="imageProxyApiKeyName" 
+                placeholder="key" 
+                type="text">
+              </b-input>
+            </b-field>
+
+            <b-field :label="$t('API Key Value')" label-position="on-border">
+              <b-input 
+                v-model="imageProxyApiKeyValue" 
+                placeholder="your-api-key" 
+                type="password">
+              </b-input>
+            </b-field>
+
             <b-field>
               <b-button type="is-primary" @click="save">Save</b-button>
             </b-field>
@@ -575,6 +608,30 @@ export default {
       set (value) {
         this.$store.state.optionsAdvanced.advanced.useFlareSolverr = value
 
+      }
+    },
+    imageProxyUrl: {
+      get () {
+        return this.$store.state.optionsAdvanced.advanced.imageProxyUrl
+      },
+      set (value) {
+        this.$store.state.optionsAdvanced.advanced.imageProxyUrl = value
+      }
+    },
+    imageProxyApiKeyName: {
+      get () {
+        return this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyName
+      },
+      set (value) {
+        this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyName = value
+      }
+    },
+    imageProxyApiKeyValue: {
+      get () {
+        return this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyValue
+      },
+      set (value) {
+        this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyValue = value
       }
     },
     listOfMainSites: {

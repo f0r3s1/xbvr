@@ -136,12 +136,15 @@ func StartServer(version, commit, branch, date string) {
 
 	// Imageproxy
 	r := mux.NewRouter()
-	p := imageproxy.NewProxy(NewForceCacheTransport(), diskCache(filepath.Join(common.AppDir, "imageproxy")))
+	imgCache := diskCache(filepath.Join(common.AppDir, "imageproxy"))
+	p := imageproxy.NewProxy(NewForceCacheTransport(), imgCache)
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	// If the client request has a cache-control header (such as 'no-cache'), pass them
 	// onto the imageproxy so that this can be respected.
 	p.PassRequestHeaders = append(p.PassRequestHeaders, "Cache-Control")
-	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", p)))
+	// Use the fallback handler that wraps the imageproxy
+	imgFallback := NewImageProxyFallbackHandler(p, imgCache)
+	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
 	hmp := NewHeatmapThumbnailProxy(p, diskCache(filepath.Join(common.AppDir, "heatmapthumbnailproxy")))
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))
 	downloadhandler := DownloadHandler{}
