@@ -154,6 +154,7 @@ export default {
       },
       set (value) {
         this.$store.state.actorList.filters.cardSize = value
+        localStorage.setItem('actorCardSize', value)
         switch (value){
           case "1":
             this.limit=36
