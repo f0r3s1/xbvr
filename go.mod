@@ -70,7 +70,10 @@ require (
 	github.com/RoaringBitmap/roaring/v2 v2.4.5 // indirect
 	github.com/blevesearch/go-faiss v1.0.25 // indirect
 	github.com/blevesearch/zapx/v16 v16.2.4 // indirect
+	github.com/ebitengine/purego v0.8.3 // indirect
+	github.com/gen2brain/avif v0.4.4 // indirect
 	github.com/nlnwa/whatwg-url v0.6.1 // indirect
+	github.com/tetratelabs/wazero v1.9.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

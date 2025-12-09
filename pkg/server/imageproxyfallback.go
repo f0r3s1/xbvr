@@ -2,26 +2,34 @@ package server
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
-	"github.com/gregjones/httpcache/diskcache"
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/config"
 	"willnorris.com/go/imageproxy"
+)
+
+const (
+	// Timeouts for external proxy requests
+	externalProxyTimeout = 30 * time.Second
+	maxBodyReadSize      = 50 * 1024 * 1024 // 50MB max image size
 )
 
 // ImageProxyFallbackHandler wraps the imageproxy and provides fallback to external proxy
 // when the original request fails or returns a non-image response.
 type ImageProxyFallbackHandler struct {
 	ImageProxy *imageproxy.Proxy
-	Cache      *diskcache.Cache
+	Cache      ImageCache
 }
 
 // NewImageProxyFallbackHandler creates a new handler with fallback capability
-func NewImageProxyFallbackHandler(proxy *imageproxy.Proxy, cache *diskcache.Cache) *ImageProxyFallbackHandler {
+func NewImageProxyFallbackHandler(proxy *imageproxy.Proxy, cache ImageCache) *ImageProxyFallbackHandler {
 	return &ImageProxyFallbackHandler{
 		ImageProxy: proxy,
 		Cache:      cache,
@@ -32,6 +40,24 @@ func NewImageProxyFallbackHandler(proxy *imageproxy.Proxy, cache *diskcache.Cach
 func isImageContentType(contentType string) bool {
 	contentType = strings.ToLower(contentType)
 	return strings.HasPrefix(contentType, "image/")
+}
+
+// getExtensionForContentType returns the appropriate file extension for a content type
+func getExtensionForContentType(contentType string) string {
+	switch {
+	case strings.Contains(contentType, "avif"):
+		return ".avif"
+	case strings.Contains(contentType, "webp"):
+		return ".webp"
+	case strings.Contains(contentType, "png"):
+		return ".png"
+	case strings.Contains(contentType, "gif"):
+		return ".gif"
+	case strings.Contains(contentType, "jpeg") || strings.Contains(contentType, "jpg"):
+		return ".jpg"
+	default:
+		return ".bin"
+	}
 }
 
 // buildExternalProxyURL constructs the URL to fetch the image through the external proxy
@@ -109,11 +135,11 @@ func newResponseCapture(w http.ResponseWriter) *ResponseCapture {
 
 func (r *ResponseCapture) WriteHeader(statusCode int) {
 	r.statusCode = statusCode
-	r.contentType = r.Header().Get("Content-Type")
-	// Copy headers
+	// Copy headers at the time WriteHeader is called
 	for k, v := range r.Header() {
 		r.headers[k] = v
 	}
+	r.contentType = r.headers.Get("Content-Type")
 }
 
 func (r *ResponseCapture) Write(b []byte) (int, error) {
@@ -123,20 +149,35 @@ func (r *ResponseCapture) Write(b []byte) (int, error) {
 
 // flushToClient sends the captured response to the client
 func (r *ResponseCapture) flushToClient() {
-	// Copy headers to the underlying response writer
+	// Detect actual content type from body
+	bodyBytes := r.body.Bytes()
+	actualContentType := http.DetectContentType(bodyBytes)
+
+	// Copy headers to the underlying response writer, but fix Content-Length and Content-Type
 	for k, v := range r.headers {
+		// Skip headers we'll set ourselves
+		if strings.EqualFold(k, "Content-Length") || strings.EqualFold(k, "Content-Type") || strings.EqualFold(k, "Content-Disposition") {
+			continue
+		}
 		for _, vv := range v {
 			r.ResponseWriter.Header().Add(k, vv)
 		}
 	}
+	// Set correct Content-Type based on actual body content
+	r.ResponseWriter.Header().Set("Content-Type", actualContentType)
+	// Set correct Content-Length based on actual captured body
+	r.ResponseWriter.Header().Set("Content-Length", fmt.Sprintf("%d", len(bodyBytes)))
+	// Set correct file extension for downloads based on actual content type
+	ext := getExtensionForContentType(actualContentType)
+	r.ResponseWriter.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"image%s\"", ext))
 	r.ResponseWriter.WriteHeader(r.statusCode)
-	io.Copy(r.ResponseWriter, r.body)
+	r.ResponseWriter.Write(bodyBytes)
 }
 
-// fetchFromExternalProxy fetches the image from the external proxy
-func fetchFromExternalProxy(externalURL string) (*http.Response, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", externalURL, nil)
+// fetchFromExternalProxy fetches the image from the external proxy with timeout
+func fetchFromExternalProxy(ctx context.Context, externalURL string) (*http.Response, error) {
+	// Create request with context for cancellation
+	req, err := http.NewRequestWithContext(ctx, "GET", externalURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +186,9 @@ func fetchFromExternalProxy(externalURL string) (*http.Response, error) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
 
+	client := &http.Client{
+		Timeout: externalProxyTimeout,
+	}
 	return client.Do(req)
 }
 
@@ -164,15 +208,20 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	}
 
 	// Create a cache key for the proxied response
-	cacheKey := "fallback:" + originalURL
+	// Use the full path (including size options) so different sizes are cached separately
+	cacheKey := "fallback:" + r.URL.Path
 
 	// Check if we have a cached response from the external proxy
 	if cachedData, ok := h.Cache.Get(cacheKey); ok {
 		// Serve from cache
-		// Determine content type from cached data
 		contentType := http.DetectContentType(cachedData)
 		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(cachedData)))
 		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("X-Cache", "HIT-FALLBACK")
+		// Set correct file extension for downloads based on actual content type
+		ext := getExtensionForContentType(contentType)
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"image%s\"", ext))
 		w.WriteHeader(http.StatusOK)
 		w.Write(cachedData)
 		return
@@ -182,12 +231,14 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	capture := newResponseCapture(w)
 	h.ImageProxy.ServeHTTP(capture, r)
 
-	// Check if the response is valid
+	// Check if the response is valid - check both header content-type and detect from body
+	detectedType := http.DetectContentType(capture.body.Bytes())
 	isValidImage := capture.statusCode >= 200 && capture.statusCode < 300 &&
-		isImageContentType(capture.contentType)
+		(isImageContentType(capture.contentType) || isImageContentType(detectedType))
 
 	if isValidImage {
-		// Response is a valid image, send it to the client
+		// Response is a valid image, cache it and send to client
+		h.Cache.Set(cacheKey, capture.body.Bytes())
 		capture.flushToClient()
 		return
 	}
@@ -203,7 +254,11 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	resp, err := fetchFromExternalProxy(externalURL)
+	// Create a context with timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(r.Context(), externalProxyTimeout)
+	defer cancel()
+
+	resp, err := fetchFromExternalProxy(ctx, externalURL)
 	if err != nil {
 		common.Log.Errorf("Image proxy fallback: failed to fetch from external proxy: %v", err)
 		capture.flushToClient()
@@ -225,8 +280,8 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
+	// Read the response body with size limit to prevent memory issues
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyReadSize))
 	if err != nil {
 		common.Log.Errorf("Image proxy fallback: failed to read external proxy response: %v", err)
 		capture.flushToClient()

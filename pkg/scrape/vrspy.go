@@ -21,6 +21,17 @@ const (
 	baseURL   = "https://www." + domain
 )
 
+// cleanCDNURL removes Cloudflare and other CDN resize directives from URLs
+// to get the original full-quality image
+func cleanCDNURL(url string) string {
+	// Remove Cloudflare cdn-cgi/image resize directive
+	// e.g., https://vrspy.com/cdn-cgi/image/w=480/https://cdn.vrspy.com/...
+	// becomes https://cdn.vrspy.com/...
+	re := regexp.MustCompile(`https?://[^/]+/cdn-cgi/image/[^/]+/`)
+	url = re.ReplaceAllString(url, "")
+	return url
+}
+
 func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, singleScrapeAdditionalInfo string, limitScraping bool) error {
 	defer wg.Done()
 	logScrapeStart(scraperID, siteID)
@@ -117,6 +128,8 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		// Gallery
 		e.ForEach(`div.video-gallery img.thumbnail-cover`, func(id int, e *colly.HTMLElement) {
 			imgURL := e.Request.AbsoluteURL(e.Attr("src"))
+			// Clean CDN resize directives to get original quality image
+			imgURL = cleanCDNURL(imgURL)
 			if strings.Contains(imgURL, "?width=") {
 				baseURL := strings.Split(imgURL, "?")[0]
 				imgURL = baseURL + "?format=webp"
@@ -154,6 +167,9 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		if coverImg == "" {
 			coverImg = e.ChildAttr("img", "src")
 		}
+		// Clean CDN resize directives from cover image
+		coverImg = cleanCDNURL(coverImg)
+
 		title := strings.TrimSpace(e.ChildText("div.title"))
 		if title == "" {
 			title = strings.TrimSpace(e.ChildText(".title"))
