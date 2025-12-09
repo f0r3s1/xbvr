@@ -69,6 +69,12 @@ func GetDB() (*gorm.DB, error) {
 			if err != nil {
 				return err
 			}
+			// Enable WAL mode and busy timeout for SQLite to prevent database locks
+			if dbConn.Driver == "sqlite3" {
+				db.Exec("PRAGMA journal_mode=WAL")
+				db.Exec("PRAGMA busy_timeout=30000")
+				db.Exec("PRAGMA synchronous=NORMAL")
+			}
 			return nil
 		},
 	)
@@ -100,6 +106,12 @@ func GetCommonDB() (*gorm.DB, error) {
 			}
 			if err != nil {
 				return err
+			}
+			// Enable WAL mode and busy timeout for SQLite to prevent database locks
+			if dbConn.Driver == "sqlite3" {
+				commonConnection.Exec("PRAGMA journal_mode=WAL")
+				commonConnection.Exec("PRAGMA busy_timeout=30000")
+				commonConnection.Exec("PRAGMA synchronous=NORMAL")
 			}
 			return nil
 		},

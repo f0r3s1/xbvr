@@ -2,10 +2,13 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +16,7 @@ import (
 	"github.com/gen2brain/avif"
 	"github.com/gregjones/httpcache/diskcache"
 	"github.com/xbapps/xbvr/pkg/common"
+	"github.com/xbapps/xbvr/pkg/config"
 )
 
 // ImageCache interface for cache implementations that can be used with image proxy
@@ -22,80 +26,136 @@ type ImageCache interface {
 	Delete(key string)
 }
 
-// conversionJob represents a pending AVIF conversion
-type conversionJob struct {
-	key  string
-	data []byte
+// AVIFCache wraps a diskcache and converts images to AVIF format on schedule
+// It implements the ImageCache interface for use with fallback and heatmap proxies
+// Images are stored immediately as-is, and converted to AVIF during scheduled processing
+type AVIFCache struct {
+	cache           *diskcache.Cache
+	quality         int
+	speed           int
+	pendingFile     string       // File to persist pending conversions
+	pendingKeys     []string     // In-memory list of keys pending conversion
+	pendingMu       sync.RWMutex // Protects pendingKeys
+	processedKeys   sync.Map     // Track already processed keys to avoid duplicates
+	isProcessing    bool         // Whether scheduled processing is running
+	processingMu    sync.Mutex   // Protects isProcessing
+	stopProcessing  chan struct{}
+	cacheIdentifier string // Unique identifier for this cache instance (for pending file)
 }
 
-// AVIFCache wraps a diskcache and converts images to AVIF format in background
-// It implements the ImageCache interface for use with fallback and heatmap proxies
-type AVIFCache struct {
-	cache      *diskcache.Cache
-	quality    int
-	speed      int
-	jobQueue   chan conversionJob
-	processing sync.Map // track keys being processed to avoid duplicates
-}
+// Global AVIF caches that can be accessed by cron
+var (
+	avifCaches   []*AVIFCache
+	avifCachesMu sync.Mutex
+)
 
 // NewAVIFCache creates a new AVIF-converting cache wrapper
-func NewAVIFCache(cache *diskcache.Cache) *AVIFCache {
+func NewAVIFCache(cache *diskcache.Cache, identifier string) *AVIFCache {
 	c := &AVIFCache{
-		cache:   cache,
-		quality: 65, // Good balance of quality and size
-		speed:   6,  // Balanced speed
-		// Buffered channel to queue conversion jobs without blocking
-		jobQueue: make(chan conversionJob, 10000),
+		cache:           cache,
+		quality:         65, // Good balance of quality and size
+		speed:           6,  // Balanced speed
+		pendingKeys:     make([]string, 0),
+		stopProcessing:  make(chan struct{}),
+		cacheIdentifier: identifier,
 	}
-	// Start single background worker - processes jobs sequentially
-	go c.conversionWorker()
+
+	// Set up pending file path
+	c.pendingFile = filepath.Join(common.AppDir, "avif_pending_"+identifier+".json")
+
+	// Load any previously saved pending conversions
+	c.loadPendingKeys()
+
+	// Register this cache for scheduled processing
+	avifCachesMu.Lock()
+	avifCaches = append(avifCaches, c)
+	avifCachesMu.Unlock()
+
 	return c
 }
 
-// conversionWorker processes AVIF conversions in the background with rate limiting
-func (c *AVIFCache) conversionWorker() {
-	// Recover from any panics that might crash the worker
-	defer func() {
-		if r := recover(); r != nil {
-			common.Log.Errorf("AVIF cache: worker panic, restarting: %v", r)
-			// Restart the worker
-			go c.conversionWorker()
+// loadPendingKeys loads pending conversion keys from disk
+func (c *AVIFCache) loadPendingKeys() {
+	data, err := os.ReadFile(c.pendingFile)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			common.Log.Warnf("AVIF cache [%s]: failed to load pending keys: %v", c.cacheIdentifier, err)
 		}
-	}()
-
-	for job := range c.jobQueue {
-		c.processConversion(job)
-		// Small delay between conversions to prevent overwhelming the system
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
-// processConversion converts data to AVIF and updates the cache
-func (c *AVIFCache) processConversion(job conversionJob) {
-	defer c.processing.Delete(job.key)
-
-	// Recover from any panics during conversion
-	defer func() {
-		if r := recover(); r != nil {
-			common.Log.Errorf("AVIF cache: panic during conversion of %s: %v", job.key, r)
-		}
-	}()
-
-	// Skip very large images to prevent memory issues (> 10MB source)
-	if len(job.data) > 10*1024*1024 {
-		common.Log.Debugf("AVIF cache: skipping %s - too large (%d bytes)", job.key, len(job.data))
 		return
 	}
 
-	avifData := c.convertToAVIF(job.data)
-	// Only update if conversion succeeded and is smaller
-	if avifData != nil && len(avifData) < len(job.data) {
-		c.cache.Set(job.key, avifData)
-		savings := 100 - (len(avifData) * 100 / len(job.data))
-		common.Log.Infof("AVIF: %s saved %d%% (%d -> %d bytes)",
-			job.key, savings, len(job.data), len(avifData))
+	c.pendingMu.Lock()
+	defer c.pendingMu.Unlock()
+
+	if err := json.Unmarshal(data, &c.pendingKeys); err != nil {
+		common.Log.Warnf("AVIF cache [%s]: failed to parse pending keys: %v", c.cacheIdentifier, err)
+		c.pendingKeys = make([]string, 0)
 	}
-	// If conversion fails or isn't smaller, original is already stored - do nothing
+
+	common.Log.Infof("AVIF cache [%s]: loaded %d pending conversions", c.cacheIdentifier, len(c.pendingKeys))
+}
+
+// savePendingKeys persists pending conversion keys to disk
+func (c *AVIFCache) savePendingKeys() {
+	c.pendingMu.RLock()
+	data, err := json.Marshal(c.pendingKeys)
+	c.pendingMu.RUnlock()
+
+	if err != nil {
+		common.Log.Warnf("AVIF cache [%s]: failed to serialize pending keys: %v", c.cacheIdentifier, err)
+		return
+	}
+
+	if err := os.WriteFile(c.pendingFile, data, 0644); err != nil {
+		common.Log.Warnf("AVIF cache [%s]: failed to save pending keys: %v", c.cacheIdentifier, err)
+	}
+}
+
+// addPendingKey adds a key to the pending list (thread-safe)
+func (c *AVIFCache) addPendingKey(key string) {
+	// Skip if already processed or already pending
+	if _, exists := c.processedKeys.Load(key); exists {
+		return
+	}
+
+	c.pendingMu.Lock()
+	// Check if already in pending list
+	for _, k := range c.pendingKeys {
+		if k == key {
+			c.pendingMu.Unlock()
+			return
+		}
+	}
+	c.pendingKeys = append(c.pendingKeys, key)
+	c.pendingMu.Unlock()
+
+	// Save periodically (every 100 additions) to avoid too many disk writes
+	c.pendingMu.RLock()
+	count := len(c.pendingKeys)
+	c.pendingMu.RUnlock()
+	if count%100 == 0 {
+		c.savePendingKeys()
+	}
+}
+
+// removePendingKey removes a key from the pending list (thread-safe)
+func (c *AVIFCache) removePendingKey(key string) {
+	c.pendingMu.Lock()
+	defer c.pendingMu.Unlock()
+
+	for i, k := range c.pendingKeys {
+		if k == key {
+			c.pendingKeys = append(c.pendingKeys[:i], c.pendingKeys[i+1:]...)
+			return
+		}
+	}
+}
+
+// GetPendingCount returns the number of pending conversions
+func (c *AVIFCache) GetPendingCount() int {
+	c.pendingMu.RLock()
+	defer c.pendingMu.RUnlock()
+	return len(c.pendingKeys)
 }
 
 // isHTTPResponse checks if data looks like an HTTP response
@@ -132,59 +192,174 @@ func isAVIF(data []byte) bool {
 	return false
 }
 
-// Set stores data in the cache and queues AVIF conversion in background
+// Set stores data in the cache and queues for AVIF conversion if scheduled processing is enabled
 func (c *AVIFCache) Set(key string, data []byte) {
-	// Quick checks before storing/queueing
+	// Always store original data immediately (no delay)
+	c.cache.Set(key, data)
+
+	// Quick checks - skip small files
 	if len(data) < 5000 {
-		c.cache.Set(key, data)
 		return
 	}
 
 	// Skip HTTP responses (from imageproxy's httpcache) - complex format
 	if isHTTPResponse(data) {
-		c.cache.Set(key, data)
 		return
 	}
 
-	// Check if already AVIF - no conversion needed, just store
+	// Check if already AVIF - no conversion needed
 	if isAVIF(data) {
-		c.cache.Set(key, data)
-		common.Log.Debugf("AVIF cache: %s already AVIF, storing as-is", key)
+		c.processedKeys.Store(key, true)
+		common.Log.Debugf("AVIF cache [%s]: %s already AVIF, storing as-is", c.cacheIdentifier, key)
 		return
 	}
 
 	// Check content type - only convert JPEG and PNG
 	contentType := http.DetectContentType(data)
 	if !strings.Contains(contentType, "jpeg") && !strings.Contains(contentType, "png") {
-		// Skip SVG, GIF, WebP, and unknown formats - store as-is
-		c.cache.Set(key, data)
+		// Skip SVG, GIF, WebP, and unknown formats
 		return
 	}
 
-	// Store original data immediately (non-blocking)
-	c.cache.Set(key, data)
-
-	// Skip if already being processed
-	if _, exists := c.processing.LoadOrStore(key, true); exists {
-		return
-	}
-
-	common.Log.Debugf("AVIF cache: queueing %s for conversion (%s, %d bytes)", key, contentType, len(data))
-
-	// Queue for background conversion (non-blocking, drop if queue full)
-	select {
-	case c.jobQueue <- conversionJob{key: key, data: data}:
-		// Job queued successfully
-	default:
-		// Queue full - just skip conversion, original is already stored
-		c.processing.Delete(key)
-		common.Log.Warnf("AVIF cache: queue full, skipping %s", key)
-	}
+	// Add to pending list for scheduled conversion
+	c.addPendingKey(key)
+	common.Log.Debugf("AVIF cache [%s]: queued %s for scheduled conversion (%s, %d bytes)", c.cacheIdentifier, key, contentType, len(data))
 }
 
 // Delete removes data from the cache
 func (c *AVIFCache) Delete(key string) {
 	c.cache.Delete(key)
+	c.removePendingKey(key)
+	c.processedKeys.Delete(key)
+}
+
+// ProcessPendingConversions processes pending AVIF conversions
+// Called by the scheduled task. Returns number processed.
+// If endTime is provided, stops processing when current time exceeds endTime.
+func (c *AVIFCache) ProcessPendingConversions(endTime *time.Time) int {
+	c.processingMu.Lock()
+	if c.isProcessing {
+		c.processingMu.Unlock()
+		common.Log.Infof("AVIF cache [%s]: processing already in progress, skipping", c.cacheIdentifier)
+		return 0
+	}
+	c.isProcessing = true
+	c.stopProcessing = make(chan struct{})
+	c.processingMu.Unlock()
+
+	defer func() {
+		c.processingMu.Lock()
+		c.isProcessing = false
+		c.processingMu.Unlock()
+		// Save remaining pending keys
+		c.savePendingKeys()
+	}()
+
+	processed := 0
+	startTime := time.Now()
+
+	c.pendingMu.RLock()
+	totalPending := len(c.pendingKeys)
+	c.pendingMu.RUnlock()
+
+	common.Log.Infof("AVIF cache [%s]: starting scheduled conversion of %d images", c.cacheIdentifier, totalPending)
+
+	for {
+		// Check if we should stop
+		select {
+		case <-c.stopProcessing:
+			common.Log.Infof("AVIF cache [%s]: processing stopped early after %d conversions", c.cacheIdentifier, processed)
+			return processed
+		default:
+		}
+
+		// Check time window
+		if endTime != nil && time.Now().After(*endTime) {
+			common.Log.Infof("AVIF cache [%s]: time window ended, processed %d of %d images", c.cacheIdentifier, processed, totalPending)
+			return processed
+		}
+
+		// Get next pending key
+		c.pendingMu.Lock()
+		if len(c.pendingKeys) == 0 {
+			c.pendingMu.Unlock()
+			break
+		}
+		key := c.pendingKeys[0]
+		c.pendingKeys = c.pendingKeys[1:]
+		c.pendingMu.Unlock()
+
+		// Process this key
+		if c.processConversion(key) {
+			processed++
+		}
+
+		// Small delay between conversions to prevent overwhelming the system
+		time.Sleep(50 * time.Millisecond)
+
+		// Log progress periodically
+		if processed%100 == 0 && processed > 0 {
+			common.Log.Infof("AVIF cache [%s]: processed %d images so far...", c.cacheIdentifier, processed)
+		}
+	}
+
+	elapsed := time.Since(startTime)
+	common.Log.Infof("AVIF cache [%s]: completed %d conversions in %v", c.cacheIdentifier, processed, elapsed)
+	return processed
+}
+
+// StopProcessing signals the processing loop to stop
+func (c *AVIFCache) StopProcessing() {
+	c.processingMu.Lock()
+	defer c.processingMu.Unlock()
+	if c.isProcessing {
+		close(c.stopProcessing)
+	}
+}
+
+// processConversion converts a single key from the cache to AVIF
+func (c *AVIFCache) processConversion(key string) bool {
+	// Mark as processed to avoid re-adding
+	c.processedKeys.Store(key, true)
+
+	// Recover from any panics during conversion
+	defer func() {
+		if r := recover(); r != nil {
+			common.Log.Errorf("AVIF cache [%s]: panic during conversion of %s: %v", c.cacheIdentifier, key, r)
+		}
+	}()
+
+	// Get original data from cache
+	data, ok := c.cache.Get(key)
+	if !ok {
+		common.Log.Debugf("AVIF cache [%s]: %s no longer in cache, skipping", c.cacheIdentifier, key)
+		return false
+	}
+
+	// Skip if already AVIF (might have been converted by another process)
+	if isAVIF(data) {
+		common.Log.Debugf("AVIF cache [%s]: %s already AVIF, skipping", c.cacheIdentifier, key)
+		return false
+	}
+
+	// Skip very large images to prevent memory issues (> 10MB source)
+	if len(data) > 10*1024*1024 {
+		common.Log.Debugf("AVIF cache [%s]: skipping %s - too large (%d bytes)", c.cacheIdentifier, key, len(data))
+		return false
+	}
+
+	avifData := c.convertToAVIF(data)
+	// Only update if conversion succeeded and is smaller
+	if avifData != nil && len(avifData) < len(data) {
+		c.cache.Set(key, avifData)
+		savings := 100 - (len(avifData) * 100 / len(data))
+		common.Log.Infof("AVIF [%s]: %s saved %d%% (%d -> %d bytes)",
+			c.cacheIdentifier, key, savings, len(data), len(avifData))
+		return true
+	}
+
+	// Conversion failed or wasn't beneficial - original remains in cache
+	return false
 }
 
 // convertToAVIF attempts to convert JPEG/PNG image data to AVIF format
@@ -245,4 +420,58 @@ func (c *AVIFCache) convertToAVIF(data []byte) (result []byte) {
 	}
 
 	return buf.Bytes()
+}
+
+// GetAllAVIFCaches returns all registered AVIF caches for processing
+func GetAllAVIFCaches() []*AVIFCache {
+	avifCachesMu.Lock()
+	defer avifCachesMu.Unlock()
+	return avifCaches
+}
+
+// GetTotalPendingConversions returns total pending across all caches
+func GetTotalPendingConversions() int {
+	total := 0
+	for _, cache := range GetAllAVIFCaches() {
+		total += cache.GetPendingCount()
+	}
+	return total
+}
+
+// ProcessAllAVIFConversions processes all pending conversions across all caches
+func ProcessAllAVIFConversions(endTime *time.Time) int {
+	total := 0
+	for _, cache := range GetAllAVIFCaches() {
+		// Check time before processing each cache
+		if endTime != nil && time.Now().After(*endTime) {
+			common.Log.Infof("AVIF conversion: time window ended")
+			break
+		}
+		total += cache.ProcessPendingConversions(endTime)
+	}
+	return total
+}
+
+// IsWithinScheduleWindow checks if current time is within the AVIF conversion schedule window
+func IsWithinScheduleWindow() bool {
+	if !config.Config.Cron.AVIFConversionSchedule.Enabled {
+		return false
+	}
+
+	if !config.Config.Cron.AVIFConversionSchedule.UseRange {
+		// If not using range, always allow (cron handles timing)
+		return true
+	}
+
+	now := time.Now()
+	hour := now.Hour()
+	startHour := config.Config.Cron.AVIFConversionSchedule.HourStart
+	endHour := config.Config.Cron.AVIFConversionSchedule.HourEnd
+
+	if startHour <= endHour {
+		// Normal range (e.g., 10-14)
+		return hour >= startHour && hour < endHour
+	}
+	// Overnight range (e.g., 22-6)
+	return hour >= startHour || hour < endHour
 }

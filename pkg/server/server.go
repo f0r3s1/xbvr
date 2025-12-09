@@ -135,10 +135,10 @@ func StartServer(version, commit, branch, date string) {
 
 	// Imageproxy
 	r := mux.NewRouter()
-	// Create AVIF cache wrapper for storage optimization - converts all images to AVIF
+	// Create AVIF cache wrapper for storage optimization - converts images to AVIF on schedule
 	imgDiskCache := diskCache(common.ImgDir)
-	imgCache := NewAVIFCache(imgDiskCache)
-	// Pass AVIFCache to imageproxy so ALL cached images get converted to AVIF
+	imgCache := NewAVIFCache(imgDiskCache, "imageproxy")
+	// Pass AVIFCache to imageproxy so cached images get converted to AVIF on schedule
 	p := imageproxy.NewProxy(NewForceCacheTransport(), imgCache)
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	// If the client request has a cache-control header (such as 'no-cache'), pass them
@@ -148,7 +148,7 @@ func StartServer(version, commit, branch, date string) {
 	imgFallback := NewImageProxyFallbackHandler(p, imgCache)
 	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
 	// Heatmap thumbnail proxy also uses AVIF cache for storage optimization
-	hmpCache := NewAVIFCache(diskCache(common.HeatmapThumbnailDir))
+	hmpCache := NewAVIFCache(diskCache(common.HeatmapThumbnailDir), "heatmap")
 	hmp := NewHeatmapThumbnailProxy(p, hmpCache)
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))
 	downloadhandler := DownloadHandler{}

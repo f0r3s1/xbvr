@@ -178,6 +178,15 @@ type ObjectConfig struct {
 			HourEnd         int  `default:"23" json:"hourEnd"`
 			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
 		} `json:"linkScenesSchedule"`
+		AVIFConversionSchedule struct {
+			Enabled         bool `default:"false" json:"enabled"`
+			HourInterval    int  `default:"1" json:"hourInterval"`
+			UseRange        bool `default:"true" json:"useRange"`
+			MinuteStart     int  `default:"0" json:"minuteStart"`
+			HourStart       int  `default:"2" json:"hourStart"`
+			HourEnd         int  `default:"6" json:"hourEnd"`
+			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
+		} `json:"avifConversionSchedule"`
 	} `json:"cron"`
 	Storage struct {
 		MatchOhash bool     `default:"false" json:"match_ohash"`

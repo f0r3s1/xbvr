@@ -11,6 +11,7 @@
             <b-tab-item label="Actor Rescrape"/>
             <b-tab-item label="Stashdb Rescrape"/>
             <b-tab-item :label="$t('Link Scenes')"/>
+            <b-tab-item label="AVIF Conversion"/>
       </b-tabs>
       <div class="columns">
         <div class="column">
@@ -259,6 +260,53 @@
                 <div class="column is-one-third" style="margin-left:.75em">{{ delayStartMsg(linkScenesStartDelay) }}</div>
             </b-field>
           </div>
+          <div v-if="activeTab == 6">
+            <h4>{{$t("AVIF Image Conversion")}}</h4>
+            <p style="margin-bottom: 1em">
+              Converts cached images to AVIF format for reduced storage space. Images are stored immediately and converted during scheduled time windows.
+            </p>
+            <b-field>
+              <b-switch v-model="avifEnabled">Enable schedule</b-switch>
+            </b-field>
+            <b-field v-if="avifEnabled">
+              <b-slider v-model="avifHourInterval" :min="1" :max="23" :step="1" ></b-slider>
+              <div class="column is-one-third" style="margin-left:.75em">{{`Run every ${this.avifHourInterval} hour${this.avifHourInterval > 1 ? 's': ''}`}}</div>
+            </b-field>
+            <b-field>
+              <b-switch v-if="avifEnabled" v-model="useAvifTimeRange">Limit time of day</b-switch>
+            </b-field>
+            <div v-if="useAvifTimeRange && avifEnabled">
+              <b-field>
+                <b-slider v-model="avifTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictAvifTo24Hours">
+                  <b-slider-tick :value="0">00:00</b-slider-tick>
+                  <b-slider-tick :value="6">06:00</b-slider-tick>
+                  <b-slider-tick :value="12">12:00</b-slider-tick>
+                  <b-slider-tick :value="18">18:00</b-slider-tick>
+                  <b-slider-tick :value="24">Midnight</b-slider-tick>
+                  <b-slider-tick :value="30">06:00</b-slider-tick>
+                  <b-slider-tick :value="36">12:00</b-slider-tick>
+                  <b-slider-tick :value="42">18:00</b-slider-tick>
+                  <b-slider-tick :value="48">00:00</b-slider-tick>
+                </b-slider>
+                <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.avifTimeRange[0]]} - ${this.timeRange[this.avifTimeRange[1]]}`}}</div>
+              </b-field>
+              <b-field>
+                <b-slider v-model="avifMinuteStart" :min="0" :max="60" :step="1" ></b-slider>
+                <div class="column is-one-third" style="margin-left:.75em">{{ minutesStartMsg(avifMinuteStart) }}</div>
+              </b-field>
+              <p>
+                AVIF conversion will not start after the Time Window Ends
+              </p>
+            </div>
+            <br/>
+            <b-field label="Startup">
+                <b-slider v-model="avifStartDelay" :min="0" :max="60" :step="1" ></b-slider>
+                <div class="column is-one-third" style="margin-left:.75em">{{ delayStartMsg(avifStartDelay) }}</div>
+            </b-field>
+            <p>
+              NOTE: AVIF conversion is CPU-intensive. Consider limiting the time window for this task.
+            </p>
+          </div>
             <hr/>
               <b-field grouped>
                 <b-button type="is-primary" @click="saveSettings" style="margin-right:1em">Save settings</b-button>
@@ -331,6 +379,13 @@ export default {
       lastlinkScenesTimeRange: [0,23],
       useLinkScenesTimeRange: false,      
       linkScenesStartDelay: 0,
+      avifEnabled: false,
+      avifTimeRange:[2,6],
+      avifHourInterval: 1,
+      avifMinuteStart: 0,
+      lastAvifTimeRange: [2,6],
+      useAvifTimeRange: true,      
+      avifStartDelay: 0,
       timeRange: ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
         '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
         '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
@@ -415,6 +470,10 @@ export default {
       this.linkScenesTimeRange = this.restrictTo24Hours(this.linkScenesTimeRange, this.lastLinkScenesTimeRange)
       this.lastLinkScenesTimeRange = this.LinkScenesTimeRange
     },
+    restrictAvifTo24Hours () {
+      this.avifTimeRange = this.restrictTo24Hours(this.avifTimeRange, this.lastAvifTimeRange)
+      this.lastAvifTimeRange = this.avifTimeRange
+    },
     restrictTo24Hours (timeRange, lastTimeRange) {
       // check the first time is not in the second 24 hours, no need, should be in the first 24 hours
       if (timeRange[0] > 23) {
@@ -479,6 +538,10 @@ export default {
           this.linkScenesHourInterval = data.config.cron.linkScenesSchedule.hourInterval
           this.useLinkScenesTimeRange = data.config.cron.linkScenesSchedule.useRange
           this.linkScenesMinuteStart = data.config.cron.linkScenesSchedule.minuteStart          
+          this.avifEnabled = data.config.cron.avifConversionSchedule.enabled
+          this.avifHourInterval = data.config.cron.avifConversionSchedule.hourInterval
+          this.useAvifTimeRange = data.config.cron.avifConversionSchedule.useRange
+          this.avifMinuteStart = data.config.cron.avifConversionSchedule.minuteStart          
           if (data.config.cron.rescrapeSchedule.hourStart > data.config.cron.rescrapeSchedule.hourEnd) {
             this.rescrapeTimeRange = [data.config.cron.rescrapeSchedule.hourStart, data.config.cron.rescrapeSchedule.hourEnd + 24]
           } else {
@@ -511,6 +574,12 @@ export default {
           } else {
             this.linkScenesTimeRange = [data.config.cron.linkScenesSchedule.hourStart, data.config.cron.linkScenesSchedule.hourEnd]            
           }
+
+          if (data.config.cron.avifConversionSchedule.hourStart > data.config.cron.avifConversionSchedule.hourEnd) {
+            this.avifTimeRange = [data.config.cron.avifConversionSchedule.hourStart, data.config.cron.avifConversionSchedule.hourEnd + 24]
+          } else {
+            this.avifTimeRange = [data.config.cron.avifConversionSchedule.hourStart, data.config.cron.avifConversionSchedule.hourEnd]            
+          }
           
           this.rescrapeStartDelay = data.config.cron.rescrapeSchedule.runAtStartDelay
           this.rescanStartDelay = data.config.cron.rescanSchedule.runAtStartDelay          
@@ -518,6 +587,7 @@ export default {
           this.actorRescrapeStartDelay = data.config.cron.actorRescrapeSchedule.runAtStartDelay          
           this.stashdbRescrapeStartDelay = data.config.cron.stashdbRescrapeSchedule.runAtStartDelay          
           this.linkScenesStartDelay = data.config.cron.linkScenesSchedule.runAtStartDelay          
+          this.avifStartDelay = data.config.cron.avifConversionSchedule.runAtStartDelay          
           this.isLoading = false
         })
     },
@@ -586,7 +656,14 @@ export default {
           linkScenesMinuteStart: this.linkScenesMinuteStart,
           linkScenesHourStart: this.linkScenesTimeRange[0],
           linkScenesHourEnd: this.linkScenesTimeRange[1],
-          linkScenesStartDelay:this.linkScenesStartDelay          
+          linkScenesStartDelay:this.linkScenesStartDelay,
+          avifEnabled: this.avifEnabled,
+          avifHourInterval: this.avifHourInterval,
+          avifUseRange: this.useAvifTimeRange,
+          avifMinuteStart: this.avifMinuteStart,
+          avifHourStart: this.avifTimeRange[0],
+          avifHourEnd: this.avifTimeRange[1],
+          avifStartDelay: this.avifStartDelay
         }
       })
         .json()

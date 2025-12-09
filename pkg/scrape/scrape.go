@@ -142,15 +142,20 @@ func createCallbacks(c *colly.Collector) *colly.Collector {
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		attempt := r.Ctx.GetAny("attempt").(int)
+		// Log all errors
+		log.Errorf("Scrape error for %s: %v (status: %d)", r.Request.URL, err, r.StatusCode)
+
+		attempt := r.Ctx.GetAny("attempt")
+		if attempt == nil {
+			return
+		}
+		attemptInt := attempt.(int)
 
 		if r.StatusCode == 429 {
-			log.Errorln("Error:", r.StatusCode, err)
-
-			if attempt <= maxRetries {
+			if attemptInt <= maxRetries {
 				unCache(r.Request.URL.String(), c.CacheDir)
 				log.Errorln("Waiting 2 seconds before next request...")
-				r.Ctx.Put("attempt", attempt+1)
+				r.Ctx.Put("attempt", attemptInt+1)
 				time.Sleep(2 * time.Second)
 				r.Request.Retry()
 			}

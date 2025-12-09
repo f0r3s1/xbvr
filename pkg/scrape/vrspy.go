@@ -37,13 +37,20 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 	logScrapeStart(scraperID, siteID)
 
 	var (
-		sceneCollector = createCollector(domain)
-		siteCollector  = createCollector(domain)
-		mu             sync.Mutex
-		processed      sync.Map
+		collector = createCollector(domain)
+		mu        sync.Mutex
+		processed sync.Map
+		sceneURLs []string
+		sceneMeta = make(map[string]struct{ cover, title string })
 	)
 
-	sceneCollector.OnHTML(`html`, func(e *colly.HTMLElement) {
+	// Handler for scene pages (individual video pages)
+	collector.OnHTML(`html`, func(e *colly.HTMLElement) {
+		// Only process scene pages, not listing pages
+		if !strings.Contains(e.Request.URL.Path, "/video/") {
+			return
+		}
+
 		sc := models.ScrapedScene{}
 		sc.ScraperID = scraperID
 		sc.SceneType = "VR"
@@ -66,15 +73,15 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		sc.SceneID = scraperID + "-" + sc.SiteID
 
 		// Title
-		if storedTitle, exists := processed.Load(e.Request.URL.String() + "_title"); exists {
-			sc.Title = storedTitle.(string)
+		if meta, exists := sceneMeta[e.Request.URL.String()]; exists && meta.title != "" {
+			sc.Title = meta.title
 		} else {
 			sc.Title = strings.TrimSpace(e.ChildText(`div.video-title-container h1`))
 		}
 
 		// Cover image
-		if storedCover, exists := processed.Load(e.Request.URL.String()); exists {
-			sc.Covers = append(sc.Covers, storedCover.(string))
+		if meta, exists := sceneMeta[e.Request.URL.String()]; exists && meta.cover != "" {
+			sc.Covers = append(sc.Covers, meta.cover)
 		}
 
 		// Description
@@ -128,7 +135,6 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		// Gallery
 		e.ForEach(`div.video-gallery img.thumbnail-cover`, func(id int, e *colly.HTMLElement) {
 			imgURL := e.Request.AbsoluteURL(e.Attr("src"))
-			// Clean CDN resize directives to get original quality image
 			imgURL = cleanCDNURL(imgURL)
 			if strings.Contains(imgURL, "?width=") {
 				baseURL := strings.Split(imgURL, "?")[0]
@@ -146,9 +152,8 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		out <- sc
 	})
 
-	// Scene discovery
-	siteCollector.OnHTML(`div.item-wrapper`, func(e *colly.HTMLElement) {
-		// Find scene URL
+	// Scene discovery from listing pages - collect URLs, don't visit yet
+	collector.OnHTML(`div.item-wrapper`, func(e *colly.HTMLElement) {
 		var sceneURL string
 		e.ForEach("a", func(i int, el *colly.HTMLElement) {
 			href := el.Attr("href")
@@ -162,12 +167,10 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 		}
 		sceneURL = e.Request.AbsoluteURL(sceneURL)
 
-		// Get cover and title
 		coverImg := e.ChildAttr("img.cover", "src")
 		if coverImg == "" {
 			coverImg = e.ChildAttr("img", "src")
 		}
-		// Clean CDN resize directives from cover image
 		coverImg = cleanCDNURL(coverImg)
 
 		title := strings.TrimSpace(e.ChildText("div.title"))
@@ -180,19 +183,37 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 
 		if !funk.ContainsString(knownScenes, sceneURL) {
 			if _, exists := processed.Load(sceneURL); !exists {
-				processed.Store(sceneURL, coverImg)
-				processed.Store(sceneURL+"_title", title)
-				sceneCollector.Visit(sceneURL)
+				processed.Store(sceneURL, true)
+				sceneURLs = append(sceneURLs, sceneURL)
+				sceneMeta[sceneURL] = struct{ cover, title string }{coverImg, title}
 			}
 		}
 	})
 
-	// Pagination - only if not limit scraping
+	// Pagination for listing pages - only if not limit scraping
+	// We need to track items found per page to know when to stop
+	var lastPageItemCount int
+
 	if !limitScraping {
-		siteCollector.OnHTML(`#video-section`, func(e *colly.HTMLElement) {
-			if e.ChildText(`div.data-notfound-message`) != "" {
+		collector.OnHTML(`html`, func(e *colly.HTMLElement) {
+			// Only process pagination for listing pages
+			if !strings.Contains(e.Request.URL.Path, "/videos") {
 				return
 			}
+
+			// Count items on this page
+			itemCount := 0
+			e.ForEach(`div.item-wrapper`, func(id int, el *colly.HTMLElement) {
+				itemCount++
+			})
+
+			// Stop if no items found (we've gone past the last page)
+			if itemCount == 0 {
+				log.Infof("VRSpy: Page %s has no items, stopping pagination", e.Request.URL.String())
+				return
+			}
+
+			lastPageItemCount = itemCount
 
 			pageNum := 1
 			if page := e.Request.URL.Query().Get("page"); page != "" {
@@ -201,24 +222,44 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 
 			nextPage := fmt.Sprintf("%s/videos?sort=new&page=%d", baseURL, pageNum+1)
 
-			mu.Lock()
-			defer mu.Unlock()
-
-			if _, exists := processed.Load(nextPage); !exists {
+			_, exists := processed.Load(nextPage)
+			if !exists {
 				processed.Store(nextPage, true)
-				siteCollector.Visit(nextPage)
+				log.Infof("VRSpy: Page %d had %d items, queuing next page: %s", pageNum, itemCount, nextPage)
+				e.Request.Visit(nextPage)
 			}
 		})
 	}
 
-	if singleSceneURL != "" {
-		sceneCollector.Visit(singleSceneURL)
-	} else {
-		siteCollector.Visit(baseURL + "/videos")
-	}
+	// Suppress the lastPageItemCount unused warning
+	_ = lastPageItemCount
 
-	siteCollector.Wait()
-	sceneCollector.Wait()
+	if singleSceneURL != "" {
+		// Single scene scrape
+		if err := collector.Visit(singleSceneURL); err != nil {
+			log.Errorf("VRSpy: failed to visit scene URL %s: %v", singleSceneURL, err)
+		}
+		collector.Wait()
+	} else {
+		// First, collect all scene URLs from listing pages
+		if err := collector.Visit(baseURL + "/videos?sort=new"); err != nil {
+			log.Errorf("VRSpy: failed to visit site URL: %v", err)
+		}
+		collector.Wait()
+
+		// Now visit all collected scene URLs
+		log.Infof("VRSpy: collected %d scene URLs, now fetching details", len(sceneURLs))
+		for i, sceneURL := range sceneURLs {
+			if err := collector.Visit(sceneURL); err != nil {
+				log.Errorf("VRSpy: failed to visit scene %s: %v", sceneURL, err)
+			}
+			// Log progress every 10 scenes
+			if (i+1)%10 == 0 {
+				log.Infof("VRSpy: processed %d/%d scenes", i+1, len(sceneURLs))
+			}
+		}
+		collector.Wait()
+	}
 
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
