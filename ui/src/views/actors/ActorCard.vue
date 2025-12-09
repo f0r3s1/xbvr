@@ -100,7 +100,7 @@ export default {
         return "/ui/images/blank_female_profile.png"
       }
       if (u.startsWith('http')) {
-        return '/img/700x/' + u.replace('://', ':/')
+        return '/img/1200x/' + u.replace('://', ':/')
       } else {
         return u
       }

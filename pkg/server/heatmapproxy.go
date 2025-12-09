@@ -167,8 +167,13 @@ func (p *HeatmapThumbnailProxy) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if loadFromCache {
 		cachedContent, ok := p.Cache.Get(cacheKey)
 		if ok {
-			w.Header().Add("Content-Type", "image/jpeg")
+			// Detect content type from cached data (may be AVIF if converted)
+			contentType := http.DetectContentType(cachedContent)
+			w.Header().Add("Content-Type", contentType)
 			w.Header().Add("Content-Length", fmt.Sprint(len(cachedContent)))
+			// Set correct file extension for downloads based on actual content type
+			ext := getExtensionForContentType(contentType)
+			w.Header().Add("Content-Disposition", fmt.Sprintf("inline; filename=\"heatmap%s\"", ext))
 			if _, err := io.Copy(w, bytes.NewReader(cachedContent)); err != nil {
 				log.Printf("Failed to send out response: %v", err)
 			}
@@ -217,10 +222,12 @@ func (p *HeatmapThumbnailProxy) ServeHTTP(w http.ResponseWriter, r *http.Request
 		var output bytes.Buffer
 		err = createHeatmapThumbnail(&output, bytes.NewReader(respbody), heatmapImages)
 		if err == nil {
-			p.Cache.Set(cacheKey, output.Bytes())
+			originalData := output.Bytes()
+			p.Cache.Set(cacheKey, originalData)
+			// Serve the original JPEG data to client (cache may convert to AVIF for storage)
 			w.Header().Add("Content-Type", "image/jpeg")
-			w.Header().Add("Content-Length", fmt.Sprint(len(output.Bytes())))
-			if _, err := io.Copy(w, bytes.NewReader(output.Bytes())); err != nil {
+			w.Header().Add("Content-Length", fmt.Sprint(len(originalData)))
+			if _, err := io.Copy(w, bytes.NewReader(originalData)); err != nil {
 				log.Printf("Failed to send out response: %v", err)
 			}
 			return

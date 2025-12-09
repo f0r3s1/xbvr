@@ -13,6 +13,7 @@ var AppDir string
 var BinDir string
 var CacheDir string
 var ImgDir string
+var HeatmapThumbnailDir string
 var MetricsDir string
 var HeatmapDir string
 var IndexDirV2 string
@@ -81,6 +82,7 @@ func InitPaths() {
 	CacheDir = getPath(*cache_dir, "XBVR_CACHEDIR", "cache")
 	BinDir = filepath.Join(AppDir, "bin")
 	ImgDir = getPath(*imgproxy_dir, "XBVR_IMAGEPROXYDIR", "imageproxy")
+	HeatmapThumbnailDir = filepath.Join(AppDir, "heatmapthumbnailproxy")
 	MetricsDir = filepath.Join(AppDir, "metrics")
 	HeatmapDir = filepath.Join(AppDir, "heatmap")
 	IndexDirV2 = getPath(*search_dir, "XBVR_SEARCHDIR", "search-v2")
@@ -130,6 +132,7 @@ func InitPaths() {
 
 	_ = os.MkdirAll(AppDir, os.ModePerm)
 	_ = os.MkdirAll(ImgDir, os.ModePerm)
+	_ = os.MkdirAll(HeatmapThumbnailDir, os.ModePerm)
 	_ = os.MkdirAll(MetricsDir, os.ModePerm)
 	_ = os.MkdirAll(HeatmapDir, os.ModePerm)
 	_ = os.MkdirAll(CacheDir, os.ModePerm)

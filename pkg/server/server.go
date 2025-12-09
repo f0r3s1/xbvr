@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	auth "github.com/abbot/go-http-auth"
@@ -136,16 +135,21 @@ func StartServer(version, commit, branch, date string) {
 
 	// Imageproxy
 	r := mux.NewRouter()
-	imgCache := diskCache(filepath.Join(common.AppDir, "imageproxy"))
+	// Create AVIF cache wrapper for storage optimization - converts all images to AVIF
+	imgDiskCache := diskCache(common.ImgDir)
+	imgCache := NewAVIFCache(imgDiskCache)
+	// Pass AVIFCache to imageproxy so ALL cached images get converted to AVIF
 	p := imageproxy.NewProxy(NewForceCacheTransport(), imgCache)
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	// If the client request has a cache-control header (such as 'no-cache'), pass them
 	// onto the imageproxy so that this can be respected.
 	p.PassRequestHeaders = append(p.PassRequestHeaders, "Cache-Control")
-	// Use the fallback handler that wraps the imageproxy
+	// Use the fallback handler that wraps the imageproxy (uses AVIF cache for storage)
 	imgFallback := NewImageProxyFallbackHandler(p, imgCache)
 	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
-	hmp := NewHeatmapThumbnailProxy(p, diskCache(filepath.Join(common.AppDir, "heatmapthumbnailproxy")))
+	// Heatmap thumbnail proxy also uses AVIF cache for storage optimization
+	hmpCache := NewAVIFCache(diskCache(common.HeatmapThumbnailDir))
+	hmp := NewHeatmapThumbnailProxy(p, hmpCache)
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))
 	downloadhandler := DownloadHandler{}
 	r.PathPrefix("/download/").Handler(http.StripPrefix("/download/", downloadhandler))

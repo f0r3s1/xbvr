@@ -20,16 +20,14 @@
             <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
             <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
             <!-- Alt Sources inline -->
-            <template v-for="(altsrc, idx) in alternateSources">
-              <b-tooltip :key="idx" type="is-light" :label="altsrc.title" :delay="100">
-                <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
-                  <vue-load-image>
-                    <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
-                    <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
-                  </vue-load-image>
-                </a>
-              </b-tooltip>
-            </template>
+            <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
+              <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
+                <vue-load-image>
+                  <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
+                  <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
+                </vue-load-image>
+              </a>
+            </b-tooltip>
           </div>
         </div>
       </div>
@@ -37,8 +35,15 @@
 
     <!-- Main 16:9 Thumbnail -->
     <div class="thumbnail-wrapper">
-      <div class="thumbnail-img"
-           :style='{backgroundImage: `url("${getImageURL(item.cover_url)}")`, opacity: item.is_available ? 1.0 : isAvailOpactiy}'>
+      <div class="thumbnail-img" :style='{ opacity: item.is_available ? 1.0 : isAvailOpactiy }'>
+        <img 
+          ref="coverImage"
+          :src="coverImageSrc" 
+          @error="onImageError" 
+          @load="onImageLoad"
+          class="cover-image"
+          :class="{ 'is-loaded': imageLoaded }"
+        />
       </div>
       
       <!-- Tags Overlay - Top Left -->
@@ -95,16 +100,14 @@
           <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
           <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
           <!-- Alt Sources inline -->
-          <template v-for="(altsrc, idx) in alternateSources">
-            <b-tooltip :key="idx" type="is-light" :label="altsrc.title" :delay="100">
-              <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
-                <vue-load-image>
-                  <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
-                  <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
-                </vue-load-image>
-              </a>
-            </b-tooltip>
-          </template>
+          <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
+            <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
+              <vue-load-image>
+                <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
+                <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
+              </vue-load-image>
+            </a>
+          </b-tooltip>
         </div>
       </div>
     </div>
@@ -169,6 +172,9 @@ export default {
       parseISO,
       alternateSources: [],
       stashLinkExists: false,
+      imageRetryCount: 0,
+      imageLoaded: false,
+      imageKey: 0,
     }
   },
   mounted () {
@@ -200,9 +206,62 @@ export default {
     hasStatusIcons () {
       return this.item.is_hidden || this.item.favourite || this.item.is_watched || 
              this.item.watchlist || this.item.wishlist || this.item.trailerlist
+    },
+    coverImageSrc () {
+      // Add imageKey to force re-fetch on retry
+      const u = this.item.cover_url
+      if (!u || !u.startsWith('http')) return u
+      let url
+      if (u.search("%") == -1) {
+        url = '/img/1200x/' + encodeURI(u)
+      } else {
+        url = '/img/1200x/' + encodeURI(decodeURI(u))
+      }
+      // Append cache-buster on retry to force new request
+      return this.imageKey > 0 ? url + '?retry=' + this.imageKey : url
     }
   },
   methods: {
+    onImageError () {
+      // Retry up to 3 times with increasing delays
+      if (this.imageRetryCount < 3) {
+        this.imageRetryCount++
+        this.imageLoaded = false
+        const delay = this.imageRetryCount * 2000 // 2s, 4s, 6s
+        setTimeout(() => {
+          this.imageKey++ // Force new src to retry
+        }, delay)
+      } else {
+        // Give up, show whatever we have (unblur it)
+        this.imageLoaded = true
+      }
+    },
+    onImageLoad () {
+      // Verify the image actually loaded with valid dimensions
+      this.$nextTick(() => {
+        if (this.$refs.coverImage) {
+          const img = this.$refs.coverImage
+          if (img.naturalWidth > 100) {
+            // Image loaded successfully with reasonable size
+            this.imageLoaded = true
+            this.imageRetryCount = 0
+          } else if (this.imageRetryCount < 3) {
+            // Image too small, might be broken proxy response - retry
+            this.imageRetryCount++
+            this.imageLoaded = false
+            const delay = this.imageRetryCount * 1500
+            setTimeout(() => {
+              this.imageKey++
+            }, delay)
+          } else {
+            // Give up, show whatever we have
+            this.imageLoaded = true
+          }
+        } else {
+          this.imageLoaded = true
+        }
+      })
+    },
     async loadAlternateSources () {
       this.stashLinkExists = false
       try {
@@ -244,9 +303,9 @@ export default {
     getImageURL (u) {
       if (!u.startsWith('http')) return u
       if (u.search("%") == -1) {
-        return '/img/700x/' + encodeURI(u)
+        return '/img/1200x/' + encodeURI(u)
       } else {
-        return '/img/700x/' + encodeURI(decodeURI(u))
+        return '/img/1200x/' + encodeURI(decodeURI(u))
       }
     },
     showDetails (scene) {
@@ -341,11 +400,25 @@ export default {
 .thumbnail-img {
   width: 100%;
   height: 100%;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  position: relative;
+  background-color: transparent;
   transition: transform 0.3s ease;
   border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.thumbnail-img .cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.5s ease, transform 0.5s ease;
+  filter: blur(15px);
+  transform: scale(1.05);
+}
+
+.thumbnail-img .cover-image.is-loaded {
+  filter: blur(0);
+  transform: scale(1);
 }
 
 .scene-card:hover .thumbnail-img {

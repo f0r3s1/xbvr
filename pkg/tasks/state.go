@@ -31,7 +31,10 @@ func UpdateState() {
 }
 
 func CalculateCacheSizes() {
-	config.State.CacheSize.Images, _ = common.DirSize(common.ImgDir)
+	imgSize, _ := common.DirSize(common.ImgDir)
+	heatmapThumbSize, _ := common.DirSize(common.HeatmapThumbnailDir)
+	// Combine both image caches (imageproxy + heatmap thumbnails)
+	config.State.CacheSize.Images = imgSize + heatmapThumbSize
 	config.State.CacheSize.Previews, _ = common.DirSize(common.VideoPreviewDir)
 	config.State.CacheSize.SearchIndex, _ = common.DirSize(common.IndexDirV2)
 

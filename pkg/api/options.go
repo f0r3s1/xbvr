@@ -814,8 +814,11 @@ func (i ConfigResource) resetCache(req *restful.Request, resp *restful.Response)
 	cache := req.PathParameter("cache")
 
 	if cache == "images" {
+		// Clear both image caches (imageproxy + heatmap thumbnails)
 		os.RemoveAll(common.ImgDir)
 		os.MkdirAll(common.ImgDir, os.ModePerm)
+		os.RemoveAll(common.HeatmapThumbnailDir)
+		os.MkdirAll(common.HeatmapThumbnailDir, os.ModePerm)
 		config.State.CacheSize.Images = 0
 	}
 
