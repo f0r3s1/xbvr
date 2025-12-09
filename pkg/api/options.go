@@ -190,6 +190,14 @@ type RequestSaveOptionsTaskSchedule struct {
 	LinkScenesHourStart    int  `json:"linkScenesHourStart"`
 	LinkScenesHourEnd      int  `json:"linkScenesHourEnd"`
 	LinkScenesStartDelay   int  `json:"linkScenesStartDelay"`
+
+	AVIFEnabled      bool `json:"avifEnabled"`
+	AVIFHourInterval int  `json:"avifHourInterval"`
+	AVIFUseRange     bool `json:"avifUseRange"`
+	AVIFMinuteStart  int  `json:"avifMinuteStart"`
+	AVIFHourStart    int  `json:"avifHourStart"`
+	AVIFHourEnd      int  `json:"avifHourEnd"`
+	AVIFStartDelay   int  `json:"avifStartDelay"`
 }
 type RequestSaveSiteMatchParams struct {
 	SiteId      string                   `json:"site"`
@@ -977,6 +985,9 @@ func (i ConfigResource) saveOptionsTaskSchedule(req *restful.Request, resp *rest
 	if r.PreviewHourEnd > 23 {
 		r.PreviewHourEnd -= 24
 	}
+	if r.AVIFHourEnd > 23 {
+		r.AVIFHourEnd -= 24
+	}
 
 	config.Config.Cron.RescrapeSchedule.Enabled = r.RescrapeEnabled
 	config.Config.Cron.RescrapeSchedule.HourInterval = r.RescrapeHourInterval
@@ -1025,6 +1036,14 @@ func (i ConfigResource) saveOptionsTaskSchedule(req *restful.Request, resp *rest
 	config.Config.Cron.LinkScenesSchedule.HourStart = r.LinkScenesHourStart
 	config.Config.Cron.LinkScenesSchedule.HourEnd = r.LinkScenesHourEnd
 	config.Config.Cron.LinkScenesSchedule.RunAtStartDelay = r.LinkScenesStartDelay
+
+	config.Config.Cron.AVIFConversionSchedule.Enabled = r.AVIFEnabled
+	config.Config.Cron.AVIFConversionSchedule.HourInterval = r.AVIFHourInterval
+	config.Config.Cron.AVIFConversionSchedule.UseRange = r.AVIFUseRange
+	config.Config.Cron.AVIFConversionSchedule.MinuteStart = r.AVIFMinuteStart
+	config.Config.Cron.AVIFConversionSchedule.HourStart = r.AVIFHourStart
+	config.Config.Cron.AVIFConversionSchedule.HourEnd = r.AVIFHourEnd
+	config.Config.Cron.AVIFConversionSchedule.RunAtStartDelay = r.AVIFStartDelay
 
 	config.SaveConfig()
 

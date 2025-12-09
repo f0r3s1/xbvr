@@ -71,9 +71,6 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 	defer cancel()
 	req = req.WithContext(ctx)
 
-	// Log actual request (not just queued)
-	log.Infof("FlareSolverr fetching: %s", req.URL.String())
-
 	if fst.baseURL == "" {
 		return nil, fmt.Errorf("flaresolverr address not configured")
 	}
@@ -89,7 +86,7 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 	flareReq, _ := http.NewRequestWithContext(ctx, "POST", fst.baseURL+"/v1", bytes.NewReader(jsonPayload))
 	flareReq.Header.Set("Content-Type", "application/json")
 
-	log.Debugf("FlareSolverr requesting: %s", req.URL.String())
+	log.Infof("FlareSolverr fetching: %s", req.URL.String())
 
 	resp, err := fst.client.Do(flareReq)
 	if err != nil {
@@ -124,7 +121,7 @@ func (fst *flareSolverrTransport) RoundTrip(req *http.Request) (*http.Response, 
 	// Clear the string from result to allow GC
 	result.Solution.Response = ""
 
-	log.Debugf("FlareSolverr response: %s (%d bytes)", req.URL.String(), len(responseBytes))
+	log.Infof("FlareSolverr response: %s (status %d, %d bytes)", req.URL.String(), result.Solution.Status, len(responseBytes))
 
 	headers := convertHeaders(result.Solution.Headers)
 	if headers.Get("Content-Type") == "" {
