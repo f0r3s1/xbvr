@@ -175,6 +175,74 @@ func (fst *flareSolverrTransport) createSession() error {
 	return nil
 }
 
+// destroySession properly shuts down the browser instance and frees resources
+func (fst *flareSolverrTransport) destroySession() error {
+	fst.mu.Lock()
+	defer fst.mu.Unlock()
+
+	if fst.sessionID == "" {
+		return nil // No session to destroy
+	}
+
+	log.Infof("Destroying FlareSolverr session: %s", fst.sessionID)
+
+	if fst.baseURL == "" {
+		fst.sessionID = ""
+		return fmt.Errorf("flaresolverr address not configured")
+	}
+
+	payload := map[string]interface{}{
+		"cmd":     "sessions.destroy",
+		"session": fst.sessionID,
+	}
+	jsonPayload, _ := json.Marshal(payload)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "POST", fst.baseURL+"/v1", bytes.NewReader(jsonPayload))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := fst.client.Do(req)
+	if err != nil {
+		// Still clear the session ID even if destroy fails
+		fst.sessionID = ""
+		return fmt.Errorf("failed to destroy session: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fst.sessionID = ""
+		return fmt.Errorf("session destroy parse error: %w", err)
+	}
+
+	if result.Status != "ok" {
+		log.Warnf("FlareSolverr session destroy warning: %s (%s)", result.Status, result.Message)
+	} else {
+		log.Infof("FlareSolverr session destroyed successfully: %s", fst.sessionID)
+	}
+
+	fst.sessionID = ""
+	return nil
+}
+
+// CleanupFlareSolverrSession destroys the shared FlareSolverr session to free resources
+// This should be called when scraping tasks are complete
+func CleanupFlareSolverrSession() {
+	sharedTransportMu.Lock()
+	defer sharedTransportMu.Unlock()
+
+	if sharedFlareSolverrTransport != nil {
+		if err := sharedFlareSolverrTransport.destroySession(); err != nil {
+			log.Warnf("Error cleaning up FlareSolverr session: %v", err)
+		}
+	}
+}
+
 func convertHeaders(headers map[string]string) http.Header {
 	h := make(http.Header)
 	for k, v := range headers {
