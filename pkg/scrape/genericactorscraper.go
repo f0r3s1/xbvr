@@ -33,6 +33,7 @@ var semaphore chan struct{}
 func GenericActorScrapers() {
 	tlog := log.WithField("task", "scrape")
 	tlog.Infof("Scraping Actor Details from Sites")
+	defer CleanupFlareSolverrSession() // Clean up FlareSolverr session when scraping is done
 
 	commonDb, _ := models.GetCommonDB()
 
@@ -132,6 +133,7 @@ func processAuthorLink(row outputList, siteRules map[string]models.GenericScrape
 
 func GenericSingleActorScraper(actorId uint, actorPage string) {
 	log.Infof("Scraping Actor Details from %s", actorPage)
+	defer CleanupFlareSolverrSession() // Clean up FlareSolverr session when scraping is done
 	commonDb, _ := models.GetCommonDB()
 
 	var actor models.Actor
@@ -157,6 +159,7 @@ func GenericSingleActorScraper(actorId uint, actorPage string) {
 func GenericActorScrapersBySite(site string) {
 	tlog := log.WithField("task", "scrape")
 	tlog.Infof("Scraping Actor Details from %s", site)
+	defer CleanupFlareSolverrSession() // Clean up FlareSolverr session when scraping is done
 
 	commonDb, _ := models.GetCommonDB()
 	scraperConfig := models.BuildActorScraperRules()

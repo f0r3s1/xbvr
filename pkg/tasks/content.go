@@ -105,6 +105,7 @@ func CleanTags() {
 
 func runScrapers(knownScenes []string, toScrape string, updateSite bool, collectedScenes chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string, forceLimit bool) error {
 	defer scrape.DeleteScrapeCache()
+	defer scrape.CleanupFlareSolverrSession() // Clean up FlareSolverr session when scraping is done
 
 	scrapers := models.GetScrapers()
 
@@ -384,6 +385,7 @@ func ScrapeJAVR(queryString string, scraper string) {
 	if !models.CheckLock("scrape") {
 		models.CreateLock("scrape")
 		defer models.RemoveLock("scrape")
+		defer scrape.CleanupFlareSolverrSession() // Clean up FlareSolverr session when scraping is done
 		t0 := time.Now()
 		tlog := log.WithField("task", "scrape")
 		tlog.Infof("Scraping started at %s", t0.Format("Mon Jan _2 15:04:05 2006"))
@@ -433,6 +435,7 @@ func ScrapeTPDB(apiToken string, sceneUrl string) {
 	if !models.CheckLock("scrape") {
 		models.CreateLock("scrape")
 		defer models.RemoveLock("scrape")
+		defer scrape.CleanupFlareSolverrSession() // Clean up FlareSolverr session when scraping is done
 		t0 := time.Now()
 		tlog := log.WithField("task", "scrape")
 		tlog.Infof("Scraping started at %s", t0.Format("Mon Jan _2 15:04:05 2006"))
