@@ -2418,6 +2418,35 @@ func Migrate() {
 				return tx.AutoMigrate(&models.Site{}).Error
 			},
 		},
+		{
+			ID: "0088-add-site-use-proxy",
+			Migrate: func(tx *gorm.DB) error {
+				// Add use_proxy column to sites table
+				return tx.AutoMigrate(&models.Site{}).Error
+			},
+		},
+		{
+			ID: "0089-rename-imageproxy-to-proxy",
+			Migrate: func(tx *gorm.DB) error {
+				// Migrate old imageProxy config fields to new proxy fields
+				var obj models.KV
+				err := tx.Where(&models.KV{Key: "config"}).First(&obj).Error
+				if err != nil {
+					return nil // No config found, nothing to migrate
+				}
+
+				// Parse the old config and migrate fields
+				configStr := obj.Value
+				// Replace old field names with new ones
+				configStr = strings.ReplaceAll(configStr, `"imageProxyUrl"`, `"proxyAddress"`)
+				configStr = strings.ReplaceAll(configStr, `"imageProxyApiKeyName"`, `"proxyApiKeyName"`)
+				configStr = strings.ReplaceAll(configStr, `"imageProxyApiKeyValue"`, `"proxyApiKeyValue"`)
+
+				obj.Value = configStr
+				obj.Save()
+				return nil
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

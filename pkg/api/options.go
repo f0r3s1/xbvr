@@ -81,9 +81,9 @@ type RequestSaveOptionsAdvanced struct {
 	IgnoreReleasedBefore         time.Time `json:"ignoreReleasedBefore"`
 	FlareSolverrAddress          string    `json:"flareSolverrAddress"`
 	UseFlareSolverr              bool      `json:"useFlareSolverr"`
-	ImageProxyURL                string    `json:"imageProxyUrl"`
-	ImageProxyApiKeyName         string    `json:"imageProxyApiKeyName"`
-	ImageProxyApiKeyValue        string    `json:"imageProxyApiKeyValue"`
+	ProxyAddress                 string    `json:"proxyAddress"`
+	ProxyApiKeyName              string    `json:"proxyApiKeyName"`
+	ProxyApiKeyValue             string    `json:"proxyApiKeyValue"`
 }
 
 type RequestSaveOptionsFunscripts struct {
@@ -275,6 +275,9 @@ func (i ConfigResource) WebService() *restful.WebService {
 	ws.Route(ws.PUT("/sites/use_flaresolverr/{site}").To(i.toggleUseFlareSolverr).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.PUT("/sites/use_proxy/{site}").To(i.toggleUseProxy).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.POST("/scraper/force-site-update").To(i.forceSiteUpdate).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -405,6 +408,10 @@ func (i ConfigResource) toggleUseFlareSolverr(req *restful.Request, resp *restfu
 	i.toggleSiteField(req, resp, "UseFlareSolverr")
 }
 
+func (i ConfigResource) toggleUseProxy(req *restful.Request, resp *restful.Response) {
+	i.toggleSiteField(req, resp, "UseProxy")
+}
+
 func (i ConfigResource) toggleSiteField(req *restful.Request, resp *restful.Response, field string) {
 	db, _ := models.GetDB()
 	defer db.Close()
@@ -435,6 +442,8 @@ func (i ConfigResource) toggleSiteField(req *restful.Request, resp *restful.Resp
 		db.Model(&models.Scene{}).Where("scrape_stash = ?", site.ID).Update("scrape_stash", site.LimitScraping)
 	case "UseFlareSolverr":
 		site.UseFlareSolverr = !site.UseFlareSolverr
+	case "UseProxy":
+		site.UseProxy = !site.UseProxy
 	}
 	site.Save()
 
@@ -559,9 +568,9 @@ func (i ConfigResource) saveOptionsAdvanced(req *restful.Request, resp *restful.
 	config.Config.Advanced.IgnoreReleasedBefore = r.IgnoreReleasedBefore
 	config.Config.Advanced.FlareSolverrAddress = r.FlareSolverrAddress
 	config.Config.Advanced.UseFlareSolverr = r.UseFlareSolverr
-	config.Config.Advanced.ImageProxyURL = r.ImageProxyURL
-	config.Config.Advanced.ImageProxyApiKeyName = r.ImageProxyApiKeyName
-	config.Config.Advanced.ImageProxyApiKeyValue = r.ImageProxyApiKeyValue
+	config.Config.Advanced.ProxyAddress = r.ProxyAddress
+	config.Config.Advanced.ProxyApiKeyName = r.ProxyApiKeyName
+	config.Config.Advanced.ProxyApiKeyValue = r.ProxyApiKeyValue
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)

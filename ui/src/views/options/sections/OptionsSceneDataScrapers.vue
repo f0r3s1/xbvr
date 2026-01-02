@@ -83,6 +83,12 @@
                 <b-icon icon="fire" size="is-small"/>
               </span>
             </b-tooltip>
+            <b-tooltip :label="$t('Use Proxy')" :delay="250">
+              <span class="setting-badge proxy-badge" :class="{ 'is-active': props.row.use_proxy }" 
+                    @click="$store.dispatch('optionsSites/toggleUseProxy', {id: props.row.id})">
+                <b-icon icon="cloud" size="is-small"/>
+              </span>
+            </b-tooltip>
           </template>
           <!-- Alternate sites: link to master + edit params -->
           <template v-else>
@@ -90,6 +96,12 @@
               <span class="setting-badge flare-badge" :class="{ 'is-active': props.row.use_flaresolverr }" 
                     @click="$store.dispatch('optionsSites/toggleUseFlareSolverr', {id: props.row.id})">
                 <b-icon icon="fire" size="is-small"/>
+              </span>
+            </b-tooltip>
+            <b-tooltip :label="$t('Use Proxy')" :delay="250">
+              <span class="setting-badge proxy-badge" :class="{ 'is-active': props.row.use_proxy }" 
+                    @click="$store.dispatch('optionsSites/toggleUseProxy', {id: props.row.id})">
+                <b-icon icon="cloud" size="is-small"/>
               </span>
             </b-tooltip>
             <b-tooltip :label="$t('Edit Matching Parameters')" :delay="250">
@@ -561,6 +573,15 @@ export default {
 
   .setting-badge.flare-badge:hover {
     background: #ff8c5a;
+  }
+
+  .setting-badge.proxy-badge.is-active {
+    background: #48c774;
+    color: white;
+  }
+
+  .setting-badge.proxy-badge:hover {
+    background: #3ec46d;
   }
 
   .setting-badge.is-active:hover {

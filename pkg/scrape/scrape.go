@@ -3,6 +3,9 @@ package scrape
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -28,6 +31,67 @@ var DomainToSiteID = make(map[string]string)
 // RegisterDomainSiteMapping maps a domain to a site ID
 func RegisterDomainSiteMapping(domain string, siteID string) {
 	DomainToSiteID[domain] = siteID
+}
+
+// IsProxyEnabled checks if proxy is enabled for a domain
+func IsProxyEnabled(domain string) bool {
+	// Check if Proxy URL is configured
+	if config.Config.Advanced.ProxyAddress == "" {
+		return false
+	}
+	// Get site ID from domain mapping
+	siteID, exists := DomainToSiteID[domain]
+	if !exists {
+		return false
+	}
+	// Check per-site setting in database
+	db, _ := models.GetDB()
+	defer db.Close()
+	var site models.Site
+	if err := db.Where("id = ?", siteID).First(&site).Error; err != nil {
+		return false
+	}
+	return site.UseProxy
+}
+
+// ProxyGet performs an HTTP GET request through the configured Proxy
+func ProxyGet(targetURL string) (string, error) {
+	proxyURL := config.Config.Advanced.ProxyAddress
+	apiKeyName := config.Config.Advanced.ProxyApiKeyName
+	apiKeyValue := config.Config.Advanced.ProxyApiKeyValue
+
+	if proxyURL == "" {
+		return "", fmt.Errorf("proxy URL not configured")
+	}
+
+	// Build proxy request URL
+	var reqURL string
+	if apiKeyName != "" && apiKeyValue != "" {
+		reqURL = fmt.Sprintf("%s?%s=%s&url=%s", proxyURL, url.QueryEscape(apiKeyName), url.QueryEscape(apiKeyValue), url.QueryEscape(targetURL))
+	} else {
+		reqURL = fmt.Sprintf("%s?url=%s", proxyURL, url.QueryEscape(targetURL))
+	}
+
+	log.Infof("Proxy GET: %s", targetURL)
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Get(reqURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("proxy returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	log.Debugf("Proxy GET response: %s (%d bytes)", targetURL, len(body))
+	return string(body), nil
 }
 
 // IsFlareSolverrEnabled checks if FlareSolverr is enabled for a domain

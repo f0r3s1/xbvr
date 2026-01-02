@@ -16,9 +16,9 @@ const state = {
     collectorConfigs: null,
     flareSolverrAddress: '',
     useFlareSolverr: false,
-    imageProxyUrl: '',
-    imageProxyApiKeyName: '',
-    imageProxyApiKeyValue: ''
+    proxyAddress: '',
+    proxyApiKeyName: '',
+    proxyApiKeyValue: ''
   }
 }
 
@@ -48,9 +48,9 @@ const actions = {
         state.advanced.ignoreReleasedBefore = data.config.advanced.ignoreReleasedBefore
         state.advanced.flareSolverrAddress = data.config.advanced.flareSolverrAddress
         state.advanced.useFlareSolverr = data.config.advanced.useFlareSolverr
-        state.advanced.imageProxyUrl = data.config.advanced.imageProxyUrl
-        state.advanced.imageProxyApiKeyName = data.config.advanced.imageProxyApiKeyName
-        state.advanced.imageProxyApiKeyValue = data.config.advanced.imageProxyApiKeyValue
+        state.advanced.proxyAddress = data.config.advanced.proxyAddress
+        state.advanced.proxyApiKeyName = data.config.advanced.proxyApiKeyName
+        state.advanced.proxyApiKeyValue = data.config.advanced.proxyApiKeyValue
         state.loading = false
       })
   },
@@ -72,9 +72,9 @@ const actions = {
         state.advanced.ignoreReleasedBefore = data.ignoreReleasedBefore
         state.advanced.flareSolverrAddress = data.flareSolverrAddress
         state.advanced.useFlareSolverr = data.useFlareSolverr
-        state.advanced.imageProxyUrl = data.imageProxyUrl
-        state.advanced.imageProxyApiKeyName = data.imageProxyApiKeyName
-        state.advanced.imageProxyApiKeyValue = data.imageProxyApiKeyValue
+        state.advanced.proxyAddress = data.proxyAddress
+        state.advanced.proxyApiKeyName = data.proxyApiKeyName
+        state.advanced.proxyApiKeyValue = data.proxyApiKeyValue
         state.loading = false
       })
   }

@@ -170,12 +170,23 @@
       <div class="columns" v-if="activeTab == 4">
         <div class="column">
           <section>
-            <b-field :label="$t('Proxy')" label-position="on-border">
-              <b-input v-model="scraperProxy" :placeholder="$t('Optional: http proxy')"></b-input>
+            <h4>{{ $t('Network Proxy') }}</h4>
+            <b-message type="is-info" size="is-small">
+              <p><strong>Network Proxy</strong> routes ALL scraper traffic through an HTTP/SOCKS proxy server.</p>
+              <p>Use this if you're behind a corporate firewall or want to route traffic through a VPN.</p>
+            </b-message>
+            <b-field :label="$t('HTTP/SOCKS Proxy')" label-position="on-border">
+              <b-input v-model="scraperProxy" placeholder="http://proxy:8080 or socks5://proxy:1080"></b-input>
             </b-field>
 
             <hr/>
 
+            <h4>{{ $t('FlareSolverr') }}</h4>
+            <b-message type="is-info" size="is-small">
+              <p><strong>FlareSolverr</strong> helps bypass Cloudflare protection using a headless browser.</p>
+              <p>Set the address here, then enable per-site in the <strong>Scrapers</strong> page using the <b-icon icon="fire" size="is-small"/> toggle.</p>
+              <p><a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a></p>
+            </b-message>
             <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
               <b-input 
                 v-model="flareSolverrAddress" 
@@ -183,40 +194,114 @@
                 type="text">
               </b-input>
             </b-field>
-            <b-message type="is-info" size="is-small">
-              <p><strong>FlareSolverr</strong> helps bypass Cloudflare protection.</p>
-              <p>Set the address here, then enable per-site in the <strong>Scrapers</strong> page using the <b-icon icon="fire" size="is-small"/> toggle.</p>
-              <p><a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a></p>
-            </b-message>
 
             <hr/>
 
-            <h4>{{ $t('Image Proxy Fallback') }}</h4>
+            <h4>{{ $t('Proxy Service') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>Image Proxy Fallback</strong> provides an alternative way to fetch images when direct access fails.</p>
-              <p>If an image request fails or returns a non-image response, XBVR will retry through this proxy.</p>
-              <p>The proxy URL should accept a URL parameter to specify the target image.</p>
+              <p><strong>Proxy Service</strong> routes requests through a URL-based proxy.</p>
+              <p>Used for: <strong>1)</strong> Image fallback when direct access fails, <strong>2)</strong> Scraping sites that block direct access (enable per-site with <b-icon icon="cloud" size="is-small"/> toggle).</p>
+              <p>The proxy should accept a <code>url</code> parameter and forward the request.</p>
             </b-message>
+
+            <b-collapse class="card" animation="slide" :open="false">
+              <template #trigger="props">
+                <div class="card-header" role="button" style="align-items: center;">
+                  <p class="card-header-title" style="display: flex; align-items: center; margin-bottom: 0; line-height: 1;">
+                    <b-icon icon="code-braces" style="vertical-align: middle;"></b-icon>
+                    <span style="margin-left: 0.5em;">Example Proxy Worker Code</span>
+                  </p>
+                  <a class="card-header-icon" style="align-items: center;">
+                    <b-icon :icon="props.open ? 'menu-up' : 'menu-down'"></b-icon>
+                  </a>
+                </div>
+              </template>
+              <div class="card-content">
+                <pre style="font-size: 0.8em; overflow-x: auto; background: #1e1e1e; color: #d4d4d4; padding: 1em; border-radius: 4px;">export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
+      });
+    }
+
+    // API key validation (set your key here)
+    const VALID_KEYS = ['your-secret-key'];
+    const providedKey = url.searchParams.get('apikey') || '';
+
+    if (!VALID_KEYS.includes(providedKey)) {
+      return new Response('Invalid or missing API key', { status: 401 });
+    }
+
+    const targetUrl = url.searchParams.get('url');
+    if (!targetUrl) {
+      return new Response('Missing ?url= parameter', { status: 400 });
+    }
+
+    try {
+      const res = await fetch(targetUrl, {
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+
+      if (!res.ok) {
+        return new Response(`Origin returned ${res.status}`, { status: 502 });
+      }
+
+      // Pass through the response with CORS headers
+      const response = new Response(res.body, {
+        status: res.status,
+        headers: {
+          'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream',
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+
+      return response;
+    } catch (error) {
+      return new Response('Proxy error: ' + error.message, { status: 500 });
+    }
+  }
+};</pre>
+                <p style="margin-top: 0.5em; font-size: 0.85em; color: #888;">
+                  Deploy as a serverless worker. Handles images, JSON, and HTML. Set <code>apikey</code> in settings.
+                </p>
+              </div>
+            </b-collapse>
+
+            <br/>
 
             <b-field :label="$t('Proxy URL')" label-position="on-border">
               <b-input 
-                v-model="imageProxyUrl" 
-                placeholder="https://example.com/proxy" 
+                v-model="proxyAddress" 
+                placeholder="https://your-proxy.workers.dev" 
                 type="text">
               </b-input>
             </b-field>
 
             <b-field :label="$t('API Key Parameter Name')" label-position="on-border">
               <b-input 
-                v-model="imageProxyApiKeyName" 
-                placeholder="key" 
+                v-model="proxyApiKeyName" 
+                placeholder="apikey" 
                 type="text">
               </b-input>
             </b-field>
 
             <b-field :label="$t('API Key Value')" label-position="on-border">
               <b-input 
-                v-model="imageProxyApiKeyValue" 
+                v-model="proxyApiKeyValue" 
                 placeholder="your-api-key" 
                 type="password">
               </b-input>
@@ -610,28 +695,28 @@ export default {
 
       }
     },
-    imageProxyUrl: {
+    proxyAddress: {
       get () {
-        return this.$store.state.optionsAdvanced.advanced.imageProxyUrl
+        return this.$store.state.optionsAdvanced.advanced.proxyAddress
       },
       set (value) {
-        this.$store.state.optionsAdvanced.advanced.imageProxyUrl = value
+        this.$store.state.optionsAdvanced.advanced.proxyAddress = value
       }
     },
-    imageProxyApiKeyName: {
+    proxyApiKeyName: {
       get () {
-        return this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyName
+        return this.$store.state.optionsAdvanced.advanced.proxyApiKeyName
       },
       set (value) {
-        this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyName = value
+        this.$store.state.optionsAdvanced.advanced.proxyApiKeyName = value
       }
     },
-    imageProxyApiKeyValue: {
+    proxyApiKeyValue: {
       get () {
-        return this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyValue
+        return this.$store.state.optionsAdvanced.advanced.proxyApiKeyValue
       },
       set (value) {
-        this.$store.state.optionsAdvanced.advanced.imageProxyApiKeyValue = value
+        this.$store.state.optionsAdvanced.advanced.proxyApiKeyValue = value
       }
     },
     listOfMainSites: {

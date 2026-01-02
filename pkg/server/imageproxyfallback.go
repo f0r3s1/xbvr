@@ -62,9 +62,9 @@ func getExtensionForContentType(contentType string) string {
 
 // buildExternalProxyURL constructs the URL to fetch the image through the external proxy
 func buildExternalProxyURL(originalURL string) string {
-	proxyURL := config.Config.Advanced.ImageProxyURL
-	keyName := config.Config.Advanced.ImageProxyApiKeyName
-	keyValue := config.Config.Advanced.ImageProxyApiKeyValue
+	proxyURL := config.Config.Advanced.ProxyAddress
+	keyName := config.Config.Advanced.ProxyApiKeyName
+	keyValue := config.Config.Advanced.ProxyApiKeyValue
 
 	if proxyURL == "" {
 		return ""
@@ -194,7 +194,7 @@ func fetchFromExternalProxy(ctx context.Context, externalURL string) (*http.Resp
 
 func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Check if external proxy is configured
-	if config.Config.Advanced.ImageProxyURL == "" {
+	if config.Config.Advanced.ProxyAddress == "" {
 		// No fallback configured, just use the original proxy
 		h.ImageProxy.ServeHTTP(w, r)
 		return
