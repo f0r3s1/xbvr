@@ -67,9 +67,9 @@ type ObjectConfig struct {
 		IgnoreReleasedBefore         time.Time `json:"ignoreReleasedBefore"`
 		FlareSolverrAddress          string    `json:"flareSolverrAddress"`
 		UseFlareSolverr              bool      `json:"useFlareSolverr"`
-		ImageProxyURL                string    `default:"" json:"imageProxyUrl"`
-		ImageProxyApiKeyName         string    `default:"" json:"imageProxyApiKeyName"`
-		ImageProxyApiKeyValue        string    `default:"" json:"imageProxyApiKeyValue"`
+		ProxyAddress                 string    `default:"" json:"proxyAddress"`
+		ProxyApiKeyName              string    `default:"" json:"proxyApiKeyName"`
+		ProxyApiKeyValue             string    `default:"" json:"proxyApiKeyValue"`
 	} `json:"advanced"`
 	Funscripts struct {
 		ScrapeFunscripts bool `default:"false" json:"scrapeFunscripts"`

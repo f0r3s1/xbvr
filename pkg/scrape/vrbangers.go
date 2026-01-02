@@ -15,10 +15,13 @@ import (
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
-// fetchURLWithFlareSolverr fetches a URL using FlareSolverr if enabled for the domain, otherwise uses resty
+// fetchURLWithFlareSolverr fetches a URL using FlareSolverr or Proxy if enabled for the domain, otherwise uses resty
 func fetchURLWithFlareSolverr(url string, domain string) (string, error) {
 	if IsFlareSolverrEnabled(domain) {
 		return FlareSolverrGet(url)
+	}
+	if IsProxyEnabled(domain) {
+		return ProxyGet(url)
 	}
 	r, err := resty.New().R().
 		SetHeader("User-Agent", UserAgent).

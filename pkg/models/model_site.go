@@ -21,6 +21,7 @@ type Site struct {
 	MatchingParams  string    `json:"matching_params" gorm:"size:1000" xbvrbackup:"matching_params"`
 	ScrapeStash     bool      `json:"scrape_stash" xbvrbackup:"scrape_stash"`
 	UseFlareSolverr bool      `json:"use_flaresolverr" xbvrbackup:"use_flaresolverr"`
+	UseProxy        bool      `json:"use_proxy" xbvrbackup:"use_proxy"`
 }
 
 func (i *Site) Save() error {

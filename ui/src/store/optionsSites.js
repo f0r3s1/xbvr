@@ -26,6 +26,9 @@ const actions = {
   async toggleUseFlareSolverr ({ state }, params) {
     state.items = await ky.put(`/api/options/sites/use_flaresolverr/${params.id}`, { json: {} }).json()
   },
+  async toggleUseProxy ({ state }, params) {
+    state.items = await ky.put(`/api/options/sites/use_proxy/${params.id}`, { json: {} }).json()
+  },
 }
 
 export default {
