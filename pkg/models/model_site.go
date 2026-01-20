@@ -22,6 +22,7 @@ type Site struct {
 	ScrapeStash     bool      `json:"scrape_stash" xbvrbackup:"scrape_stash"`
 	UseFlareSolverr bool      `json:"use_flaresolverr" xbvrbackup:"use_flaresolverr"`
 	UseProxy        bool      `json:"use_proxy" xbvrbackup:"use_proxy"`
+	SceneCount      int       `gorm:"-" json:"scene_count" xbvrbackup:"-"`
 }
 
 func (i *Site) Save() error {
