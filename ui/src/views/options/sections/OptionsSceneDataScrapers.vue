@@ -11,7 +11,26 @@
           </b-button>
         </div>
       </div>
+      <div class="column buttons" align="right">
+        <b-dropdown aria-role="list" position="is-bottom-left">
+          <template slot="trigger">
+            <b-button icon-left="cog" />
+          </template>
+          <b-dropdown-item aria-role="listitem" custom>
+            <div class="field">
+              <b-checkbox v-model="$store.state.optionsAdvanced.advanced.autoLimitScraping" @input="saveAdvancedSettings">
+                {{$t('Auto Limit Scraping')}}
+              </b-checkbox>
+            </div>
+          </b-dropdown-item>
+        </b-dropdown>
+        <a class="button" :class="[showAllScrapers ? '' : 'is-info']" v-on:click="toggleEnabledFilter">
+          {{showAllScrapers ? $t('Show enabled only') : $t('Show all scrapers')}}
+        </a>
+        <a class="button is-primary" v-on:click="taskScrape('_enabled')">{{$t('Run selected scrapers')}}</a>
+      </div>
       <hr/>
+    </div>
     
     <!-- Table -->
     <b-table :data="scraperList" ref="scraperTable" class="scrapers-table" :mobile-cards="true">
@@ -32,7 +51,7 @@
           </span>
           <span class="studio-info">
             <b-tooltip class="is-warning" :active="props.row.has_scraper == false" :label="$t('Scraper does not exist')" :delay="250">
-              <a @click="navigateToStudio(props.row.sitename)" :class="[props.row.has_scraper ? 'has-text-link' : 'has-text-danger']">
+              <a @click="navigateToStudio(props.row.name)" :class="[props.row.has_scraper ? 'has-text-link' : 'has-text-danger']" style="cursor: pointer;">
                 {{ props.row.sitename }}
               </a>
             </b-tooltip>
@@ -40,6 +59,13 @@
             <span class="custom-tag" v-if="!props.row.is_builtin">{{$t('Custom')}}</span>
           </span>
         </div>
+      </b-table-column>
+      
+      <!-- Scene Count -->
+      <b-table-column field="scene_count" :label="$t('Scenes')" v-slot="props" width="40" sortable numeric>
+        <a @click="navigateToStudio(props.row.name)" style="cursor: pointer;">
+          <span class="tag is-info is-light is-medium"><strong>{{ props.row.scene_count }}</strong></span>
+        </a>
       </b-table-column>
       
       <!-- Last Scrape -->
@@ -221,10 +247,13 @@ export default {
       currentScraper: '',
       scraperwarning: '',
       scraperwarning2: '',
+      showAllScrapers: true,
     }
   },
   mounted () {
     this.$store.dispatch('optionsSites/load')
+    this.$store.dispatch('optionsAdvanced/load')
+    this.$store.dispatch('optionsWeb/load')
   },
   methods: {
     getImageURL (u) {
@@ -332,6 +361,7 @@ export default {
       this.$buefy.toast.open(`Scenes from ${site} will be updated on next scrape`)
     },
     deleteScenes (site) {
+      const self = this
       this.$buefy.dialog.confirm({
         title: this.$t('Delete scraped scenes'),
         message: `You're about to delete scraped scenes for <strong>${site.name}</strong>.`,
@@ -341,11 +371,15 @@ export default {
           if (site.master_site_id==""){
             ky.post('/api/options/scraper/delete-scenes', {
               json: { scraper_id: site.id }
+            }).then(() => {
+              self.$store.dispatch('optionsSites/load')
             })
           } else {
             const external_source = 'alternate scene ' + site.id
             ky.delete(`/api/extref/delete_extref_source`, {
               json: {external_source: external_source}
+            }).then(() => {
+              self.$store.dispatch('optionsSites/load')
             });
           }
         }
@@ -414,14 +448,46 @@ export default {
       return name.length > 15 ? name.substring(0, 15) + '...' : name;
     },
     navigateToStudio(studioName) {
+      // Handle different scraper types:
+      // - Built-in scrapers (e.g., "AstroDomina (SLR)"): scenes use just "AstroDomina"
+      // - Custom scrapers (e.g., "LethalhardcoreVR (Custom SLR)"): scenes use "LethalhardcoreVR (SLR)"
+      let siteName = studioName
+
+      // Handle custom scrapers from any aggregator
+      const customMatch = siteName.match(/^(.+) \(Custom ([A-Z]+)\)$/)
+      if (customMatch) {
+        // Custom scrapers: replace "(Custom XXX)" with "(XXX)"
+        siteName = customMatch[1] + ' (' + customMatch[2] + ')'
+      } else {
+        // Handle built-in scrapers with aggregator suffix
+        const builtinMatch = siteName.match(/^(.+) \(([A-Z]+)\)$/)
+        if (builtinMatch) {
+          // Built-in scrapers: remove aggregator suffix
+          siteName = builtinMatch[1]
+        }
+      }
+
       // Set the site filter and navigate to scenes page
-      this.$store.state.sceneList.filters.sites = [studioName]
+      this.$store.state.sceneList.filters.sites = [siteName]
       this.$store.state.sceneList.filters.tags = []
       this.$store.state.sceneList.filters.attributes = []
       this.$router.push({
         name: 'scenes',
         query: { q: this.$store.getters['sceneList/filterQueryParams'] }
       })
+    },
+    toggleEnabledFilter() {
+      this.showAllScrapers = !this.showAllScrapers
+    },
+    saveAdvancedSettings() {
+      this.$store.dispatch('optionsAdvanced/save')
+    },
+    formatCompactTime(isoString) {
+      const date = parseISO(isoString)
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      const year = date.getFullYear()
+      return `${month}/${day}/${year}`
     },
     parseISO,
     formatDistanceToNow
@@ -440,6 +506,12 @@ export default {
           items[i].source = m[2];
         }
       }
+
+      // Filter by enabled status if the filter is active
+      if (!this.showAllScrapers) {
+        items = items.filter(item => item.is_enabled === true);
+      }
+
       return items;
     },
     items () {
@@ -617,6 +689,43 @@ export default {
     pointer-events: none;
   }
 
+  .tag.is-medium {
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    transition: background-color 0.2s ease;
+  }
+
+  a:hover .tag.is-medium {
+    background-color: #3273dc !important;
+    color: white !important;
+  }
+
+  .card {
+    overflow: visible;
+    height: 100%;
+  }
+
+  .card-content {
+    padding-top: 1em;
+    padding-left: 1em;
+  }
+
+  .avatar {
+    margin-right: 1em;
+  }
+
+  p {
+    margin-bottom: 0.5em !important;
+  }
+
+  h5 {
+    margin-bottom: 0.25em !important;
+  }
+
+  .invisible {
+    display: none;
+  }
+
   .pulsate {
     animation: pulsate 0.8s linear infinite;
     color: #3273dc;
@@ -661,5 +770,9 @@ export default {
 
   .scrapers-table .b-table .table-wrapper {
     overflow-x: auto;
+  }
+
+  .content table th .icon {
+    display: none;
   }
 </style>
