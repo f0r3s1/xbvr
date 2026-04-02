@@ -21,7 +21,7 @@
           <b-field>
             <b-input v-model="fileName"></b-input>
             <button class="button is-light" @click="clearFilename">
-              <b-icon pack="fas" icon="times" size="is-small"></b-icon>
+              <b-icon pack="mdi" icon="close" size="is-small"></b-icon>
             </button>
           </b-field>
         </div>
@@ -42,7 +42,7 @@
               </div>
             </b-datepicker>
             <button class="button is-light" @click="clearRange">
-              <b-icon pack="fas" icon="times" size="is-small"></b-icon>
+              <b-icon pack="mdi" icon="close" size="is-small"></b-icon>
             </button>
           </b-field>
         </div>

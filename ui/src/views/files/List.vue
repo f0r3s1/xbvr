@@ -2,7 +2,7 @@
   <div>
     <div class="columns">
       <div class="column">
-        <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
+        <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
         <div v-if="items.length > 0 && !isLoading">
           <b-table :data="items" ref="table" backend-sorting :default-sort="[sortField, sortOrder]" @sort="onSort"
                    :paginated="true">
@@ -50,10 +50,10 @@
             </b-table-column>
             <b-table-column style="white-space: nowrap;" v-slot="props">
               <button class="button is-success is-outlined" @click="createScene(props.row)" :title="$t('Create a custom scene for this file')" style="margin-right: 3px;">
-                <b-icon pack="fas" icon="plus-square"></b-icon>
+                <b-icon pack="mdi" icon="plus-box"></b-icon>
               </button>
               <button class="button is-danger is-outlined" @click='removeFile(props.row)' title='Delete file from disk'>
-                <b-icon pack="fas" icon="trash"></b-icon>
+                <b-icon pack="mdi" icon="delete"></b-icon>
               </button>
             </b-table-column>
           </b-table>

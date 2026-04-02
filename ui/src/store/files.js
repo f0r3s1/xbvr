@@ -40,14 +40,16 @@ const getters = {
 }
 
 const actions = {
-  load ({ state }, params) {
+  async load ({ state }, params) {
     state.isLoading = true
-    ky.post('/api/files/list', { json: state.filters })
-      .json()
-      .then(data => {
-        state.items = data
-        state.isLoading = false
-      })
+    try {
+      const data = await ky.post('/api/files/list', { json: state.filters, timeout: 30000 }).json()
+      state.items = data
+    } catch (e) {
+      console.error('Failed to load files:', e)
+    } finally {
+      state.isLoading = false
+    }
   }
 }
 

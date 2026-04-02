@@ -7,7 +7,7 @@
       @keydown.o="prevpage"
       @keydown.p="nextpage"
     />
-    <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
 
     <div class="columns is-multiline is-full">
       <div class="column">

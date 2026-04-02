@@ -248,7 +248,7 @@
                       <div class="media-left">
                         <button rounded class="button is-success is-small" @click='playFile(f)'
                                 v-show="f.type === 'video'">
-                          <b-icon pack="fas" icon="play" size="is-small"></b-icon>
+                          <b-icon pack="mdi" icon="play" size="is-small"></b-icon>
                         </button>
                         <b-tooltip :label="$t('Select this script for export')" position="is-right">
                         <button rounded class="button is-info is-small is-outlined" @click='selectScript(f)'
@@ -281,10 +281,10 @@
                       </div>
                       <div class="media-right">
                         <button class="button is-dark is-small is-outlined" title="Unmatch file from scene" @click='unmatchFile(f)'>
-                          <b-icon pack="fas" icon="unlink" size="is-small"></b-icon>
+                          <b-icon pack="mdi" icon="link-off" size="is-small"></b-icon>
                         </button>&nbsp;
                         <button class="button is-danger is-small is-outlined" title="Delete file from disk" @click='removeFile(f)'>
-                          <b-icon pack="fas" icon="trash" size="is-small"></b-icon>
+                          <b-icon pack="mdi" icon="delete" size="is-small"></b-icon>
                         </button>
                       </div>
                     </div>
@@ -352,7 +352,7 @@
                           </b-table-column>
                           <b-table-column v-slot="props" width="1em" >
                             <button class="button is-danger is-outlined is-small" @click="deleteCuepoint(props.row.id)" title="Delete cuepoint">
-                              <b-icon pack="fas" icon="trash" />
+                              <b-icon pack="mdi" icon="delete" />
                             </button>
                           </b-table-column>
                         </b-table>

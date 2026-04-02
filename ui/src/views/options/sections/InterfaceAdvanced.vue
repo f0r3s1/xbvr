@@ -362,7 +362,7 @@
                 <b-input v-model="props.row.value" ></b-input>                
               </b-table-column>
               <b-table-column field="value" v-slot="props">
-                <b-button @click="delHeaderRow(props)"><b-icon pack="fas" icon="trash" ></b-icon></b-button>  
+                <b-button @click="delHeaderRow(props)"><b-icon pack="mdi" icon="delete" ></b-icon></b-button>  
               </b-table-column>
             </b-table>
 
@@ -386,7 +386,7 @@
                 <b-input v-model="props.row.host" ></b-input>                
               </b-table-column>
               <b-table-column v-slot="props">
-                <b-button @click="delCookieRow(props)"><b-icon pack="fas" icon="trash" ></b-icon></b-button>  
+                <b-button @click="delCookieRow(props)"><b-icon pack="mdi" icon="delete" ></b-icon></b-button>  
               </b-table-column>
             </b-table>
 
