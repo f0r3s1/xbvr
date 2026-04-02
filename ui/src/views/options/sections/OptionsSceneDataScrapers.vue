@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
     <div class="content">
       <!-- Header -->
       <div class="scraper-header">

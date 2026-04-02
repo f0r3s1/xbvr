@@ -88,7 +88,7 @@
       </div>
       <div class="control">
         <button type="submit" class="button is-light" @click="clearReleaseMonth">
-          <b-icon pack="fas" icon="times" size="is-small"></b-icon>
+          <b-icon pack="mdi" icon="close" size="is-small"></b-icon>
         </button>
       </div>
     </b-field>
@@ -104,7 +104,7 @@
       </div>
       <div class="control">
         <button type="submit" class="button is-light" @click="clearVolume">
-          <b-icon pack="fas" icon="times" size="is-small"></b-icon>
+          <b-icon pack="mdi" icon="close" size="is-small"></b-icon>
         </button>
       </div>
     </b-field>

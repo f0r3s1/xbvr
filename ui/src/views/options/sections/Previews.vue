@@ -74,7 +74,7 @@
           <div v-if="generatingPreview">
             <div style="display: flex; flex-wrap: wrap;">
               <div class="bbox">
-                <b-icon pack="fas" icon="sync-alt" custom-class="fa-spin"></b-icon>
+                <b-icon pack="mdi" icon="sync" custom-class="mdi-spin"></b-icon>
               </div>
             </div>
           </div>

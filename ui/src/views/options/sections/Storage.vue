@@ -19,7 +19,7 @@
           <b-icon pack="mdi" icon="folder-outline" size="is-small" v-else/>
         </b-table-column>
         <b-table-column field="is_available" :label="$t('Avail')" sortable v-slot="props">
-          <b-icon pack="fas" icon="check" size="is-small" v-if="props.row.is_available"></b-icon>
+          <b-icon pack="mdi" icon="check" size="is-small" v-if="props.row.is_available"></b-icon>
         </b-table-column>
         <b-table-column field="file_count" :label="$t('# of files')" sortable v-slot="props">
           {{ props.row.file_count }}

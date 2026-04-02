@@ -12,7 +12,6 @@
     "dev:ui": "cd ui && vue-cli-service serve"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "5.15.4",
     "@mdi/font": "7.4.47",
     "buefy": "0.9.29",
     "date-fns": "4.1.0",

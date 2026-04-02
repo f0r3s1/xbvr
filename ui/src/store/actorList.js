@@ -91,20 +91,19 @@ const mutations = {
     state.actors = payload
   },
   toggleActorList (state, payload) {
-    state.actors = state.actors.map(obj => {
-      if (obj.actor_id === payload.actor_id) {
-        if (payload.list === 'watchlist') {
-          obj.watchlist = !obj.watchlist
-        }
-        if (payload.list === 'favourite') {
-          obj.favourite = !obj.favourite
-        }
-        if (payload.list === 'needs_update') {
-          obj.needs_update = !obj.needs_update
-        }
+    const idx = state.actors.findIndex(obj => obj.actor_id === payload.actor_id)
+    if (idx !== -1) {
+      const item = state.actors[idx]
+      if (payload.list === 'watchlist') {
+        Vue.set(item, 'watchlist', !item.watchlist)
       }
-      return obj
-    })
+      if (payload.list === 'favourite') {
+        Vue.set(item, 'favourite', !item.favourite)
+      }
+      if (payload.list === 'needs_update') {
+        Vue.set(item, 'needs_update', !item.needs_update)
+      }
+    }
 
     ky.post('/api/actor/toggle', {
       json: {
@@ -114,12 +113,10 @@ const mutations = {
     })
   },
   updateActor (state, payload) {
-    state.actors = state.actors.map(obj => {
-      if (obj.id === payload.id) {
-        obj = payload
-      }
-      return obj
-    })
+    const idx = state.actors.findIndex(obj => obj.id === payload.id)
+    if (idx !== -1) {
+      Vue.set(state.actors, idx, payload)
+    }
   },
   stateFromJSON (state, payload) {
     try {
@@ -144,32 +141,41 @@ const mutations = {
 
 const actions = {
   async filters ({ state }) {
-    state.playlists = await ky.get('/api/playlist/actor').json()
-    state.filterOpts = await ky.get('/api/actor/filters').json()    
+    try {
+      state.playlists = await ky.get('/api/playlist/actor', { timeout: 30000 }).json()
+      state.filterOpts = await ky.get('/api/actor/filters', { timeout: 30000 }).json()
+    } catch (e) {
+      console.error('Failed to load actor filters:', e)
+    }
   },
-  async load ({ state, getters, commit }, params) {    
+  async load ({ state, getters, commit }, params) {
     const iOffset = params.offset || 0
 
     state.isLoading = true
 
-    const q = Object.assign({}, state.filters)
-    q.offset = iOffset
-    q.limit = state.limit
-    
-    const data = await ky
-      .post('/api/actor/list', { json: q })
-      .json()
+    try {
+      const q = Object.assign({}, state.filters)
+      q.offset = iOffset
+      q.limit = state.limit
 
-    state.isLoading = false
-    state.filters.jumpTo = ""  // clear the jumpto value now that we have the data
+      const data = await ky
+        .post('/api/actor/list', { json: q, timeout: 30000 })
+        .json()
 
-    if (iOffset === 0) {
-      commit('setActors', [])
+      state.filters.jumpTo = ''
+
+      if (iOffset === 0) {
+        commit('setActors', data.actors || [])
+      } else {
+        commit('setActors', state.actors.concat(data.actors || []))
+      }
+      state.offset = data.offset + state.limit
+      state.total = data.results
+    } catch (e) {
+      console.error('Failed to load actors:', e)
+    } finally {
+      state.isLoading = false
     }
-
-    commit('setActors', state.actors=data.actors)
-    state.offset = data.offset + state.limit
-    state.total = data.results    
   }
 }
 
