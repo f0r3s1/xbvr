@@ -1,5 +1,5 @@
 <template>
-  <div ref="scrollContainer">
+  <div ref="scrollContainer" style="position: relative; min-height: 200px;">
     <b-loading :is-full-page="false" :active.sync="isInitialLoading"></b-loading>
 
     <div class="columns is-multiline is-full">

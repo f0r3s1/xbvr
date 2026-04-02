@@ -113,5 +113,7 @@ export default {
 <style scoped>
 .options-content {
   padding-top: 0.5rem;
+  position: relative;
+  min-height: 200px;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div style="position: relative; min-height: 200px;">
     <div class="columns">
       <div class="column">
         <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
