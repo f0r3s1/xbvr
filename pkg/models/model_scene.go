@@ -203,6 +203,38 @@ func (o *Scene) GetIfExistURL(u string) error {
 		Where(&Scene{SceneURL: u}).First(o).Error
 }
 
+func GetScenesByPKs(ids []uint) ([]Scene, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	commonDb, _ := GetCommonDB()
+	var scenes []Scene
+	err := commonDb.
+		Preload("Tags").
+		Preload("Cast").
+		Preload("Files").
+		Preload("History").
+		Preload("Cuepoints").
+		Where("id IN (?)", ids).Find(&scenes).Error
+	return scenes, err
+}
+
+func GetScenesBySceneIDs(sceneIDs []string) ([]Scene, error) {
+	if len(sceneIDs) == 0 {
+		return nil, nil
+	}
+	commonDb, _ := GetCommonDB()
+	var scenes []Scene
+	err := commonDb.
+		Preload("Tags").
+		Preload("Cast").
+		Preload("Files").
+		Preload("History").
+		Preload("Cuepoints").
+		Where("scene_id IN (?)", sceneIDs).Find(&scenes).Error
+	return scenes, err
+}
+
 func (o *Scene) GetFunscriptTitle() string {
 	// first make the title filename safe
 	re := regexp.MustCompile(`[?/\<>|]`)

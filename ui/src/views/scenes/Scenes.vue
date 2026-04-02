@@ -6,7 +6,7 @@
         <Filters/>
 
         <div id="scrollButtons">
-          <a id="toTop">
+          <a id="toTop" @click="scrollToTop">
             <b-icon pack="mdi" icon="navigation" />
           </a>
           <a id="toggleInfiniteScroll" @click="toggleInfiniteScroll" :title="infiniteScrollEnabled ? 'Disable Auto Load More' : 'Enable Auto Load More'">
@@ -38,27 +38,24 @@ export default {
   methods: {
     toggleInfiniteScroll() {
       this.infiniteScrollEnabled = !this.infiniteScrollEnabled
+    },
+    handleScroll () {
+      const show = document.body.scrollTop > 20 || document.documentElement.scrollTop > 20
+      const toTop = this.$refs.toTop || document.getElementById('toTop')
+      const toggleBtn = document.getElementById('toggleInfiniteScroll')
+      if (toTop) toTop.style.display = show ? 'block' : 'none'
+      if (toggleBtn) toggleBtn.style.display = show ? 'block' : 'none'
+    },
+    scrollToTop () {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   },
   mounted () {
-    const toTop = document.getElementById('toTop')
-    const toggleBtn = document.getElementById('toggleInfiniteScroll')
-    addEventListener('scroll', function () {
-      const show = document.body.scrollTop > 20 || document.documentElement.scrollTop > 20
-      toTop.style.display = show ? 'block' : 'none'
-      toggleBtn.style.display = show ? 'block' : 'none'
-    })
-    toTop.addEventListener('click', function () {
-      scrollToTop()
-    })
-
-    const scrollToTop = () => {
-      const c = document.documentElement.scrollTop || document.body.scrollTop
-      if (c > 0) {
-        window.requestAnimationFrame(scrollToTop)
-        window.scrollTo(0, c - c / 16)
-      }
-    }
+    this._scrollHandler = this.handleScroll.bind(this)
+    window.addEventListener('scroll', this._scrollHandler, { passive: true })
+  },
+  beforeDestroy () {
+    window.removeEventListener('scroll', this._scrollHandler)
   },
   beforeRouteEnter (to, from, next) {
     next(vm => {

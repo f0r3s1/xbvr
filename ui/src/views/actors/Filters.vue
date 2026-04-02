@@ -540,14 +540,27 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "~bulma-extensions/bulma-divider/dist/css/bulma-divider.min.css";
+.is-divider {
+  position: relative;
+  display: block;
+  border-top: 0.1rem solid #dbdbdb;
+  height: 0.1rem;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+.is-divider[data-content]::after {
+  background: #fff;
+  color: #b5b5b5;
+  content: attr(data-content);
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  transform: translateY(-1.1rem);
+  text-align: center;
+}
 
 .is-gapless div.control {
   margin: 0.1rem;
-}
-
-.is-divider {
-  margin: 1.5rem 0;
 }
 
 .field-extra {

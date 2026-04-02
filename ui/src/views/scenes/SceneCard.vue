@@ -223,44 +223,29 @@ export default {
   },
   methods: {
     onImageError () {
-      // Retry up to 3 times with increasing delays
-      if (this.imageRetryCount < 3) {
+      if (this.imageRetryCount < 2) {
         this.imageRetryCount++
         this.imageLoaded = false
-        const delay = this.imageRetryCount * 2000 // 2s, 4s, 6s
         setTimeout(() => {
-          this.imageKey++ // Force new src to retry
-        }, delay)
+          this.imageKey++
+        }, this.imageRetryCount * 1000)
       } else {
-        // Give up, show whatever we have (unblur it)
         this.imageLoaded = true
       }
     },
     onImageLoad () {
-      // Verify the image actually loaded with valid dimensions
-      this.$nextTick(() => {
-        if (this.$refs.coverImage) {
-          const img = this.$refs.coverImage
-          if (img.naturalWidth > 100) {
-            // Image loaded successfully with reasonable size
-            this.imageLoaded = true
-            this.imageRetryCount = 0
-          } else if (this.imageRetryCount < 3) {
-            // Image too small, might be broken proxy response - retry
-            this.imageRetryCount++
-            this.imageLoaded = false
-            const delay = this.imageRetryCount * 1500
-            setTimeout(() => {
-              this.imageKey++
-            }, delay)
-          } else {
-            // Give up, show whatever we have
-            this.imageLoaded = true
-          }
-        } else {
-          this.imageLoaded = true
-        }
-      })
+      if (this.$refs.coverImage && this.$refs.coverImage.naturalWidth > 100) {
+        this.imageLoaded = true
+        this.imageRetryCount = 0
+      } else if (this.imageRetryCount < 2) {
+        this.imageRetryCount++
+        this.imageLoaded = false
+        setTimeout(() => {
+          this.imageKey++
+        }, this.imageRetryCount * 1000)
+      } else {
+        this.imageLoaded = true
+      }
     },
     async loadAlternateSources () {
       this.stashLinkExists = false

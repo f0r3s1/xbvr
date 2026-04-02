@@ -13,7 +13,7 @@ type ScraperFunc func(*ScrapeWG, bool, []string, chan<- ScrapedScene, string, st
 type Scraper struct {
 	ID           string      `json:"id"`
 	Name         string      `json:"name"`
-	AvatarURL    string      `json:"avaatarurl"`
+	AvatarURL    string      `json:"avatar_url"`
 	Domain       string      `json:"domain"`
 	Scrape       ScraperFunc `json:"-"`
 	MasterSiteId string      `json:"master_site_id"`
