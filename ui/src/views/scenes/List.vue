@@ -1,6 +1,6 @@
 <template>
   <div ref="scrollContainer">
-    <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" :active.sync="isInitialLoading"></b-loading>
 
     <div class="columns is-multiline is-full">
       <div class="column">
@@ -24,7 +24,6 @@
             {{$t("Hidden")}} ({{counts.hidden}})
           </b-radio-button>
         </div>
-        <span v-show="show_scene_id==='never show, just need the computed show_scene_id to trigger '">{{show_scene_id}}</span>
       </div>
       <div class="column">
         <div class="is-pulled-right">
@@ -56,8 +55,9 @@
       </div>
     </div>
 
-    <div class="column is-full" v-if="isLoadingMore">
-      <b-loading :is-full-page="false" :active="true"></b-loading>
+    <div class="column is-full loading-more" v-if="isLoadingMore">
+      <b-icon pack="mdi" icon="loading" custom-class="mdi-spin" size="is-medium"></b-icon>
+      <span>Loading more...</span>
     </div>
     <div class="column is-full" v-if="!infiniteScrollEnabled && items.length < total">
       <b-button type="is-primary" @click="loadMore" :loading="isLoadingMore" expanded>{{$t('Load More')}}</b-button>
@@ -82,7 +82,8 @@ export default {
     return {
       isLoadingMore: false,
       scrollHandler: null,
-      debounceTimeout: null
+      debounceTimeout: null,
+      isFirstLoad: true
     }
   },
   computed: {
@@ -150,6 +151,9 @@ export default {
     isLoading () {
       return this.$store.state.sceneList.isLoading
     },
+    isInitialLoading () {
+      return this.isLoading && this.isFirstLoad
+    },
     items () {
       return this.$store.state.sceneList.items
     },
@@ -158,19 +162,30 @@ export default {
     },
     counts () {
       return this.$store.state.sceneList.counts
-    },
-    show_scene_id() {
-      if (this.$store.state.sceneList.show_scene_id != undefined && this.$store.state.sceneList.show_scene_id !='')
-      {
-        ky.get('/api/scene/'+this.$store.state.sceneList.show_scene_id).json().then(data => {
-          if (data.id != 0){
+    }
+  },
+  watch: {
+    '$store.state.sceneList.show_scene_id' (id) {
+      if (id && id !== '') {
+        ky.get('/api/scene/' + id).json().then(data => {
+          if (data.id != 0) {
             this.$store.commit('overlay/showDetails', { scene: data })
-          }          
+          }
         })
         this.$store.state.sceneList.show_scene_id = ''
       }
-      
-      return this.$store.state.sceneList.show_scene_id
+    },
+    isLoading (val) {
+      if (!val && this.isFirstLoad) {
+        this.isFirstLoad = false
+      }
+    },
+    infiniteScrollEnabled(newVal) {
+      if (newVal) {
+        window.addEventListener('scroll', this.scrollHandler, { passive: true })
+      } else {
+        window.removeEventListener('scroll', this.scrollHandler)
+      }
     }
   },
   methods: {
@@ -189,38 +204,29 @@ export default {
       this.isLoadingMore = false
     },
     handleScroll () {
-      if (this.debounceTimeout) clearTimeout(this.debounceTimeout)
+      if (this.debounceTimeout) return
       this.debounceTimeout = setTimeout(() => {
+        this.debounceTimeout = null
         const scrollY = window.scrollY || window.pageYOffset
         const viewportHeight = window.innerHeight
         const fullHeight = document.documentElement.scrollHeight
-        // If user is within 600px of the bottom, load more
         if (scrollY + viewportHeight + 600 >= fullHeight) {
           this.loadMore()
         }
-      }, 100)
+      }, 150)
     }
   },
   mounted () {
     this.scrollHandler = this.handleScroll.bind(this)
     if (this.infiniteScrollEnabled) {
-      window.addEventListener('scroll', this.scrollHandler)
+      window.addEventListener('scroll', this.scrollHandler, { passive: true })
     }
   },
   beforeDestroy () {
-    if (this.infiniteScrollEnabled && this.scrollHandler) {
+    if (this.scrollHandler) {
       window.removeEventListener('scroll', this.scrollHandler)
     }
     if (this.debounceTimeout) clearTimeout(this.debounceTimeout)
-  },
-  watch: {
-    infiniteScrollEnabled(newVal) {
-      if (newVal) {
-        window.addEventListener('scroll', this.scrollHandler)
-      } else {
-        window.removeEventListener('scroll', this.scrollHandler)
-      }
-    }
   }
 }
 </script>
@@ -228,5 +234,13 @@ export default {
 <style scoped>
   .list-header-label {
     padding-right: 1em;
+  }
+  .loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: #888;
   }
 </style>

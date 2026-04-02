@@ -5,30 +5,44 @@ const state = {
 }
 
 const mutations = {
+  setItems (state, items) {
+    state.items = items
+  }
 }
 
 const actions = {
-  async load ({ state }, params) {
-    state.items = await ky.get('/api/options/sites').json()
+  async load ({ commit }) {
+    try {
+      const items = await ky.get('/api/options/sites', { timeout: 60000 }).json()
+      commit('setItems', items)
+    } catch (e) {
+      console.error('Failed to load sites:', e)
+    }
   },
-  async toggleSite ({ state }, params) {
-    state.items = await ky.put(`/api/options/sites/${params.id}`, { json: {} }).json()
+  async toggleSite ({ commit }, params) {
+    const items = await ky.put(`/api/options/sites/${params.id}`, { json: {}, timeout: 60000 }).json()
+    commit('setItems', items)
   },
-  async toggleSubscribed ({ state }, params) {
-    state.items = await ky.put(`/api/options/sites/subscribed/${params.id}`, { json: {} }).json()
+  async toggleSubscribed ({ commit }, params) {
+    const items = await ky.put(`/api/options/sites/subscribed/${params.id}`, { json: {}, timeout: 60000 }).json()
+    commit('setItems', items)
   },
-  async toggleLimitScraping ({ state }, params) {
-    state.items = await ky.put(`/api/options/sites/limit_scraping/${params.id}`, { json: {} }).json()
+  async toggleLimitScraping ({ commit }, params) {
+    const items = await ky.put(`/api/options/sites/limit_scraping/${params.id}`, { json: {}, timeout: 60000 }).json()
+    commit('setItems', items)
   },
-  async toggleScrapeStash ({ state }, params) {
-    state.items = await ky.put(`/api/options/sites/scrape_stash/${params.id}`, { json: {} }).json()
+  async toggleScrapeStash ({ commit }, params) {
+    const items = await ky.put(`/api/options/sites/scrape_stash/${params.id}`, { json: {}, timeout: 60000 }).json()
+    commit('setItems', items)
   },
-  async toggleUseFlareSolverr ({ state }, params) {
-    state.items = await ky.put(`/api/options/sites/use_flaresolverr/${params.id}`, { json: {} }).json()
+  async toggleUseFlareSolverr ({ commit }, params) {
+    const items = await ky.put(`/api/options/sites/use_flaresolverr/${params.id}`, { json: {}, timeout: 60000 }).json()
+    commit('setItems', items)
   },
-  async toggleUseProxy ({ state }, params) {
-    state.items = await ky.put(`/api/options/sites/use_proxy/${params.id}`, { json: {} }).json()
-  },
+  async toggleUseProxy ({ commit }, params) {
+    const items = await ky.put(`/api/options/sites/use_proxy/${params.id}`, { json: {}, timeout: 60000 }).json()
+    commit('setItems', items)
+  }
 }
 
 export default {

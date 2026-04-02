@@ -249,13 +249,8 @@ func (i SceneResource) getFilters(req *restful.Request, resp *restful.Response) 
 	db, _ := models.GetDB()
 	defer db.Close()
 
-	// Get all accessible scenes
-	var scenes []models.Scene
-	tx := db.
-		Model(&scenes).
-		Preload("Cast").
-		Preload("Tags").
-		Preload("Files")
+	// Build base query without preloads (we only need distinct values)
+	tx := db.Model(&models.Scene{})
 
 	if req.QueryParameter("is_available") != "" {
 		q_is_available, err := strconv.ParseBool(req.QueryParameter("is_available"))
@@ -271,51 +266,37 @@ func (i SceneResource) getFilters(req *restful.Request, resp *restful.Response) 
 		}
 	}
 
-	// Available sites
-	tx.Group("site").Find(&scenes)
+	// Available sites - lightweight distinct query
 	var outSites []string
-	for i := range scenes {
-		if scenes[i].Site != "" {
-			outSites = append(outSites, scenes[i].Site)
-		}
-	}
+	tx.Where("site != ''").Group("site").Pluck("site", &outSites)
 
-	// Available tags
-	tx.Joins("left join scene_tags on scene_tags.scene_id=scenes.id").
-		Joins("left join tags on tags.id=scene_tags.tag_id").
-		Group("tags.name").Select("tags.name as release_date_text").Find(&scenes)
-
+	// Available tags - lightweight join
 	var outTags []string
-	for i := range scenes {
-		if scenes[i].ReleaseDateText != "" {
-			outTags = append(outTags, scenes[i].ReleaseDateText)
-		}
-	}
+	db.Table("scene_tags").
+		Joins("join tags on tags.id = scene_tags.tag_id").
+		Joins("join scenes on scenes.id = scene_tags.scene_id").
+		Where("tags.name != ''").
+		Group("tags.name").
+		Pluck("tags.name", &outTags)
 
-	// Available actors
-	tx.Joins("left join scene_cast on scene_cast.scene_id=scenes.id").
-		Joins("left join actors on actors.id=scene_cast.actor_id").
-		Group("actors.name").Select("actors.name as release_date_text").Find(&scenes)
-
+	// Available actors - lightweight join
 	var outCast []string
-	for i := range scenes {
-		if scenes[i].ReleaseDateText != "" {
-			outCast = append(outCast, scenes[i].ReleaseDateText)
-		}
-	}
+	db.Table("scene_cast").
+		Joins("join actors on actors.id = scene_cast.actor_id").
+		Joins("join scenes on scenes.id = scene_cast.scene_id").
+		Where("actors.name != ''").
+		Group("actors.name").
+		Pluck("actors.name", &outCast)
 
 	// Available release dates (YYYY-MM)
+	var outRelease []string
 	switch db.Dialect().GetName() {
 	case "mysql":
-		tx.Select("DATE_FORMAT(release_date, '%Y-%m') as release_date_text").
-			Group("DATE_FORMAT(release_date, '%Y-%m')").Find(&scenes)
+		tx.Select("DATE_FORMAT(release_date, '%Y-%m') as rd").
+			Group("DATE_FORMAT(release_date, '%Y-%m')").Pluck("rd", &outRelease)
 	case "sqlite3":
-		tx.Select("strftime('%Y-%m', release_date) as release_date_text").
-			Group("strftime('%Y-%m', release_date)").Find(&scenes)
-	}
-	var outRelease []string
-	for i := range scenes {
-		outRelease = append(outRelease, scenes[i].ReleaseDateText)
+		tx.Select("strftime('%Y-%m', release_date) as rd").
+			Group("strftime('%Y-%m', release_date)").Pluck("rd", &outRelease)
 	}
 
 	// Volumes
@@ -449,6 +430,7 @@ func (i SceneResource) getFilters(req *restful.Request, resp *restful.Response) 
 		outCuepoints = append(outCuepoints, r.Result)
 	}
 
+	resp.AddHeader("Cache-Control", "private, max-age=60")
 	resp.WriteHeaderAndEntity(http.StatusOK, ResponseGetFilters{
 		Tags:          outTags,
 		Cast:          outCast,
@@ -635,11 +617,17 @@ func (i SceneResource) searchSceneIndex(req *restful.Request, resp *restful.Resp
 		db.Where("filename like ? and scene_id > 0", "%"+filename+"%").Find(&fileScenes)
 	}
 
-	for _, file := range fileScenes {
-		var scene models.Scene
-		scene.GetIfExistByPK(file.SceneID)
-		if scene.ID != 0 {
-			scenes = append(scenes, scene)
+	// Batch load scenes by file matches
+	if len(fileScenes) > 0 {
+		var fileSceneIDs []uint
+		for _, file := range fileScenes {
+			fileSceneIDs = append(fileSceneIDs, file.SceneID)
+		}
+		batchScenes, _ := models.GetScenesByPKs(fileSceneIDs)
+		for _, s := range batchScenes {
+			if s.ID != 0 {
+				scenes = append(scenes, s)
+			}
 		}
 	}
 
@@ -662,11 +650,15 @@ func (i SceneResource) searchSceneIndex(req *restful.Request, resp *restful.Resp
 			scenes = append(scenes, scene)
 		} else {
 			db.Preload("XbvrLinks").Where("(external_source like 'alternate scene %' or external_source = 'stashdb scene') and external_url = ?", q).First(&extref)
+			var linkIDs []uint
 			for _, link := range extref.XbvrLinks {
 				if link.InternalTable == "scenes" {
-					scene.GetIfExistByPK(link.InternalDbId)
-					scenes = append(scenes, scene)
+					linkIDs = append(linkIDs, link.InternalDbId)
 				}
+			}
+			if len(linkIDs) > 0 {
+				batchScenes, _ := models.GetScenesByPKs(linkIDs)
+				scenes = append(scenes, batchScenes...)
 			}
 		}
 	}
@@ -687,15 +679,19 @@ func (i SceneResource) searchSceneIndex(req *restful.Request, resp *restful.Resp
 		return
 	}
 
-	for _, v := range searchResults.Hits {
-		var scene models.Scene
-		err := scene.GetIfExist(v.ID)
-		if err != nil {
-			continue
+	// Batch load search results
+	if len(searchResults.Hits) > 0 {
+		var searchIDs []string
+		scoreMap := make(map[string]float64, len(searchResults.Hits))
+		for _, v := range searchResults.Hits {
+			searchIDs = append(searchIDs, v.ID)
+			scoreMap[v.ID] = v.Score
 		}
-
-		scene.Score = v.Score
-		scenes = append(scenes, scene)
+		batchScenes, _ := models.GetScenesBySceneIDs(searchIDs)
+		for idx := range batchScenes {
+			batchScenes[idx].Score = scoreMap[batchScenes[idx].SceneID]
+			scenes = append(scenes, batchScenes[idx])
+		}
 	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, ResponseGetScenes{Results: len(scenes), Scenes: scenes})

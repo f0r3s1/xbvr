@@ -1,11 +1,6 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 
-import Options from './views/options/Options'
-import Scenes from './views/scenes/Scenes'
-import Actors  from './views/actors/Actors'
-import Files from './views/files/Files'
-
 Vue.use(Router)
 
 export default new Router({
@@ -15,22 +10,22 @@ export default new Router({
     {
       path: '/',
       name: 'scenes',
-      component: Scenes
+      component: () => import('./views/scenes/Scenes')
     },
     {
       path: '/actors',
       name: 'actors',
-      component: Actors
+      component: () => import('./views/actors/Actors')
     },
     {
       path: '/files',
       name: 'files',
-      component: Files
+      component: () => import('./views/files/Files')
     },
     {
       path: '/options',
       name: 'options',
-      component: Options
+      component: () => import('./views/options/Options')
     }
   ]
 })

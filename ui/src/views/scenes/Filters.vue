@@ -300,7 +300,6 @@ export default {
   components: { SavedSearch },
   mounted () {
     this.$store.dispatch('sceneList/filters')
-    this.fetchFilters()
   },
   data () {
     return {
@@ -312,16 +311,23 @@ export default {
       isGroupTagNameModalActive: false,
       tagGroupName: '',
       groupNameDialogAction: 'create',
+      _reloadTimeout: null,
     }
+  },
+  beforeDestroy () {
+    if (this._reloadTimeout) clearTimeout(this._reloadTimeout)
   },
   methods: {
     reloadList () {
-      this.$router.push({
-        name: 'scenes',
-        query: {
-          q: this.$store.getters['sceneList/filterQueryParams']
-        }
-      })
+      if (this._reloadTimeout) clearTimeout(this._reloadTimeout)
+      this._reloadTimeout = setTimeout(() => {
+        this.$router.push({
+          name: 'scenes',
+          query: {
+            q: this.$store.getters['sceneList/filterQueryParams']
+          }
+        })
+      }, 300)
     },
     getFilteredCast (text) {
       this.filteredCast = this.filters.cast.filter(option => (
@@ -576,12 +582,6 @@ export default {
       }
       return txt
     },
-    async fetchFilters() {
-        this.filteredAttributes=['Loading attributes']
-        ky.get('/api/scene/filters', {timeout: 300000}).json().then(data => {
-          this.filteredAttributes=data.attributes          
-      })      
-    }
   },
   computed: {
     filters () {
@@ -815,14 +815,27 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "~bulma-extensions/bulma-divider/dist/css/bulma-divider.min.css";
+.is-divider {
+  position: relative;
+  display: block;
+  border-top: 0.1rem solid #dbdbdb;
+  height: 0.1rem;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+.is-divider[data-content]::after {
+  background: #fff;
+  color: #b5b5b5;
+  content: attr(data-content);
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  transform: translateY(-1.1rem);
+  text-align: center;
+}
 
 .is-gapless div.control {
   margin: 0.1rem;
-}
-
-.is-divider {
-  margin: 1.5rem 0;
 }
 
 .field-extra {

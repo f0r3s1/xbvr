@@ -494,20 +494,18 @@ export default {
   },
   computed: {
     scraperList() {
-      var items = this.$store.state.optionsSites.items;
       let re = /(.*)\s+\((.+)\)$/;
-      for (let i=0; i < items.length; i++) {
-        items[i].sitename = items[i].name;
-        items[i].source = "";
-
-        var m = re.exec(items[i].name);
+      let items = this.$store.state.optionsSites.items.map(item => {
+        let sitename = item.name;
+        let source = '';
+        let m = re.exec(item.name);
         if (m) {
-          items[i].sitename = m[1];
-          items[i].source = m[2];
+          sitename = m[1];
+          source = m[2];
         }
-      }
+        return { ...item, sitename, source };
+      });
 
-      // Filter by enabled status if the filter is active
       if (!this.showAllScrapers) {
         items = items.filter(item => item.is_enabled === true);
       }
@@ -518,7 +516,6 @@ export default {
       return this.$store.state.optionsSites.items
     },
     runningScrapers () {
-      this.$store.dispatch('optionsSites/load')
       return this.$store.state.messages.runningScrapers
     }
   }

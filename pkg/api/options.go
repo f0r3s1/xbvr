@@ -460,17 +460,28 @@ func (i ConfigResource) listSitesWithDB(req *restful.Request, resp *restful.Resp
 		db.Order("name COLLATE NOCASE asc").Find(&sites)
 	}
 
+	// Build scraper lookup set for O(1) matching
 	scrapers := models.GetScrapers()
+	scraperSet := make(map[string]bool, len(scrapers))
+	for _, scraper := range scrapers {
+		scraperSet[scraper.ID] = true
+	}
+
+	// Get all scene counts in a single query instead of N individual queries
+	type scraperCount struct {
+		ScraperID string
+		Count     int
+	}
+	var counts []scraperCount
+	db.Model(&models.Scene{}).Select("scraper_id, count(*) as count").Group("scraper_id").Scan(&counts)
+	countMap := make(map[string]int, len(counts))
+	for _, c := range counts {
+		countMap[c.ScraperID] = c.Count
+	}
+
 	for idx, site := range sites {
-		for _, scraper := range scrapers {
-			if site.ID == scraper.ID {
-				sites[idx].HasScraper = true
-			}
-		}
-		// Get scene count for this site
-		var count int
-		db.Model(&models.Scene{}).Where("scraper_id = ?", site.ID).Count(&count)
-		sites[idx].SceneCount = count
+		sites[idx].HasScraper = scraperSet[site.ID]
+		sites[idx].SceneCount = countMap[site.ID]
 	}
 	resp.WriteHeaderAndEntity(http.StatusOK, sites)
 }

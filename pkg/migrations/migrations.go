@@ -2394,6 +2394,22 @@ func Migrate(migrateTo string) {
 			},
 		},
 		{
+			ID: "0090-add-scene-filter-indexes",
+			Migrate: func(tx *gorm.DB) error {
+				// Add indexes on columns heavily used in WHERE clauses for scene filtering
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_hidden", "is_hidden")
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_available", "is_available")
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_accessible", "is_accessible")
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_favourite", "favourite")
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_watchlist", "watchlist")
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_watched", "is_watched")
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_release_date", "release_date")
+				// Composite index for the most common filter combination
+				tx.Model(&models.Scene{}).AddIndex("idx_scene_avail_access_hidden", "is_available", "is_accessible", "is_hidden")
+				return nil
+			},
+		},
+		{
 			ID: "0089-rename-imageproxy-to-proxy",
 			Migrate: func(tx *gorm.DB) error {
 				// Migrate old imageProxy config fields to new proxy fields

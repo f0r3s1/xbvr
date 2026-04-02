@@ -222,16 +222,6 @@ export default {
       return this.$store.state.actorList.total
     },
     show_actor_id() {
-      if (this.$store.state.actorList.show_actor_id != undefined && this.$store.state.actorList.show_actor_id !='')
-      {
-        ky.get('/api/actor/'+this.$store.state.actorList.show_actor_id).json().then(data => {
-          if (data.id != 0){
-            this.$store.commit('overlay/showActorDetails', { actor: data })
-          }          
-        })
-        this.$store.state.actorList.show_actor_id = ''
-      }
-      
       return this.$store.state.actorList.show_actor_id
     },
     hideLetters: {
@@ -275,20 +265,32 @@ export default {
       }      
       this.pageChanged()
     },
-    prevpage () {      
+    prevpage () {
       if (this.$store.state.overlay.actordetails.show){
-        return 
+        return
       }
       if (this.$store.state.overlay.details.show){
-        return 
+        return
       }
       if (this.current > 1) {
         this.current -= 1
       } else {
-        this.current = Math.floor(this.total / this.limit) + 1        
-      }      
+        this.current = Math.floor(this.total / this.limit) + 1
+      }
       this.pageChanged()
     },
+  },
+  watch: {
+    '$store.state.actorList.show_actor_id' (id) {
+      if (id && id !== '') {
+        ky.get('/api/actor/' + id).json().then(data => {
+          if (data.id != 0) {
+            this.$store.commit('overlay/showActorDetails', { actor: data })
+          }
+        })
+        this.$store.state.actorList.show_actor_id = ''
+      }
+    }
   }
 }
 </script>

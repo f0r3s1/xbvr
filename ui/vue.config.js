@@ -4,6 +4,7 @@ module.exports = {
   publicPath: '/ui',
   outputDir: 'dist',
   lintOnSave: false,
+  productionSourceMap: false,
 
   // Dev server proxy for API calls during development
   devServer: {
