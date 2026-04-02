@@ -78,6 +78,11 @@ func RescanVolumes(id int) {
 			return buffer.String()
 		}
 
+		// Regex to strip known funscript-only suffixes before extension swap.
+		// These suffixes appear on funscript files but NOT on the matching video file.
+		// Only well-known suffixes to avoid false positives.
+		funscriptSuffixRe := regexp.MustCompile(`(?i)_(ai|2d|ow)\.funscript$`)
+
 		for i := range files {
 			unescapedFilename := path.Base(files[i].Filename)
 			filename := escape(unescapedFilename)
@@ -85,14 +90,37 @@ func RescanVolumes(id int) {
 			filename3 := strings.Replace(filename, ".hsp", ".mp4", -1)
 			filename4 := strings.Replace(filename, ".srt", ".mp4", -1)
 			filename5 := strings.Replace(filename, ".cmscript", ".mp4", -1)
-			err := db.Where("filenames_arr LIKE ? OR filenames_arr LIKE ? OR filenames_arr LIKE ? OR filenames_arr LIKE ? OR filenames_arr LIKE ?", `%"`+filename+`"%`, `%"`+filename2+`"%`, `%"`+filename3+`"%`, `%"`+filename4+`"%`, `%"`+filename5+`"%`).Find(&scenes).Error
+
+			// Generate additional variant: strip funscript-specific suffixes (_ai, _2d, _ow)
+			// e.g. "video_ai.funscript" → "video.mp4"
+			filename6 := ""
+			if funscriptSuffixRe.MatchString(unescapedFilename) {
+				stripped := funscriptSuffixRe.ReplaceAllString(escape(unescapedFilename), ".mp4")
+				if stripped != filename2 {
+					filename6 = stripped
+				}
+			}
+
+			query := `filenames_arr LIKE ? OR filenames_arr LIKE ? OR filenames_arr LIKE ? OR filenames_arr LIKE ? OR filenames_arr LIKE ?`
+			args := []interface{}{`%"` + filename + `"%`, `%"` + filename2 + `"%`, `%"` + filename3 + `"%`, `%"` + filename4 + `"%`, `%"` + filename5 + `"%`}
+			if filename6 != "" {
+				query += ` OR filenames_arr LIKE ?`
+				args = append(args, `%"`+filename6+`"%`)
+			}
+			err := db.Where(query, args...).Find(&scenes).Error
 			if err != nil {
 				log.Error(err, " when matching "+unescapedFilename)
 			}
 			if len(scenes) == 0 && config.Config.Advanced.UseAltSrcInFileMatching {
 				// check if the filename matches in external_reference record
-
-				db.Preload("XbvrLinks").Where("external_source like 'alternate scene %' and external_data LIKE ? OR external_data LIKE ? OR external_data LIKE ? OR external_data LIKE ? OR external_data LIKE ?", `%"`+filename+`%`, `%"`+filename2+`%`, `%"`+filename3+`%`, `%"`+filename4+`%`, `%"`+filename5+`%`).Find(&extrefs)
+				altQuery := "external_source like 'alternate scene %' and (external_data LIKE ? OR external_data LIKE ? OR external_data LIKE ? OR external_data LIKE ? OR external_data LIKE ?"
+				altArgs := []interface{}{`%"` + filename + `%`, `%"` + filename2 + `%`, `%"` + filename3 + `%`, `%"` + filename4 + `%`, `%"` + filename5 + `%`}
+				if filename6 != "" {
+					altQuery += " OR external_data LIKE ?"
+					altArgs = append(altArgs, `%"`+filename6+`%`)
+				}
+				altQuery += ")"
+				db.Preload("XbvrLinks").Where(altQuery, altArgs...).Find(&extrefs)
 				if len(extrefs) == 1 {
 					if len(extrefs[0].XbvrLinks) == 1 {
 						// the scene id will be the Internal DB Id from the associated link
