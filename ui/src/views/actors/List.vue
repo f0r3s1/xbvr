@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div style="position: relative; min-height: 200px;">
     <GlobalEvents
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
       @keydown.left="prevpage"
