@@ -1,13 +1,16 @@
-# UI build stage - Bun for fast installs, Node for webpack build
+# syntax=docker/dockerfile:1
+
+# ── UI build stage ──────────────────────────────────────────────────
 FROM node:22-alpine AS ui-builder
 RUN npm i -g bun
 WORKDIR /app
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --ignore-scripts
 COPY ui/ ui/
 RUN cd ui && node ../node_modules/@vue/cli-service/bin/vue-cli-service.js build
 
-# Go build stage with CGO enabled
+# ── Go build stage ──────────────────────────────────────────────────
 FROM golang:1.24-alpine AS builder
 
 ARG VERSION=CURRENT
@@ -16,18 +19,21 @@ ARG DATE=unknown
 
 WORKDIR /app
 
-# Install build deps (musl-dev for CGO + SQLite on Alpine)
 RUN apk add --no-cache gcc musl-dev sqlite-dev
 
-# Cache Go modules separately
+# Cache Go modules separately (changes rarely)
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY . .
 COPY --from=ui-builder /app/ui/dist ./ui/dist
-RUN CGO_ENABLED=1 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o xbvr
 
-# Runtime stage - Alpine for minimal image size
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o xbvr
+
+# ── Runtime stage ───────────────────────────────────────────────────
 FROM alpine:3.21
 
 RUN apk add --no-cache \

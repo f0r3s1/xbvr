@@ -16,15 +16,5 @@ services:
       start_period: 15s
       retries: 3
 
-  # Optional: FlareSolverr for sites that need it
-  # Uncomment to enable
-  # flaresolverr:
-  #   image: ghcr.io/flaresolverr/flaresolverr:latest
-  #   ports:
-  #     - "8191:8191"
-  #   environment:
-  #     - LOG_LEVEL=info
-  #   restart: unless-stopped
-
 volumes:
   xbvr-config:
