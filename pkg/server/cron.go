@@ -79,13 +79,27 @@ func SetupCron() {
 		time.AfterFunc(time.Duration(config.Config.Cron.AVIFConversionSchedule.RunAtStartDelay)*time.Minute, avifConversionCron)
 	}
 
-	log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
-	log.Println(fmt.Sprintf("Next Rescan Task at %v", cronInstance.Entry(rescanTask).Next))
-	log.Println(fmt.Sprintf("Next Preview Generation Task at %v", cronInstance.Entry(previewTask).Next))
-	log.Println(fmt.Sprintf("Next Actor Rescripe Task at %v", cronInstance.Entry(actorScrapeTask).Next))
-	log.Println(fmt.Sprintf("Next Stashdb Rescrape Task at %v", cronInstance.Entry(stashdbScrapeTask).Next))
-	log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(linkScenesTask).Next))
-	log.Println(fmt.Sprintf("Next AVIF Conversion Task at %v", cronInstance.Entry(avifConversionTask).Next))
+	if config.Config.Cron.RescrapeSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
+	}
+	if config.Config.Cron.RescanSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next Rescan Task at %v", cronInstance.Entry(rescanTask).Next))
+	}
+	if config.Config.Cron.PreviewSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next Preview Generation Task at %v", cronInstance.Entry(previewTask).Next))
+	}
+	if config.Config.Cron.ActorRescrapeSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next Actor Rescrape Task at %v", cronInstance.Entry(actorScrapeTask).Next))
+	}
+	if config.Config.Cron.StashdbRescrapeSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next Stashdb Rescrape Task at %v", cronInstance.Entry(stashdbScrapeTask).Next))
+	}
+	if config.Config.Cron.LinkScenesSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(linkScenesTask).Next))
+	}
+	if config.Config.Cron.AVIFConversionSchedule.Enabled {
+		log.Println(fmt.Sprintf("Next AVIF Conversion Task at %v", cronInstance.Entry(avifConversionTask).Next))
+	}
 }
 
 func scrapeCron() {
@@ -105,20 +119,20 @@ func actorRescrapeCron() {
 	if !session.HasActiveSession() {
 		tasks.ScrapeActors()
 	}
-	log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
+	log.Println(fmt.Sprintf("Next Actor Rescrape Task at %v", cronInstance.Entry(actorScrapeTask).Next))
 }
 func stashdbRescrapeCron() {
 	if !session.HasActiveSession() {
 		api.StashdbRunAll()
 	}
-	log.Println(fmt.Sprintf("Next Stashdb Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
+	log.Println(fmt.Sprintf("Next Stashdb Rescrape Task at %v", cronInstance.Entry(stashdbScrapeTask).Next))
 }
 
 func linkScenesCron() {
 	if !session.HasActiveSession() {
 		tasks.MatchAlternateSources()
 	}
-	log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(rescrapTask).Next))
+	log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(linkScenesTask).Next))
 }
 
 var previewGenerateInProgress = false

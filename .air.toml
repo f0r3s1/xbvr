@@ -10,3 +10,6 @@ cmd = 'go build -o dist/xbvr -tags="json1" main.go'
 full_bin = 'dist/xbvr'
 include_ext = ['go']
 exclude_dir = ['node_modules', 'cache', 'dist', 'ui', 'tmp']
+# Use polling for Docker volume mounts (inotify unreliable on macOS bind mounts)
+poll = true
+poll_interval = 1000
