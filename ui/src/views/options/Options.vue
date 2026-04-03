@@ -9,6 +9,7 @@
             <b-menu-item :label="$t('Previews')" :active="active==='previews'" @click="setActive('previews')"/>
             <!--            <b-menu-item :label="$t('Scheduled tasks')" :active="active==='tasks'" @click="setActive ('tasks')"/>-->
             <b-menu-item :label="$t('Cache')" :active="active==='cache'" @click="setActive('cache')"></b-menu-item>
+            <b-menu-item :label="$t('Library Health')" :active="active==='health'" @click="setActive('health')"></b-menu-item>
             <b-menu-item :label="$t('Task Schedules')" :active="active==='schedules'" @click="setActive('schedules')"></b-menu-item>
           </b-menu-list>
           <b-menu-list :label="$t('Scene data')">
@@ -34,6 +35,7 @@
         <div class="options-content">
           <Storage v-show="active==='storage'"/>
           <Cache v-show="active==='cache'"/>
+          <LibraryHealth v-show="active==='health'"/>
           <Previews v-show="active==='previews'"/>
           <Schedules v-show="active==='schedules'"/>
           <SceneDataScrapers v-show="active==='data-scrapers'"/>
@@ -61,6 +63,7 @@ import Funscripts from './sections/Funscripts'
 import SceneDataImportExport from './sections/OptionsSceneDataImportExport'
 import InterfaceDLNA from './sections/InterfaceDLNA.vue'
 import Cache from './sections/Cache.vue'
+import LibraryHealth from './sections/LibraryHealth.vue'
 import Previews from './sections/Previews.vue'
 import Schedules from './sections/Schedules.vue'
 import InterfaceDeoVR from './sections/InterfaceDeoVR.vue'
@@ -68,7 +71,7 @@ import InterfaceAdvanced from './sections/InterfaceAdvanced.vue'
 import SceneMatchParams from './overlays/SceneMatchParams.vue'
 
 export default {
-  components: { Storage, SceneDataScrapers, SceneCreate, Funscripts, SceneDataImportExport, InterfaceWeb, InterfaceDLNA, InterfaceDeoVR, Cache, Previews, Schedules, InterfaceAdvanced,SceneMatchParams },
+  components: { Storage, SceneDataScrapers, SceneCreate, Funscripts, SceneDataImportExport, InterfaceWeb, InterfaceDLNA, InterfaceDeoVR, Cache, Previews, Schedules, InterfaceAdvanced, SceneMatchParams, LibraryHealth },
   data: function () {
     return {
       active: this.$route.query.tab || localStorage.getItem('optionsActiveTab') || 'storage'

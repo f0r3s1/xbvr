@@ -8,6 +8,14 @@
     <transition name="fade">
       <div class="preview-overlay" v-if="preview && item.has_preview" @click="showDetails(item)">
         <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop muted></video>
+        <!-- Info overlay on preview -->
+        <div class="preview-info">
+          <div class="preview-title">{{ item.title }}</div>
+          <div class="preview-meta">
+            <span>{{ item.site }}</span>
+            <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="preview-date">{{ format(parseISO(item.release_date), "yyyy-MM-dd") }}</span>
+          </div>
+        </div>
         <!-- Hover Actions on top of preview -->
         <div class="hover-actions is-visible">
           <div class="actions-row" @click.stop>
@@ -363,6 +371,38 @@ export default {
   height: 100%;
   object-fit: cover;
   border-radius: 8px;
+}
+
+/* Title/studio info shown over preview */
+.preview-info {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  right: 0;
+  padding: 16px 10px 6px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  pointer-events: none;
+  border-radius: 0;
+}
+
+.preview-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.preview-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: rgba(255,255,255,0.75);
+  margin-top: 2px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
 /* Fade transition */
