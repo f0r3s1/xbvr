@@ -83,6 +83,11 @@ export default {
       this.$store.commit('optionsPreviews/showPreview', { previewFn: arr.argsDict.previewFn })
     })
 
+    // Health check progress
+    ws.subscribe('health.progress', (arr, obj) => {
+      this.$store.commit('health/setProgress', arr.argsDict)
+    })
+
     // Remote
     ws.subscribe('remote.state', (arr, obj) => {
       this.$store.dispatch('remote/processMessage', arr.argsDict)

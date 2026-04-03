@@ -1,6 +1,6 @@
 <template>
   <div ref="scrollContainer" style="position: relative; min-height: 200px;">
-    <b-loading :is-full-page="false" :active.sync="isInitialLoading"></b-loading>
+    <b-loading :is-full-page="false" :active.sync="isListReloading"></b-loading>
 
     <div class="columns is-multiline is-full">
       <div class="column">
@@ -82,8 +82,7 @@ export default {
     return {
       isLoadingMore: false,
       scrollHandler: null,
-      debounceTimeout: null,
-      isFirstLoad: true
+      debounceTimeout: null
     }
   },
   computed: {
@@ -151,8 +150,8 @@ export default {
     isLoading () {
       return this.$store.state.sceneList.isLoading
     },
-    isInitialLoading () {
-      return this.isLoading && this.isFirstLoad
+    isListReloading () {
+      return this.isLoading && !this.isLoadingMore
     },
     items () {
       return this.$store.state.sceneList.items
@@ -173,11 +172,6 @@ export default {
           }
         })
         this.$store.state.sceneList.show_scene_id = ''
-      }
-    },
-    isLoading (val) {
-      if (!val && this.isFirstLoad) {
-        this.isFirstLoad = false
       }
     },
     infiniteScrollEnabled(newVal) {
