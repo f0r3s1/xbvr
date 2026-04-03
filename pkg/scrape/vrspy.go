@@ -192,8 +192,6 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 
 	// Pagination for listing pages - only if not limit scraping
 	// We need to track items found per page to know when to stop
-	var lastPageItemCount int
-
 	if !limitScraping {
 		collector.OnHTML(`html`, func(e *colly.HTMLElement) {
 			// Only process pagination for listing pages
@@ -213,8 +211,6 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 				return
 			}
 
-			lastPageItemCount = itemCount
-
 			pageNum := 1
 			if page := e.Request.URL.Query().Get("page"); page != "" {
 				pageNum, _ = strconv.Atoi(page)
@@ -230,9 +226,6 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 			}
 		})
 	}
-
-	// Suppress the lastPageItemCount unused warning
-	_ = lastPageItemCount
 
 	if singleSceneURL != "" {
 		// Single scene scrape

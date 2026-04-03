@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+# Dev image — all tools, source mounted at runtime for hot reload
+
+FROM golang:1.24-alpine
+
+# Build tools for CGO + sqlite
+RUN apk add --no-cache gcc musl-dev sqlite-dev ffmpeg curl bash nodejs npm
+
+# Install bun and air
+RUN npm i -g bun && go install github.com/air-verse/air@v1.61.7
+
+WORKDIR /app
+
+# Pre-install Go modules (cached layer — only rebuilds when go.mod/go.sum change)
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+
+# Pre-install JS dependencies (cached layer — only rebuilds when package.json/bun.lock change)
+COPY package.json bun.lock ./
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --ignore-scripts
+
+# Source code is mounted at runtime via docker-compose, not copied
+EXPOSE 9999 9998 8080

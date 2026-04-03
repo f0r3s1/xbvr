@@ -1,0 +1,44 @@
+services:
+  xbvr-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: >
+      sh -c "
+        # Copy xbvr_data for migrations
+        mkdir -p /root/.config/xbvr/xbvr_data/migrations/release
+        mkdir -p /root/.config/xbvr/xbvr_data/migrations/custom
+        cp -ru /app/xbvr_data /root/.config/xbvr 2>/dev/null || true
+        # Create ui/dist with public assets for go:embed (Vue dev server serves the real UI)
+        mkdir -p /app/ui/dist
+        echo '<!-- dev placeholder -->' > /app/ui/dist/index.html
+        cp -r /app/ui/public/dlna /app/ui/dist/dlna 2>/dev/null || true
+        # Start Vue dev server (HMR) in background
+        cd /app/ui && node ../node_modules/@vue/cli-service/bin/vue-cli-service.js serve &
+        # Start Go with air (hot reload)
+        cd /app && air
+      "
+    ports:
+      - "9999:9999"   # Go backend
+      - "9998:9998"   # WebSocket
+      - "8080:8080"   # Vue HMR dev server
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Anonymous volumes to preserve container-installed deps (don't overwrite with host)
+      - /app/node_modules
+      - /app/dist
+      # Persistent config
+      - xbvr-config:/root/.config
+      # Cache mounts for faster rebuilds inside container
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    environment:
+      - CGO_ENABLED=1
+      - DEBUG=1
+    restart: unless-stopped
+
+volumes:
+  xbvr-config:
+  go-mod-cache:
+  go-build-cache:

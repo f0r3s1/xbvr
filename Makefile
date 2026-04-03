@@ -3,38 +3,42 @@ GORELEASER_CROSS_VERSION  ?= v1.24.5
 SYSROOT_DIR     ?= sysroots
 SYSROOT_ARCHIVE ?= sysroots.tar.bz2
 
-# ── Dev targets (local development) ─────────────────────────────────
+# ── Dev targets (local development with hot reload) ────────────────
 
 .PHONY: dev
-dev: ## Build and run for local development
-	DOCKER_BUILDKIT=1 docker compose up --build
+dev: ## Build and run with hot reload (air + Vue HMR)
+	DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml up --build
 
 .PHONY: dev-build
-dev-build: ## Build dev image (uses BuildKit cache mounts for speed)
-	DOCKER_BUILDKIT=1 docker compose build
+dev-build: ## Build dev image only
+	DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build
 
 .PHONY: dev-up
-dev-up: ## Start without rebuilding
-	docker compose up
+dev-up: ## Start dev without rebuilding
+	docker compose -f docker-compose.dev.yml up
 
 .PHONY: dev-down
-dev-down: ## Stop containers
-	docker compose down
+dev-down: ## Stop dev containers
+	docker compose -f docker-compose.dev.yml down
 
 .PHONY: dev-logs
-dev-logs: ## Tail container logs
-	docker compose logs -f
+dev-logs: ## Tail dev container logs
+	docker compose -f docker-compose.dev.yml logs -f
 
 .PHONY: dev-shell
-dev-shell: ## Shell into running container
-	docker compose exec xbvr sh
+dev-shell: ## Shell into running dev container
+	docker compose -f docker-compose.dev.yml exec xbvr-dev sh
 
 .PHONY: dev-clean
-dev-clean: ## Remove containers, volumes, and build cache
-	docker compose down -v
+dev-clean: ## Remove dev containers, volumes, and build cache
+	docker compose -f docker-compose.dev.yml down -v
 	docker builder prune -f --filter type=exec.cachemount
 
 # ── Prod targets (CI / release builds) ──────────────────────────────
+
+.PHONY: prod
+prod: ## Build and run production image
+	DOCKER_BUILDKIT=1 docker compose up --build
 
 .PHONY: prod-build
 prod-build: ## Production build - stateless, no cache mounts (CI-safe)
