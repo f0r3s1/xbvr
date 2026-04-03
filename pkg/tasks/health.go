@@ -152,7 +152,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "orphaned-files", Category: "files", Severity: "warning",
 			Description: fmt.Sprintf("%d files not matched to any scene", orphanedCount),
-			Detail: "Rescan volumes or manually match these files", Fixable: true,
+			Detail:      "Rescan volumes or manually match these files", Fixable: true,
 			FixAction: "rescan", FixLabel: "Rescan Volumes", AffectedItems: items,
 		})
 	}
@@ -185,7 +185,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "stale-available", Category: "scenes", Severity: "critical",
 			Description: fmt.Sprintf("%d scenes marked available but have no video files", staleAvailableCount),
-			Detail: "Will reset is_available flag to false", Fixable: true,
+			Detail:      "Will reset is_available flag to false", Fixable: true,
 			FixAction: "refresh-status", FixLabel: "Refresh Status", AffectedItems: items,
 		})
 	}
@@ -217,7 +217,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "stale-scripted", Category: "scenes", Severity: "warning",
 			Description: fmt.Sprintf("%d scenes marked scripted but have no script files", staleScriptedCount),
-			Detail: "Will reset is_scripted flag to false", Fixable: true,
+			Detail:      "Will reset is_scripted flag to false", Fixable: true,
 			FixAction: "refresh-status", FixLabel: "Refresh Status", AffectedItems: items,
 		})
 	}
@@ -279,7 +279,7 @@ func RunHealthCheck() {
 		}
 		issues = append(issues, HealthIssue{
 			ID: "missing-cast", Category: "scenes", Severity: "info",
-			Description: fmt.Sprintf("%d scenes have no cast information", noCastCount),
+			Description:   fmt.Sprintf("%d scenes have no cast information", noCastCount),
 			AffectedItems: items,
 		})
 		stats["missing_cast"] = noCastCount
@@ -339,7 +339,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "missing-on-disk", Category: "files", Severity: "critical",
 			Description: fmt.Sprintf("%d matched files no longer exist on disk", len(missingItems)),
-			Detail: "Rescan will remove stale file records", Fixable: true,
+			Detail:      "Rescan will remove stale file records", Fixable: true,
 			FixAction: "rescan", FixLabel: "Rescan Volumes", AffectedItems: missingItems,
 		})
 	}
@@ -394,7 +394,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "orphaned-tags", Category: "tags", Severity: "info",
 			Description: fmt.Sprintf("%d tags not used by any scene", orphanedTagCount),
-			Detail: "Will delete unused tags", Fixable: true,
+			Detail:      "Will delete unused tags", Fixable: true,
 			FixAction: "clean-tags", FixLabel: "Clean Tags", AffectedItems: items,
 		})
 	}
@@ -446,7 +446,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "missing-previews", Category: "scenes", Severity: "info",
 			Description: fmt.Sprintf("%d available scenes have no video preview", len(missingPreviewItems)),
-			Fixable: true, FixAction: "generate-previews", FixLabel: "Generate Previews",
+			Fixable:     true, FixAction: "generate-previews", FixLabel: "Generate Previews",
 			AffectedItems: missingPreviewItems,
 		})
 	}
@@ -523,7 +523,7 @@ func RunHealthCheck() {
 		issues = append(issues, HealthIssue{
 			ID: "future-dates", Category: "scenes", Severity: "warning",
 			Description: fmt.Sprintf("%d scenes have release dates far in the future", len(futureDateScenes)),
-			Detail: "Possibly bad scrape data", AffectedItems: items,
+			Detail:      "Possibly bad scrape data", AffectedItems: items,
 		})
 	}
 
