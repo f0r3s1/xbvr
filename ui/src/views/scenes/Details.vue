@@ -88,73 +88,66 @@
 
           <div class="column is-half">
 
-            <div class="block-info block">
-              <div class="content">
-                <h3>
-                  <span v-if="item.title">{{ item.title }}</span>
-                  <span v-else class="missing">(no title)</span>                  
-                  <small class="is-pulled-right">
-                    {{ format(parseISO(item.release_date), "yyyy-MM-dd") }}
-                  </small>
-                </h3>
-                <div class="columns">
-                  <div class="column pb-0">
-                    <small>
-                      <a :href="item.scene_url" target="_blank" rel="noreferrer">{{ item.site }}</a>
-                      <br v-if="item.members_url != ''"/>
-                      <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer"><b-icon pack="mdi" icon="link-lock" custom-size="mdi-18px"/>Members Link</a>
-                    </small>
-                  </div>
-                  <div class="column pb-0">
-                    <small v-if="item.duration" class="is-pulled-right">{{ item.duration }} minutes</small>
-                  </div>
+            <div class="detail-header">
+              <!-- Title -->
+              <h3 class="detail-title">
+                <span v-if="item.title">{{ item.title }}</span>
+                <span v-else class="missing">(no title)</span>
+              </h3>
+
+              <!-- Meta line: site, duration, date -->
+              <div class="detail-meta">
+                <span class="detail-meta-left">
+                  <a :href="item.scene_url" target="_blank" rel="noreferrer" @click.stop>{{ item.site }}</a>
+                  <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop class="members-link">
+                    <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
+                  </a>
+                  <span v-if="item.duration" class="detail-duration">{{ item.duration }} min</span>
+                </span>
+                <span class="detail-date">
+                  {{ format(parseISO(item.release_date), "yyyy-MM-dd") }}
+                </span>
+              </div>
+
+              <!-- Rating + Actions -->
+              <div class="detail-actions-row">
+                <div class="detail-rating" v-if="!displayingAlternateSource">
+                  <star-rating :key="item.id" v-model="item.star_rating" :rating="item.star_rating" @rating-selected="setRating"
+                               :increment="0.5" :star-size="18" :show-rating="false" />
+                  <b-icon pack="mdi" icon="autorenew" size="is-small" @click.native="setRating(0)" class="rating-reset" data-tooltip="Reset rating"/>
                 </div>
-                <div class="columns is-vcentered">
-                  <div class="column pt-0">
-                    <b-field v-if="!displayingAlternateSource">
-                      <star-rating :key="item.id" v-model="item.star_rating" :rating="item.star_rating" @rating-selected="setRating"
-                                   :increment="0.5" :star-size="20" :show-rating="false" />
-                      <b-tooltip :label="$t('Reset Rating')" position="is-right" :delay="250">
-                        <b-icon pack="mdi" icon="autorenew" size="is-small" @click.native="setRating(0)" style="padding-left: 1em;padding-top: .5em;"/>
-                      </b-tooltip>
-                    </b-field>
-                    <b-field v-if="displayingAlternateSource">
-                      <strong>Linked scene, Not an XBVR Scene</strong>
-                    </b-field>
-                  </div>
-                  <div class="column pt-0">
-                    <div class="detail-actions is-flex is-pulled-right" style="gap: 0.25rem">
-                      <a class="button is-primary is-outlined is-small" @click="searchAlternateSourceScene()" data-tooltip="Search for a different scene" v-if="displayingAlternateSource">
-                        <b-icon pack="mdi" icon="movie-search-outline" size="is-small"/>
-                      </a>
-                      <a class="button is-primary is-outlined is-small" @click="scrapeScene()" data-tooltip="Scrape and create an XBVR scene" v-if="displayingAlternateSource">
-                        <b-icon pack="mdi" icon="plus" size="is-medium"/>
-                      </a>
-                      <a class="button is-primary is-outlined is-small" @click="refreshExtRef()" data-tooltip="Refresh scene data and relink" v-if="displayingAlternateSource">
-                        <b-icon pack="mdi" icon="refresh" size="is-small"/>
-                      </a>
-                      <a class="button is-danger is-outlined is-small" @click="flagExtRefDeleted()" data-tooltip="Unlink scene permanently" v-if="displayingAlternateSource">
-                        <b-icon pack="mdi" icon="delete" size="is-small"/>
-                      </a>
-                      <hidden-button :item="item" v-if="!displayingAlternateSource"/>
-                      <watchlist-button :item="item" v-if="!displayingAlternateSource"/>
-                      <trailerlist-button :item="item" v-if="!displayingAlternateSource"/>
-                      <favourite-button :item="item" v-if="!displayingAlternateSource"/>
-                      <wishlist-button :item="item" v-if="!displayingAlternateSource"/>
-                      <watched-button :item="item" v-if="!displayingAlternateSource"/>
-                      <edit-button :item="item"/>
-                      <refresh-button :item="item" v-if="!displayingAlternateSource"/>
-                      <rescrape-button :item="item" v-if="!displayingAlternateSource"/>
-                      <link-stashdb-button :item="item" objectType="scene" />
-                    </div>
-                  </div>
+                <div v-if="displayingAlternateSource" class="detail-rating">
+                  <strong>Linked scene, Not an XBVR Scene</strong>
                 </div>
-                <div class="image-row is-flex is-pulled-right" v-if="getAlternateSceneSources != 0">
+                <div class="detail-actions">
+                  <a class="button is-primary is-outlined is-small" @click="searchAlternateSourceScene()" data-tooltip="Search for a different scene" v-if="displayingAlternateSource">
+                    <b-icon pack="mdi" icon="movie-search-outline" size="is-small"/>
+                  </a>
+                  <a class="button is-primary is-outlined is-small" @click="scrapeScene()" data-tooltip="Scrape and create an XBVR scene" v-if="displayingAlternateSource">
+                    <b-icon pack="mdi" icon="plus" size="is-medium"/>
+                  </a>
+                  <a class="button is-primary is-outlined is-small" @click="refreshExtRef()" data-tooltip="Refresh scene data and relink" v-if="displayingAlternateSource">
+                    <b-icon pack="mdi" icon="refresh" size="is-small"/>
+                  </a>
+                  <a class="button is-danger is-outlined is-small" @click="flagExtRefDeleted()" data-tooltip="Unlink scene permanently" v-if="displayingAlternateSource">
+                    <b-icon pack="mdi" icon="delete" size="is-small"/>
+                  </a>
+                  <hidden-button :item="item" v-if="!displayingAlternateSource"/>
+                  <watchlist-button :item="item" v-if="!displayingAlternateSource"/>
+                  <trailerlist-button :item="item" v-if="!displayingAlternateSource"/>
+                  <favourite-button :item="item" v-if="!displayingAlternateSource"/>
+                  <wishlist-button :item="item" v-if="!displayingAlternateSource"/>
+                  <watched-button :item="item" v-if="!displayingAlternateSource"/>
+                  <edit-button :item="item"/>
+                  <refresh-button :item="item" v-if="!displayingAlternateSource"/>
+                  <rescrape-button :item="item" v-if="!displayingAlternateSource"/>
+                  <link-stashdb-button :item="item" objectType="scene" />
+                  <!-- Alternate source icons inline -->
                   <div v-for="(altsrc, idx) in alternateSourcesWithTitles" :key="idx" class="altsrc-image-wrapper" @click="showExtRefScene(altsrc)">
-                    <b-tooltip type="is-light" :label="altsrc.title" :delay="100" append-to-body>
+                    <b-tooltip type="is-light" :label="altsrc.title" :delay="0" append-to-body>
                       <vue-load-image>
-                        <img slot="image" :src="getImageURL(altsrc.site_icon)" alt="Image" width="28px" />                        
-                        <b-icon slot="error" pack="mdi" icon="link" size="is-small" />
+                        <img slot="image" :src="getImageURL(altsrc.site_icon)" alt="Image" width="28px"/>
+                        <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
                       </vue-load-image>
                     </b-tooltip>
                   </div>
@@ -162,37 +155,38 @@
               </div>
             </div>
 
-            <div class="image-row" v-if="activeTab != 1 && !displayingAlternateSource">
-              <div v-for="(image, idx) in castimages" :key="idx" class="image-wrapper">
-                <b-tooltip  type="is-light" :label="image.actor_label"  :delay=100>
+            <!-- Cast -->
+            <div class="cast-section" v-if="activeTab != 1 && !displayingAlternateSource && castimages.length > 0">
+              <div class="cast-row">
+                <div v-for="(image, idx) in castimages" :key="idx" class="cast-item" @click='showActorDetail([image.actor_id])'>
                   <vue-load-image>
-                    <img slot="image" :src="getImageURL(image.src)" alt="Image" class="thumbnail" @mouseover="showTooltip(idx)" @mouseout="hideTooltip(idx)" @click='showActorDetail([image.actor_id])' />
-                    <img slot="preloader" :src="getImageURL('https://i.stack.imgur.com/kOnzy.gif')" style="height: 50px;display: block;margin-left:auto;margin-right: auto;" @click='showCastScenes([image.actor_name])' />
-                    <img slot="error" src="/ui/images/blank_female_profile.png" width="80" @click='showActorDetail([image.actor_id])' />
+                    <img slot="image" :src="getImageURL(image.src)" class="cast-thumb"/>
+                    <img slot="preloader" src="/ui/images/blank_female_profile.png" class="cast-thumb"/>
+                    <img slot="error" src="/ui/images/blank_female_profile.png" class="cast-thumb"/>
                   </vue-load-image>
-                </b-tooltip>
-
-                <div v-if="image.visible" class="tooltip">
-                  <img :src="getImageURL(image.src)" alt="Tooltip Image" />
+                  <span class="cast-name">{{ image.actor_label }}</span>
                 </div>
               </div>
             </div>
 
-            <div class="block-tags block" v-if="activeTab != 1">
-              <b-taglist>
-                <span v-for="(c, idx) in item.cast" :key="'cast' + idx" >
-                  <a class="tag is-warning is-small" @click='showCastScenes([c.name])' :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'" >{{ c.name }} ({{ c.avail_count }}/{{ c.count }})</a>
+            <!-- Tags: cast, site, content -->
+            <div class="tags-section" v-if="activeTab != 1">
+              <div class="tag-group" v-if="item.cast && item.cast.length > 0">
+                <span v-for="(c, idx) in item.cast" :key="'cast' + idx">
+                  <a class="tag is-warning is-small" @click='showCastScenes([c.name])' :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ c.name }} ({{ c.avail_count }}/{{ c.count }})</a>
                   <a v-if="showOpenInNewWindow" class="tag is-warning is-small" :href='getCastScenesUrl([c.name])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
                 </span>
-                <span>
-                  <a @click='showSiteScenes([item.site])' class="tag is-primary is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ item.site }}</a>
-                  <a v-if="showOpenInNewWindow" class="tag is-primary is-small" :href='getSiteScenesUrl([item.site])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
-                </span>
+              </div>
+              <div class="tag-group">
+                <a @click='showSiteScenes([item.site])' class="tag is-primary is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ item.site }}</a>
+                <a v-if="showOpenInNewWindow" class="tag is-primary is-small" :href='getSiteScenesUrl([item.site])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
+              </div>
+              <div class="tag-group" v-if="item.tags && item.tags.length > 0">
                 <span v-for="(tag, idx) in item.tags" :key="'tag' + idx">
-                  <a  @click='showTagScenes([tag.name])' class="tag is-info is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ tag.name }} ({{ tag.count }})</a>
+                  <a @click='showTagScenes([tag.name])' class="tag is-info is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ tag.name }} ({{ tag.count }})</a>
                   <a v-if="showOpenInNewWindow" class="tag is-info is-small" :href='getTagScenesUrl([tag.name])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
                 </span>
-              </b-taglist>              
+              </div>
             </div>
 
             <div class="block-tags block" v-if="activeTab == 1">
@@ -362,6 +356,12 @@
                   </div>
                 </b-tab-item>
 
+                <b-tab-item label="Description" v-if="item.synopsis">
+                  <div class="block-tab-content block">
+                    <div class="description-text">{{ item.synopsis }}</div>
+                  </div>
+                </b-tab-item>
+
                 <b-tab-item label="Watch history" v-if="!displayingAlternateSource">
                   <div class="block-tab-content block">
                     <div>
@@ -377,13 +377,6 @@
                   </div>
                 </b-tab-item>
 
-                <b-tab-item label="Description">
-                  <div class="block-tab-content block">
-                    <b-message>
-                      {{ item.synopsis }}
-                    </b-message>
-                  </div>
-                </b-tab-item>
                 <b-tab-item v-if="this.$store.state.optionsAdvanced.advanced.showSceneSearchField && !displayingAlternateSource" label="Search fields">
                   <div class="block-tab-content block">
                     <div class="content is-small">
@@ -530,7 +523,7 @@ export default {
         }
         let img = actor.image_url
         if (img == "" ){
-          img = "blank"  // forces an error image to load, blank won't display an image
+          img = "/ui/images/blank_female_profile.png"
         }
         if (actor.name.startsWith("aka:")) {
           img = ""
@@ -986,13 +979,14 @@ watch:{
       }, delay)
     },
     setupPlayer () {
+      if (!this.$refs.player) return
       this.player = videojs(this.$refs.player, {
         aspectRatio: '1:1',
         fluid: true,
         loop: true
       })
 
-      this.player.hotkeys({
+      if (typeof this.player.hotkeys === 'function') this.player.hotkeys({
         alwaysCaptureHotkeys: true,
         volumeStep: 0.1,
         seekStep: 5,
@@ -1004,8 +998,7 @@ watch:{
               return event.which === 27
             },
             handler: (player, options, event) => {
-              if (!this.displayingAlternateSource) this.player.dispose()
-              this.$store.commit('overlay/hideDetails')
+              this.close()
             }
           },
           zoomIn: {
@@ -1271,7 +1264,7 @@ watch:{
         })
     },
     close () {
-      if (!this.displayingAlternateSource) this.player.dispose()
+      if (!this.displayingAlternateSource && this.player && typeof this.player.dispose === 'function') this.player.dispose()
       this.$store.commit('overlay/hideDetails')
     },
     humanizeSeconds (seconds) {
@@ -1593,21 +1586,7 @@ watch:{
 }
 
 
-/* Keep both tabs in DOM so tallest sets height — no jump on switch */
-.media-tabs :deep(.tab-content) {
-  display: grid;
-}
 
-.media-tabs :deep(.tab-content > .tab-item) {
-  display: block !important;
-  grid-row: 1;
-  grid-column: 1;
-}
-
-.media-tabs :deep(.tab-content > .tab-item[style*="display: none"]) {
-  visibility: hidden;
-  pointer-events: none;
-}
 
 .player-wrapper {
   width: 100%;
@@ -1631,6 +1610,18 @@ watch:{
 
 .modal-card {
   width: 85%;
+  max-height: calc(100vh - 40px);
+  margin: 0 auto;
+}
+
+:deep(.modal-card-body) {
+  overflow-y: auto;
+  max-height: calc(100vh - 40px);
+  scrollbar-width: none;
+}
+
+:deep(.modal-card-body)::-webkit-scrollbar {
+  display: none;
 }
 
 .missing {
@@ -1641,21 +1632,165 @@ watch:{
   flex: 1 1 auto;
 }
 
-.block-info {
+/* Detail Header */
+.detail-header {
+  margin-bottom: 12px;
 }
 
-.block-tags {
-  max-height: 200px;
-  overflow: scroll;
+.detail-title {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-bottom: 4px !important;
+  line-height: 1.3;
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.detail-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-meta-left a {
+  color: #485fc7;
+  text-decoration: none;
+}
+
+.detail-meta-left a:hover {
+  text-decoration: underline;
+}
+
+.members-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+.detail-duration {
+  color: #999;
+}
+
+.detail-date {
+  color: #999;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.detail-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detail-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.rating-reset {
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.rating-reset:hover {
+  opacity: 1;
+}
+
+/* Cast Section */
+.cast-section {
+  margin-bottom: 10px;
+}
+
+.cast-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
   scrollbar-width: none;
+  padding-bottom: 4px;
+  justify-content: flex-start;
 }
 
-.block-tags::-webkit-scrollbar {
+.cast-row::-webkit-scrollbar {
   display: none;
 }
 
-.block-opts {
+.cast-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 0;
 }
+
+.cast-item :deep(> div) {
+  line-height: 0;
+}
+
+.cast-thumb {
+  height: 80px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+  display: block;
+}
+
+.cast-item:hover .cast-thumb {
+  border-color: #7957d5;
+}
+
+.cast-name {
+  font-size: 10px;
+  color: #666;
+  margin-top: 3px;
+  text-align: center;
+  max-width: 72px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tags Section */
+.tags-section {
+  margin-bottom: 10px;
+}
+
+.tag-group {
+  display: inline;
+}
+
+.tag-group > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tag-group + .tag-group {
+  margin-left: 2px;
+}
+
+.tags-section :deep(.tag) {
+  margin-bottom: 4px !important;
+}
+
+/* Description */
+.description-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #444;
+}
+
 
 .vue-star-rating {
     line-height: 0;
@@ -1733,36 +1868,6 @@ span.is-active img {
 }
 .is-divider {
   margin: .8rem 0;
-}
-.image-row {
-  display: flex;
-}
-.image-wrapper {
-  position: relative;
-}
-.thumbnail {
-  height: 100px;
-  margin-right: .5em;
-  object-fit: cover;
-}
-.tooltip {
-  position: absolute;
-  z-index: 1;
-  top: 50px;
-  right: 100%;
-  width: 400px;
-  height: 400px;
-  background-color: white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px;
-  transform: translateX(10px);
-}
-.tooltip img {
-  max-width: 100%;
-  max-height: 100%;
 }
 .altsrc-image-wrapper {
   display: inline-block;
@@ -1937,6 +2042,13 @@ span.is-active img {
 }
 
 /* Detail action buttons — match SceneCard size */
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
 .detail-actions .button,
 .detail-actions :deep(.button) {
   width: 28px !important;
