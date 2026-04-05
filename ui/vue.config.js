@@ -70,6 +70,10 @@ module.exports = {
             Buffer: ['buffer', 'Buffer'],
         }),
     ],
+    watchOptions: {
+        poll: 1000,
+        aggregateTimeout: 300,
+    },
   },
 
   pluginOptions: {

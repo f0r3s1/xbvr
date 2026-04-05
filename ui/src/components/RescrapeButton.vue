@@ -1,7 +1,7 @@
 <template>
   <a class="button is-dark is-outlined is-small"
     @click="rescrapeScene()"
-    :title="'Rescrape Scene'">
+    :data-tooltip="'Rescrape Scene'">
     <b-icon pack="mdi" icon="web-refresh" size="is-small"/>
   </a>
 </template>

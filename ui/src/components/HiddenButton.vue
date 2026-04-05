@@ -1,7 +1,7 @@
 <template>
   <a :class="buttonClass"
      @click="toggleState()"
-     :title="item.is_hidden ? 'Unhide' : 'Mark as hidden'">
+     :data-tooltip="item.is_hidden ? 'Unhide' : 'Mark as hidden'">
     <b-icon pack="mdi" :icon="item.is_hidden ? 'eye-off' : 'eye-outline'" size="is-small"/>
   </a>
 </template>
