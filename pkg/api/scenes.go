@@ -635,6 +635,7 @@ func (i SceneResource) searchSceneIndex(req *restful.Request, resp *restful.Resp
 	idx, err := tasks.NewIndex("scenes")
 	if err != nil {
 		log.Error(err)
+		resp.WriteHeaderAndEntity(http.StatusOK, ResponseGetScenes{Results: len(scenes), Scenes: scenes})
 		return
 	}
 	if strings.HasPrefix(q, "http") {
@@ -676,6 +677,7 @@ func (i SceneResource) searchSceneIndex(req *restful.Request, resp *restful.Resp
 	searchResults, err := idx.Bleve.Search(searchRequest)
 	if err != nil {
 		log.Error(err)
+		resp.WriteHeaderAndEntity(http.StatusOK, ResponseGetScenes{Results: len(scenes), Scenes: scenes})
 		return
 	}
 

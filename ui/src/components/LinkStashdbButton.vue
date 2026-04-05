@@ -1,8 +1,7 @@
 <template>
-    <span>
+    <span data-tooltip="Link to stashdb">
         <a class="button is-primary is-dark is-outlined is-small"
-            @click="openDialog(item)"
-            :title="'Link to stashdb'">
+            @click="openDialog(item)">
             <span class="icon">
               <svg width="24pt" height="24pt" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
                 <g transform="matrix(0.1,0,0,-0.1,-3.071616,216.06899)" stroke="none">

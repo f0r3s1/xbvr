@@ -30,6 +30,8 @@ services:
       - /app/dist
       # Persistent config
       - xbvr-config:/root/.config
+      # Mount sample videos for dev testing — add /data/dev-videos as storage folder in the UI
+      - ./dev-assets:/data/dev-videos:ro
       # Cache mounts for faster rebuilds inside container
       - go-mod-cache:/go/pkg/mod
       - go-build-cache:/root/.cache/go-build

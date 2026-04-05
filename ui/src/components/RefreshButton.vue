@@ -1,7 +1,7 @@
 <template>
   <a :class="buttonClass"
     @click="toggleState()"
-     :title="item.needs_update ? 'Do not refresh scene' : 'Refresh scene on next scrape'">
+     :data-tooltip="item.needs_update ? 'Do not refresh scene' : 'Refresh scene on next scrape'">
     <b-icon pack="mdi" icon="refresh" size="is-small"/>
   </a>
 </template>

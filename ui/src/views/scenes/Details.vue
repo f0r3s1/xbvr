@@ -24,7 +24,7 @@
         <div class="columns">
 
           <div class="column is-half">
-            <b-tabs v-model="activeMedia" position="is-centered" :animated="false">
+            <b-tabs v-model="activeMedia" position="is-centered" :animated="false" class="media-tabs">
 
               <b-tab-item label="Gallery">
                 <div class="carousel-wrapper">
@@ -60,8 +60,10 @@
                 </div>
               </b-tab-item>
 
-              <b-tab-item label="Player" v-if="!displayingAlternateSource">
-                <video ref="player" class="video-js vjs-default-skin" controls playsinline preload="none"/>
+              <b-tab-item label="Player" v-if="!displayingAlternateSource && fileCount > 0">
+                <div class="player-wrapper">
+                  <video ref="player" class="video-js vjs-default-skin" controls playsinline preload="none"/>
+                </div>
                 <b-field position="is-centered">
                   <b-field>
                     <b-tooltip v-for="(skipBack, i) in skipBackIntervals" class="is-size-7" :key="i" :active="skipBack == lastSkipBackInterval ? true : false" :label="$t('Keyboard shortcut: Left Arrow')"
@@ -121,17 +123,17 @@
                     </b-field>
                   </div>
                   <div class="column pt-0">
-                    <div class="is-flex is-pulled-right" style="gap: 0.25rem">
-                      <a class="button is-primary is-outlined is-small" @click="searchAlternateSourceScene()" title="Search for a different scene" v-if="displayingAlternateSource">
+                    <div class="detail-actions is-flex is-pulled-right" style="gap: 0.25rem">
+                      <a class="button is-primary is-outlined is-small" @click="searchAlternateSourceScene()" data-tooltip="Search for a different scene" v-if="displayingAlternateSource">
                         <b-icon pack="mdi" icon="movie-search-outline" size="is-small"/>
                       </a>
-                      <a class="button is-primary is-outlined is-small" @click="scrapeScene()" title="Scrape and create an XBVR scene (not a link)" v-if="displayingAlternateSource">
+                      <a class="button is-primary is-outlined is-small" @click="scrapeScene()" data-tooltip="Scrape and create an XBVR scene" v-if="displayingAlternateSource">
                         <b-icon pack="mdi" icon="plus" size="is-medium"/>
                       </a>
-                      <a class="button is-primary is-outlined is-small" @click="refreshExtRef()" title="Removes the scene.  Rescrape to refresh the scene data and relink" v-if="displayingAlternateSource">
+                      <a class="button is-primary is-outlined is-small" @click="refreshExtRef()" data-tooltip="Refresh scene data and relink" v-if="displayingAlternateSource">
                         <b-icon pack="mdi" icon="refresh" size="is-small"/>
                       </a>
-                      <a class="button is-danger is-outlined is-small" @click="flagExtRefDeleted()" title="Unlinks the scene. It cannot be relinked to any scene. This cannot be undone" v-if="displayingAlternateSource">
+                      <a class="button is-danger is-outlined is-small" @click="flagExtRefDeleted()" data-tooltip="Unlink scene permanently" v-if="displayingAlternateSource">
                         <b-icon pack="mdi" icon="delete" size="is-small"/>
                       </a>
                       <hidden-button :item="item" v-if="!displayingAlternateSource"/>
@@ -280,10 +282,10 @@
                         </div>
                       </div>
                       <div class="media-right">
-                        <button class="button is-dark is-small is-outlined" title="Unmatch file from scene" @click='unmatchFile(f)'>
+                        <button class="button is-dark is-small is-outlined" data-tooltip="Unmatch file from scene" @click='unmatchFile(f)'>
                           <b-icon pack="mdi" icon="link-off" size="is-small"></b-icon>
                         </button>&nbsp;
-                        <button class="button is-danger is-small is-outlined" title="Delete file from disk" @click='removeFile(f)'>
+                        <button class="button is-danger is-small is-outlined" data-tooltip="Delete file from disk" @click='removeFile(f)'>
                           <b-icon pack="mdi" icon="delete" size="is-small"></b-icon>
                         </button>
                       </div>
@@ -351,7 +353,7 @@
                             </b-field>
                           </b-table-column>
                           <b-table-column v-slot="props" width="1em" >
-                            <button class="button is-danger is-outlined is-small" @click="deleteCuepoint(props.row.id)" title="Delete cuepoint">
+                            <button class="button is-danger is-outlined is-small" @click="deleteCuepoint(props.row.id)" data-tooltip="Delete cuepoint">
                               <b-icon pack="mdi" icon="delete" />
                             </button>
                           </b-table-column>
@@ -1590,6 +1592,33 @@ watch:{
   padding-top: calc(100% - 40px - 1em) !important;
 }
 
+
+/* Keep both tabs in DOM so tallest sets height — no jump on switch */
+.media-tabs :deep(.tab-content) {
+  display: grid;
+}
+
+.media-tabs :deep(.tab-content > .tab-item) {
+  display: block !important;
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.media-tabs :deep(.tab-content > .tab-item[style*="display: none"]) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.player-wrapper {
+  width: 100%;
+  background: #000;
+  margin-bottom: 8px;
+}
+
+.player-wrapper .video-js {
+  width: 100%;
+}
+
 .video-js {
   margin: 0 auto;
 }
@@ -1905,5 +1934,66 @@ span.is-active img {
   border-radius: 10px;
   pointer-events: none;
   z-index: 10;
+}
+
+/* Detail action buttons — match SceneCard size */
+.detail-actions .button,
+.detail-actions :deep(.button) {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 5px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+
+.detail-actions :deep(.button .icon) {
+  margin: 0 !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.detail-actions :deep(.button .icon .mdi) {
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+.detail-actions :deep(.button span:not(.icon)) {
+  display: none !important;
+}
+
+/* Instant CSS tooltips for all buttons with data-tooltip */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 30;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
 }
 </style>

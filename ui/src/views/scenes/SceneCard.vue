@@ -4,40 +4,10 @@
        @mouseleave="hovering = false; stopPreview()"
        @click="showDetails(item)">
     
-    <!-- Full Card Video Preview Overlay - Covers Everything -->
+    <!-- Full Card Video Preview Overlay -->
     <transition name="fade">
       <div class="preview-overlay" v-if="preview && item.has_preview" @click="showDetails(item)">
         <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop muted></video>
-        <!-- Info overlay on preview -->
-        <div class="preview-info">
-          <div class="preview-title">{{ item.title }}</div>
-          <div class="preview-meta">
-            <span>{{ item.site }}</span>
-            <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="preview-date">{{ format(parseISO(item.release_date), "yyyy-MM-dd") }}</span>
-          </div>
-        </div>
-        <!-- Hover Actions on top of preview -->
-        <div class="hover-actions is-visible">
-          <div class="actions-row" @click.stop>
-            <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
-            <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
-            <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
-            <favourite-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneFavourite"/>
-            <wishlist-button v-if="this.$store.state.optionsWeb.web.sceneWishlist && !item.is_available" :item="item"/>
-            <watched-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatched"/>
-            <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
-            <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
-            <!-- Alt Sources inline -->
-            <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
-              <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
-                <vue-load-image>
-                  <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
-                  <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
-                </vue-load-image>
-              </a>
-            </b-tooltip>
-          </div>
-        </div>
       </div>
     </transition>
 
@@ -95,60 +65,44 @@
           <img v-for="file in files" :key="file.id" :src="getHeatmapURL(file.id)"/>
         </div>
       </div>
-      
-      <!-- Hover Actions Overlay - Only show if NO preview available -->
-      <div class="hover-actions" :class="{ 'is-visible': hovering && !item.has_preview }">
-        <div class="actions-row" @click.stop>
-          <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
-          <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
-          <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
-          <favourite-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneFavourite"/>
-          <wishlist-button v-if="this.$store.state.optionsWeb.web.sceneWishlist && !item.is_available" :item="item"/>
-          <watched-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatched"/>
-          <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
-          <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
-          <!-- Alt Sources inline -->
-          <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
-            <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
-              <vue-load-image>
-                <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
-                <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
-              </vue-load-image>
-            </a>
-          </b-tooltip>
-        </div>
-      </div>
+
     </div>
 
-    <!-- Info Section with Status Icons -->
-    <div class="info-section">
-      <div class="title-row">
-        <div class="scene-title">{{item.title}}</div>
-      </div>
+    <!-- Hover Actions - right-aligned, above preview overlay -->
+    <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview }" @click.stop>
+      <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
+      <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
+      <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
+      <favourite-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneFavourite"/>
+      <wishlist-button v-if="this.$store.state.optionsWeb.web.sceneWishlist && !item.is_available" :item="item"/>
+      <watched-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatched"/>
+      <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
+      <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
+      <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
+        <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
+          <vue-load-image>
+            <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
+            <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
+          </vue-load-image>
+        </a>
+      </b-tooltip>
+    </div>
+
+    <!-- Info Section -->
+    <div class="info-section" :class="{ 'is-preview': preview && item.has_preview }">
+      <div class="scene-title">{{item.title}}</div>
       <div class="meta-row">
         <span class="site-link">
           <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop>
             <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
           </a>
           <a :href="item.scene_url" :class="{'site-subscribed': item.is_subscribed}" target="_blank" rel="noreferrer" @click.stop>{{item.site}}</a>
-          <!-- Stashdb link in info section -->
           <a v-if="stashLinkExists" :href="getStashdbUrl()" target="_blank" class="stashdb-link" @click.stop>
             <img src="https://guidelines.stashdb.org/favicon.ico" class="stashdb-icon" alt="StashDB"/>
           </a>
         </span>
-        <span class="status-icons" @click.stop>
-          <!-- Active state icons - matching button icons -->
-          <b-icon v-if="item.is_hidden" pack="mdi" icon="eye-off" custom-size="mdi-14px" class="status-icon is-hidden" title="Hidden"/>
-          <b-icon v-if="item.favourite" pack="mdi" icon="heart" custom-size="mdi-14px" class="status-icon is-favourite" title="Favourite"/>
-          <b-icon v-if="item.is_watched" pack="mdi" icon="eye-check" custom-size="mdi-14px" class="status-icon is-watched" title="Watched"/>
-          <b-icon v-if="item.watchlist" pack="mdi" icon="calendar-check" custom-size="mdi-14px" class="status-icon is-watchlist" title="Watchlist"/>
-          <b-icon v-if="item.wishlist" pack="mdi" icon="oil-lamp" custom-size="mdi-14px" class="status-icon is-wishlist" title="Wishlist"/>
-          <b-icon v-if="item.trailerlist" pack="mdi" icon="movie-search-outline" custom-size="mdi-14px" class="status-icon is-trailerlist" title="Trailerlist"/>
-          <!-- Separator only if there are status icons -->
-          <span v-if="hasStatusIcons" class="date-separator"></span>
-          <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="release-date">
-            {{format(parseISO(item.release_date), "yyyy-MM-dd")}}
-          </span>
+        <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="release-date">
+          {{format(parseISO(item.release_date), "yyyy-MM-dd")}}
         </span>
       </div>
     </div>
@@ -348,13 +302,14 @@ export default {
   transition: box-shadow 0.2s ease;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
 }
 
 .scene-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Full Card Preview Overlay - Covers EVERYTHING */
+/* Preview Overlay - covers only the thumbnail area, not the info section */
 .preview-overlay {
   position: absolute;
   top: 0;
@@ -363,51 +318,23 @@ export default {
   bottom: 0;
   z-index: 20;
   background: #000;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
 }
 
 .preview-overlay video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
 }
 
-/* Title/studio info shown over preview */
-.preview-info {
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  right: 0;
-  padding: 16px 10px 6px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.8));
-  pointer-events: none;
-  border-radius: 0;
-}
 
-.preview-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+/* Fade transition — quick crossfade */
+.fade-enter-active {
+  transition: opacity 0.2s ease-out;
 }
-
-.preview-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: rgba(255,255,255,0.75);
-  margin-top: 2px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-}
-
-/* Fade transition */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.25s ease;
+.fade-leave-active {
+  transition: opacity 0.1s ease-in;
 }
 .fade-enter, .fade-leave-to {
   opacity: 0;
@@ -446,9 +373,6 @@ export default {
   transform: scale(1);
 }
 
-.scene-card:hover .thumbnail-img {
-  transform: scale(1.02);
-}
 
 /* Tags Overlay - Top Left */
 .tags-overlay {
@@ -565,21 +489,20 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-/* Hover Actions Overlay */
+/* Hover Actions - right-aligned inside thumbnail area */
 .hover-actions {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 8px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.75));
+  bottom: 52px;
+  right: 6px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 4px;
   align-items: center;
   opacity: 0;
-  transition: opacity 0.2s ease;
-  z-index: 15;
   pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 25;
 }
 
 .hover-actions.is-visible {
@@ -587,26 +510,37 @@ export default {
   pointer-events: auto;
 }
 
-/* Also show on preview overlay */
-.preview-overlay .hover-actions {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  opacity: 1;
-  pointer-events: auto;
-  border-radius: 0 0 8px 8px;
+/* Frosted glass buttons during trailer preview */
+.hover-actions.is-preview :deep(.button) {
+  background: rgba(255,255,255,0.15) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
 }
 
-.actions-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
+.hover-actions.is-preview :deep(.button:hover) {
+  background: rgba(255,255,255,0.3) !important;
+}
+
+/* Active (toggled-on) buttons keep a slightly brighter glass */
+.hover-actions.is-preview :deep(.button:not(.is-outlined)) {
+  background: rgba(255,255,255,0.25) !important;
+}
+
+.hover-actions.is-preview .alt-link {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.hover-actions.is-preview .alt-link:hover {
+  background: rgba(255,255,255,0.3);
 }
 
 /* Square icon-only buttons with better hover */
-.actions-row :deep(.button) {
+.hover-actions :deep(.button) {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
@@ -624,85 +558,85 @@ export default {
   line-height: 1 !important;
 }
 
-.actions-row :deep(.button:hover) {
+.hover-actions :deep(.button:hover) {
   background: #fff !important;
   transform: scale(1.05);
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 /* Primary - Purple */
-.actions-row :deep(.button.is-primary) {
+.hover-actions :deep(.button.is-primary) {
   background: rgba(121, 87, 213, 0.95) !important;
   color: #fff !important;
 }
-.actions-row :deep(.button.is-primary:hover) {
+.hover-actions :deep(.button.is-primary:hover) {
   background: #7957d5 !important;
 }
 
 /* Success - Green */
-.actions-row :deep(.button.is-success) {
+.hover-actions :deep(.button.is-success) {
   background: rgba(72, 199, 142, 0.95) !important;
   color: #fff !important;
 }
-.actions-row :deep(.button.is-success:hover) {
+.hover-actions :deep(.button.is-success:hover) {
   background: #48c78e !important;
 }
 
 /* Danger - Red */
-.actions-row :deep(.button.is-danger) {
+.hover-actions :deep(.button.is-danger) {
   background: rgba(241, 70, 104, 0.95) !important;
   color: #fff !important;
 }
-.actions-row :deep(.button.is-danger:hover) {
+.hover-actions :deep(.button.is-danger:hover) {
   background: #f14668 !important;
 }
 
 /* Warning - Yellow */
-.actions-row :deep(.button.is-warning) {
+.hover-actions :deep(.button.is-warning) {
   background: rgba(255, 221, 87, 0.95) !important;
   color: rgba(0,0,0,0.7) !important;
 }
-.actions-row :deep(.button.is-warning:hover) {
+.hover-actions :deep(.button.is-warning:hover) {
   background: #ffdd57 !important;
 }
 
 /* Info - Blue */
-.actions-row :deep(.button.is-info) {
+.hover-actions :deep(.button.is-info) {
   background: rgba(62, 142, 208, 0.95) !important;
   color: #fff !important;
 }
-.actions-row :deep(.button.is-info:hover) {
+.hover-actions :deep(.button.is-info:hover) {
   background: #3e8ed0 !important;
 }
 
 /* Link - Blue text */
-.actions-row :deep(.button.is-link) {
+.hover-actions :deep(.button.is-link) {
   background: rgba(72, 95, 199, 0.95) !important;
   color: #fff !important;
 }
-.actions-row :deep(.button.is-link:hover) {
+.hover-actions :deep(.button.is-link:hover) {
   background: #485fc7 !important;
 }
 
 /* Light */
-.actions-row :deep(.button.is-light) {
+.hover-actions :deep(.button.is-light) {
   background: rgba(245, 245, 245, 0.95) !important;
   color: #363636 !important;
 }
-.actions-row :deep(.button.is-light:hover) {
+.hover-actions :deep(.button.is-light:hover) {
   background: #f5f5f5 !important;
 }
 
 /* Dark */
-.actions-row :deep(.button.is-dark) {
+.hover-actions :deep(.button.is-dark) {
   background: rgba(54, 54, 54, 0.95) !important;
   color: #fff !important;
 }
-.actions-row :deep(.button.is-dark:hover) {
+.hover-actions :deep(.button.is-dark:hover) {
   background: #363636 !important;
 }
 
-.actions-row :deep(.button .icon) {
+.hover-actions :deep(.button .icon) {
   margin: 0 !important;
   width: 16px !important;
   height: 16px !important;
@@ -711,12 +645,12 @@ export default {
   justify-content: center !important;
 }
 
-.actions-row :deep(.button .icon .mdi) {
+.hover-actions :deep(.button .icon .mdi) {
   font-size: 16px !important;
   line-height: 1 !important;
 }
 
-.actions-row :deep(.button span:not(.icon)) {
+.hover-actions :deep(.button span:not(.icon)) {
   display: none !important;
 }
 
@@ -750,32 +684,61 @@ export default {
 
 /* Info Section */
 .info-section {
-  padding: 8px 10px;
-  min-height: 56px;
+  position: relative;
+  z-index: 21;
+  padding: 7px 10px;
+  border-radius: 0 0 8px 8px;
+  transition: background 0.2s ease, color 0.2s ease;
+  background: transparent;
 }
 
-.title-row {
-  margin-bottom: 4px;
+/* Preview mode: frosted glass over video */
+.info-section.is-preview {
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
+
 
 .scene-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text-primary, #333);
   line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  transition: color 0.2s ease;
 }
+
+.info-section.is-preview .scene-title {
+  color: #fff;
+}
+
 
 .meta-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  justify-content: space-between;
+  font-size: 11px;
   color: var(--text-secondary, #666);
-  gap: 4px;
   min-width: 0;
+  gap: 8px;
+}
+
+
+.info-section.is-preview .meta-row {
+  color: rgba(255,255,255,0.7);
+}
+
+.info-section.is-preview .site-link a {
+  color: rgba(255,255,255,0.8);
+}
+
+.info-section.is-preview .release-date {
+  color: rgba(255,255,255,0.5);
 }
 
 .site-link {
@@ -790,7 +753,6 @@ export default {
 .site-link a {
   color: inherit;
   text-decoration: none;
-  transition: color 0.15s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -826,69 +788,37 @@ export default {
   opacity: 1;
 }
 
-/* Status icons row */
-.status-icons {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 1;
-  gap: 4px;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.status-icons :deep(.status-icon) {
-  width: 12px !important;
-  height: 12px !important;
-  min-width: 12px !important;
-  min-height: 12px !important;
-  max-width: 12px !important;
-  max-height: 12px !important;
-  font-size: 12px !important;
-  flex-shrink: 0;
-}
-
-.status-icons :deep(.status-icon .mdi),
-.status-icons :deep(.status-icon .mdi::before) {
-  font-size: 12px !important;
-  line-height: 1 !important;
-  width: 12px !important;
-  height: 12px !important;
-}
-
-/* Colors matching button types */
-.status-icons :deep(.is-hidden) {
-  color: #f14668 !important; /* red - danger color */
-}
-
-.status-icons :deep(.is-favourite) {
-  color: #f14668 !important;
-}
-
-.status-icons :deep(.is-watched) {
-  color: #363636 !important;
-}
-
-.status-icons :deep(.is-watchlist) {
-  color: #7957d5 !important;
-}
-
-.status-icons :deep(.is-wishlist) {
-  color: #3e8ed0 !important;
-}
-
-.status-icons :deep(.is-trailerlist) {
-  color: #7957d5 !important;
-}
-
-.date-separator {
-  width: 1px;
-  height: 10px;
-  background: rgba(0,0,0,0.15);
-}
-
 .release-date {
   opacity: 0.6;
   font-size: 10px;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Instant CSS tooltips for buttons */
+.hover-actions :deep([data-tooltip]) {
+  position: relative;
+}
+
+.hover-actions :deep([data-tooltip])::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 30;
+}
+
+.hover-actions :deep([data-tooltip]:hover)::after {
+  opacity: 1;
 }
 </style>
