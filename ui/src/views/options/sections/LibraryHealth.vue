@@ -282,6 +282,10 @@ export default {
 .health-issue-header:hover {
   background: #f5f5f5;
 }
+
+html[data-theme="dark"] .health-issue-header:hover {
+  background: #222230 !important;
+}
 .health-issue-icon {
   flex-shrink: 0;
   margin-right: 0.6rem;

@@ -27,7 +27,7 @@ var DeoRequestHost = ""
 
 func DeoRemote() {
 	for {
-		go common.PublishWS("remote.state", map[string]interface{}{
+		common.PublishWS("remote.state", map[string]interface{}{
 			"connected": false,
 		})
 
@@ -50,6 +50,15 @@ func deoLoop() error {
 	}
 
 	common.Log.Info("Connected to DeoVR")
+
+	// Single-worker channel: cap=1 drops stale packets if tracking is still running
+	trackCh := make(chan DeoPacket, 1)
+	go func() {
+		for p := range trackCh {
+			TrackSessionFromRemote(p)
+		}
+	}()
+	defer close(trackCh)
 
 	for {
 		// Read
@@ -75,7 +84,11 @@ func deoLoop() error {
 			}
 
 			packet := decodePacket(recvBuf)
-			go TrackSessionFromRemote(packet)
+			// Non-blocking send: drop packet if tracker is still busy with previous one
+			select {
+			case trackCh <- packet:
+			default:
+			}
 		}
 
 		// Write
@@ -91,7 +104,7 @@ func deoLoop() error {
 			return err
 		}
 
-		go common.PublishWS("remote.state", map[string]interface{}{
+		common.PublishWS("remote.state", map[string]interface{}{
 			"connected":       true,
 			"deovrHost":       DeoPlayerHost,
 			"isPlaying":       isPlaying,

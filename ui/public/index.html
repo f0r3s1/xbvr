@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <link rel="icon" href="<%= BASE_URL %>favicon.ico">
     <title>XBVR</title>
+    <script>
+      (function() {
+        var saved = localStorage.getItem('xbvr-theme');
+        var theme = saved || 'auto';
+        if (theme === 'auto') {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <style>
+      html[data-theme="dark"], html[data-theme="dark"] body { background-color: #121218 !important; color: #d4d4d8 !important; }
+      html[data-theme="light"], html[data-theme="light"] body { background-color: #fff !important; }
+    </style>
   </head>
   <body>
     <div id="app"></div>

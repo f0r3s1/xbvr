@@ -24,7 +24,8 @@ const state = {
     sceneCardScaleToFit: true,
     actorCardAspectRatio: "1:1",
     actorCardScaleToFit: true,
-    updateCheck: true
+    updateCheck: true,
+    theme: 'auto'
   }
 }
 
@@ -33,7 +34,7 @@ const mutations = {}
 const actions = {
   async load ({ state }) {
     state.loading = true
-    ky.get('/api/options/state')
+    return ky.get('/api/options/state')
       .json()
       .then(data => {
         state.web.tagSort = data.config.web.tagSort
@@ -57,6 +58,9 @@ const actions = {
         state.web.sceneCardScaleToFit = data.config.web.sceneCardScaleToFit
         state.web.actorCardAspectRatio = data.config.web.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.config.web.actorCardScaleToFit
+        const theme = data.config.web.theme || 'auto'
+        state.web.theme = theme
+        localStorage.setItem('xbvr-theme', theme)
         state.loading = false
       })
   },
@@ -86,6 +90,9 @@ const actions = {
         state.web.sceneCardScaleToFit = data.sceneCardScaleToFit
         state.web.actorCardAspectRatio = data.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.actorCardScaleToFit
+        const theme = data.theme || 'auto'
+        state.web.theme = theme
+        localStorage.setItem('xbvr-theme', theme)
         state.loading = false
       })
   }

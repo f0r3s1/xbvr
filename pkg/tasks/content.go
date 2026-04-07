@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -376,7 +377,8 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 			tlog.Infof("Scraped %v new scenes in %s",
 				sceneCount,
 				time.Since(t0).Round(time.Second))
-
+			// Return scraper memory to OS after large batch
+			debug.FreeOSMemory()
 		}
 	}
 }

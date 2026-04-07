@@ -98,4 +98,14 @@ export default {
   #toTop:hover, #toggleInfiniteScroll:hover {
     background-color: #BDBDBD;
   }
+
+  html[data-theme="dark"] #toTop,
+  html[data-theme="dark"] #toggleInfiniteScroll {
+    background-color: #2a2a3a !important;
+    color: #d4d4d8 !important;
+  }
+  html[data-theme="dark"] #toTop:hover,
+  html[data-theme="dark"] #toggleInfiniteScroll:hover {
+    background-color: #3a3a4a !important;
+  }
 </style>

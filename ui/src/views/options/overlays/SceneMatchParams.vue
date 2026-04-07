@@ -302,6 +302,10 @@ export default {
   background: #f5f5f5;
 }
 
+html[data-theme="dark"] .card-header {
+  background: #1f1f2a !important;
+}
+
 .card-header-title {
   padding: 0.5rem 1rem;
   font-size: 0.95rem;

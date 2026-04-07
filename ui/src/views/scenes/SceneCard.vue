@@ -4,23 +4,24 @@
        @mouseleave="hovering = false; stopPreview()"
        @click="showDetails(item)">
     
-    <!-- Full Card Video Preview Overlay -->
+    <!-- Video Preview Overlay - covers entire card -->
     <transition name="fade">
       <div class="preview-overlay" v-if="preview && item.has_preview" @click="showDetails(item)">
         <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop muted></video>
       </div>
     </transition>
 
-    <!-- Main 16:9 Thumbnail -->
-    <div class="thumbnail-wrapper">
+    <!-- Main Thumbnail (aspect ratio from settings) -->
+    <div class="thumbnail-wrapper" :style="{ aspectRatio: sceneCardAspectRatioValue }">
       <div class="thumbnail-img" :style='{ opacity: item.is_available ? 1.0 : isAvailOpactiy }'>
-        <img 
+        <img
           ref="coverImage"
-          :src="coverImageSrc" 
-          @error="onImageError" 
+          :src="coverImageSrc"
+          @error="onImageError"
           @load="onImageLoad"
           class="cover-image"
           :class="{ 'is-loaded': imageLoaded }"
+          :style="{ objectFit: sceneCardScaleToFit ? 'contain' : 'cover' }"
         />
       </div>
       
@@ -66,9 +67,10 @@
         </div>
       </div>
 
+
     </div>
 
-    <!-- Hover Actions - right-aligned, above preview overlay -->
+    <!-- Hover Actions -->
     <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview }" @click.stop>
       <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
       <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
@@ -164,6 +166,15 @@ export default {
         return .4
       }
       return this.$store.state.optionsWeb.web.isAvailOpacity / 100
+    },
+    sceneCardAspectRatioValue () {
+      const r = this.$store.state.optionsWeb.web.sceneCardAspectRatio || '16:9'
+      const parts = r.split(':')
+      if (parts.length === 2) return `${parts[0]} / ${parts[1]}`
+      return '16 / 9'
+    },
+    sceneCardScaleToFit () {
+      return this.$store.state.optionsWeb.web.sceneCardScaleToFit
     },
     hasStatusIcons () {
       return this.item.is_hidden || this.item.favourite || this.item.is_watched || 
@@ -309,7 +320,7 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Preview Overlay - covers only the thumbnail area, not the info section */
+/* Preview Overlay - covers the whole card, sits below info section */
 .preview-overlay {
   position: absolute;
   top: 0;
@@ -318,7 +329,6 @@ export default {
   bottom: 0;
   z-index: 20;
   background: #000;
-  border-radius: 8px 8px 0 0;
   overflow: hidden;
 }
 
@@ -340,13 +350,13 @@ export default {
   opacity: 0;
 }
 
-/* 16:9 Thumbnail - Always */
+/* Thumbnail - aspect ratio set via inline style from settings */
 .thumbnail-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 8px 8px 0 0;
+  border-radius: 0;
+  flex-shrink: 0;
 }
 
 .thumbnail-img {
@@ -355,7 +365,6 @@ export default {
   position: relative;
   background-color: transparent;
   transition: transform 0.3s ease;
-  border-radius: 8px 8px 0 0;
   overflow: hidden;
 }
 
@@ -489,10 +498,10 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-/* Hover Actions - right-aligned inside thumbnail area */
+/* Hover Actions - positioned above info section */
 .hover-actions {
   position: absolute;
-  bottom: 52px;
+  bottom: 56px;
   right: 6px;
   display: flex;
   flex-wrap: wrap;
@@ -510,61 +519,50 @@ export default {
   pointer-events: auto;
 }
 
-/* Frosted glass buttons during trailer preview */
-.hover-actions.is-preview :deep(.button) {
-  background: rgba(255,255,255,0.15) !important;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  color: #fff !important;
-  border: 1px solid rgba(255,255,255,0.2) !important;
+
+
+/* Kill ALL margin/padding on every element inside hover-actions */
+.hover-actions :deep(*) {
+  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+}
+.hover-actions > * {
+  margin: 0 !important;
+  margin-bottom: 0 !important;
 }
 
-.hover-actions.is-preview :deep(.button:hover) {
-  background: rgba(255,255,255,0.3) !important;
-}
-
-/* Active (toggled-on) buttons keep a slightly brighter glass */
-.hover-actions.is-preview :deep(.button:not(.is-outlined)) {
-  background: rgba(255,255,255,0.25) !important;
-}
-
-.hover-actions.is-preview .alt-link {
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-.hover-actions.is-preview .alt-link:hover {
-  background: rgba(255,255,255,0.3);
-}
-
-/* Square icon-only buttons with better hover */
+/* Base button reset — fixed 28x28, no extra spacing */
 .hover-actions :deep(.button) {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
   min-height: 28px !important;
-  padding: 0 !important;
-  margin: 0 !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
   border-radius: 5px !important;
-  background: rgba(255,255,255,0.92) !important;
   border: none !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   transition: all 0.15s ease !important;
-  color: #363636 !important;
   line-height: 1 !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  box-shadow: none !important;
+  /* Default: white bg */
+  background: rgba(255,255,255,0.92) !important;
+  color: #363636 !important;
 }
-
 .hover-actions :deep(.button:hover) {
   background: #fff !important;
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
 }
 
-/* Primary - Purple */
+/* Active buttons with their semantic colors */
 .hover-actions :deep(.button.is-primary) {
   background: rgba(121, 87, 213, 0.95) !important;
   color: #fff !important;
@@ -572,8 +570,6 @@ export default {
 .hover-actions :deep(.button.is-primary:hover) {
   background: #7957d5 !important;
 }
-
-/* Success - Green */
 .hover-actions :deep(.button.is-success) {
   background: rgba(72, 199, 142, 0.95) !important;
   color: #fff !important;
@@ -581,8 +577,6 @@ export default {
 .hover-actions :deep(.button.is-success:hover) {
   background: #48c78e !important;
 }
-
-/* Danger - Red */
 .hover-actions :deep(.button.is-danger) {
   background: rgba(241, 70, 104, 0.95) !important;
   color: #fff !important;
@@ -590,8 +584,6 @@ export default {
 .hover-actions :deep(.button.is-danger:hover) {
   background: #f14668 !important;
 }
-
-/* Warning - Yellow */
 .hover-actions :deep(.button.is-warning) {
   background: rgba(255, 221, 87, 0.95) !important;
   color: rgba(0,0,0,0.7) !important;
@@ -599,8 +591,6 @@ export default {
 .hover-actions :deep(.button.is-warning:hover) {
   background: #ffdd57 !important;
 }
-
-/* Info - Blue */
 .hover-actions :deep(.button.is-info) {
   background: rgba(62, 142, 208, 0.95) !important;
   color: #fff !important;
@@ -608,8 +598,6 @@ export default {
 .hover-actions :deep(.button.is-info:hover) {
   background: #3e8ed0 !important;
 }
-
-/* Link - Blue text */
 .hover-actions :deep(.button.is-link) {
   background: rgba(72, 95, 199, 0.95) !important;
   color: #fff !important;
@@ -617,23 +605,80 @@ export default {
 .hover-actions :deep(.button.is-link:hover) {
   background: #485fc7 !important;
 }
-
-/* Light */
-.hover-actions :deep(.button.is-light) {
-  background: rgba(245, 245, 245, 0.95) !important;
-  color: #363636 !important;
-}
-.hover-actions :deep(.button.is-light:hover) {
-  background: #f5f5f5 !important;
-}
-
-/* Dark */
 .hover-actions :deep(.button.is-dark) {
   background: rgba(54, 54, 54, 0.95) !important;
   color: #fff !important;
 }
 .hover-actions :deep(.button.is-dark:hover) {
   background: #363636 !important;
+}
+
+/* Outlined (inactive) buttons — same color as active but more transparent */
+/* Outlined (inactive) — same color, slightly transparent */
+.hover-actions :deep(.button.is-primary.is-outlined) {
+  background: rgba(121, 87, 213, 0.7) !important;
+  color: #fff !important;
+}
+.hover-actions :deep(.button.is-primary.is-outlined:hover) {
+  background: #7957d5 !important;
+}
+.hover-actions :deep(.button.is-success.is-outlined) {
+  background: rgba(72, 199, 142, 0.7) !important;
+  color: #fff !important;
+}
+.hover-actions :deep(.button.is-success.is-outlined:hover) {
+  background: #48c78e !important;
+}
+.hover-actions :deep(.button.is-danger.is-outlined) {
+  background: rgba(241, 70, 104, 0.7) !important;
+  color: #fff !important;
+}
+.hover-actions :deep(.button.is-danger.is-outlined:hover) {
+  background: #f14668 !important;
+}
+.hover-actions :deep(.button.is-warning.is-outlined) {
+  background: rgba(255, 221, 87, 0.7) !important;
+  color: rgba(0,0,0,0.7) !important;
+}
+.hover-actions :deep(.button.is-warning.is-outlined:hover) {
+  background: #ffdd57 !important;
+}
+.hover-actions :deep(.button.is-info.is-outlined) {
+  background: rgba(62, 142, 208, 0.7) !important;
+  color: #fff !important;
+}
+.hover-actions :deep(.button.is-info.is-outlined:hover) {
+  background: #3e8ed0 !important;
+}
+.hover-actions :deep(.button.is-link.is-outlined) {
+  background: rgba(72, 95, 199, 0.7) !important;
+  color: #fff !important;
+}
+.hover-actions :deep(.button.is-link.is-outlined:hover) {
+  background: #485fc7 !important;
+}
+.hover-actions :deep(.button.is-dark.is-outlined) {
+  background: rgba(54, 54, 54, 0.7) !important;
+  color: #fff !important;
+}
+.hover-actions :deep(.button.is-dark.is-outlined:hover) {
+  background: #363636 !important;
+}
+
+/* Preview mode: frosted glass for ALL buttons */
+.hover-actions.is-preview :deep(.button) {
+  background: rgba(255,255,255,0.15) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+}
+.hover-actions.is-preview :deep(.button:hover) {
+  background: rgba(255,255,255,0.3) !important;
+  box-shadow: none !important;
+}
+.hover-actions.is-preview :deep(.button:not(.is-outlined)) {
+  background: rgba(255,255,255,0.25) !important;
 }
 
 .hover-actions :deep(.button .icon) {
@@ -654,7 +699,7 @@ export default {
   display: none !important;
 }
 
-/* Alt Source Images - Inline with buttons, vertically centered */
+/* Alt Source Images */
 .alt-link {
   display: inline-flex;
   align-items: center;
@@ -666,12 +711,23 @@ export default {
   background: rgba(255,255,255,0.95);
   border-radius: 5px;
   transition: all 0.15s ease;
+  box-sizing: border-box;
 }
-
 .alt-link:hover {
-  transform: scale(1.08);
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Preview mode alt-links */
+.hover-actions.is-preview .alt-link {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.hover-actions.is-preview .alt-link:hover {
+  background: rgba(255,255,255,0.3);
+  box-shadow: none;
 }
 
 .alt-img {
@@ -687,7 +743,6 @@ export default {
   position: relative;
   z-index: 21;
   padding: 7px 10px;
-  border-radius: 0 0 8px 8px;
   transition: background 0.2s ease, color 0.2s ease;
   background: transparent;
 }
@@ -820,5 +875,26 @@ export default {
 
 .hover-actions :deep([data-tooltip]:hover)::after {
   opacity: 1;
+}
+
+/* ── Dark Mode ── */
+html[data-theme="dark"] .scene-card {
+  background: #1c1c26;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"] .scene-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .scene-title {
+  color: #e0e0e4;
+}
+html[data-theme="dark"] .meta-row {
+  color: #888;
+}
+html[data-theme="dark"] .site-link a:hover {
+  color: #8b7ff0;
+}
+html[data-theme="dark"] .release-date {
+  color: #999;
 }
 </style>

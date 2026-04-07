@@ -1,20 +1,13 @@
 <template>
-  <div class="container">
+  <div class="scraper-page">
     <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
-    <div class="content">
-      <!-- Header -->
-      <div class="scraper-header">
-        <h3>{{$t('Scrape scenes from studios')}}</h3>
-        <div class="header-right">
-          <b-button type="is-primary" icon-left="play" @click="taskScrape('_enabled')">
-            {{$t('Run selected scrapers')}}
-          </b-button>
-        </div>
-      </div>
-      <div class="column buttons" align="right">
+    <!-- Header -->
+    <div class="scraper-header">
+      <h3>{{$t('Scrape scenes from studios')}}</h3>
+      <div class="header-actions">
         <b-dropdown aria-role="list" position="is-bottom-left">
           <template slot="trigger">
-            <b-button icon-left="cog" />
+            <b-button icon-left="cog" size="is-small" />
           </template>
           <b-dropdown-item aria-role="listitem" custom>
             <div class="field">
@@ -24,14 +17,15 @@
             </div>
           </b-dropdown-item>
         </b-dropdown>
-        <a class="button" :class="[showAllScrapers ? '' : 'is-info']" v-on:click="toggleEnabledFilter">
+        <a class="button is-small" :class="[showAllScrapers ? '' : 'is-info']" v-on:click="toggleEnabledFilter">
           {{showAllScrapers ? $t('Show enabled only') : $t('Show all scrapers')}}
         </a>
-        <a class="button is-primary" v-on:click="taskScrape('_enabled')">{{$t('Run selected scrapers')}}</a>
+        <b-button type="is-primary" size="is-small" icon-left="play" @click="taskScrape('_enabled')">
+          {{$t('Run selected scrapers')}}
+        </b-button>
       </div>
-      <hr/>
     </div>
-    
+
     <!-- Table -->
     <b-table :data="scraperList" ref="scraperTable" class="scrapers-table" :mobile-cards="true">
       <!-- Enable Toggle -->
@@ -523,16 +517,31 @@ export default {
 </script>
 
 <style scoped>
+  .scraper-page {
+    padding: 0;
+  }
+
   .scraper-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 0.25rem 0 0.75rem 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.75rem;
   }
 
   .scraper-header h3 {
     margin-bottom: 0;
+    font-size: 1.1rem;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .scrapers-table {
@@ -741,9 +750,8 @@ export default {
       align-items: stretch;
     }
 
-    .header-right {
-      display: flex;
-      justify-content: center;
+    .header-actions {
+      justify-content: flex-end;
     }
 
     .settings-badges {
@@ -757,6 +765,25 @@ export default {
     .footer-actions .button {
       width: 100%;
     }
+  }
+
+  html[data-theme="dark"] .scraper-header {
+    border-bottom-color: #2a2a35 !important;
+  }
+  html[data-theme="dark"] .footer-actions {
+    border-top-color: #2a2a35 !important;
+  }
+  html[data-theme="dark"] .source-tag {
+    background: #2a2a3a !important;
+    color: #b0b0c0 !important;
+  }
+  html[data-theme="dark"] .setting-badge {
+    background: #2a2a3a !important;
+    color: #a0a0b0 !important;
+  }
+  html[data-theme="dark"] .setting-badge:hover {
+    background: #3a3a4a !important;
+    color: #d4d4d8 !important;
   }
 </style>
 
