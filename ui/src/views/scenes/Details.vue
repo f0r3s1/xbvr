@@ -20,7 +20,7 @@
     <div class="modal-background" @click="close"></div>
 
     <div class="modal-card">
-      <section class="modal-card-body">
+      <section class="modal-card-body" :style="paletteStyle">
         <div class="columns">
 
           <div class="column is-half">
@@ -98,7 +98,10 @@
               <!-- Meta line: site, duration, date -->
               <div class="detail-meta">
                 <span class="detail-meta-left">
-                  <a :href="item.scene_url" target="_blank" rel="noreferrer" @click.stop>{{ item.site }}</a>
+                  <span class="site-link">
+                    <a @click.stop="showSiteScenes([item.site])">{{ item.site }}</a>
+                    <a :href="item.scene_url" target="_blank" rel="noreferrer" @click.stop class="site-external"><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-12px"/></a>
+                  </span>
                   <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop class="members-link">
                     <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
                   </a>
@@ -158,30 +161,21 @@
             <!-- Cast -->
             <div class="cast-section" v-if="activeTab != 1 && !displayingAlternateSource && castimages.length > 0">
               <div class="cast-row">
-                <div v-for="(image, idx) in castimages" :key="idx" class="cast-item" @click='showActorDetail([image.actor_id])'>
+                <div v-for="(image, idx) in castimages" :key="idx" class="cast-item"
+                     :data-tooltip="image.actor_label"
+                     @click='showActorDetail([image.actor_id])'>
                   <vue-load-image>
                     <img slot="image" :src="getImageURL(image.src)" class="cast-thumb"/>
                     <img slot="preloader" src="/ui/images/blank_female_profile.png" class="cast-thumb"/>
                     <img slot="error" src="/ui/images/blank_female_profile.png" class="cast-thumb"/>
                   </vue-load-image>
-                  <span class="cast-name">{{ image.actor_label }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Tags: cast, site, content -->
-            <div class="tags-section" v-if="activeTab != 1">
-              <div class="tag-group" v-if="item.cast && item.cast.length > 0">
-                <span v-for="(c, idx) in item.cast" :key="'cast' + idx">
-                  <a class="tag is-warning is-small" @click='showCastScenes([c.name])' :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ c.name }} ({{ c.avail_count }}/{{ c.count }})</a>
-                  <a v-if="showOpenInNewWindow" class="tag is-warning is-small" :href='getCastScenesUrl([c.name])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
-                </span>
-              </div>
+            <!-- Tags: content only (cast shown above, site in meta) -->
+            <div class="tags-section" v-if="activeTab != 1 && item.tags && item.tags.length > 0">
               <div class="tag-group">
-                <a @click='showSiteScenes([item.site])' class="tag is-primary is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ item.site }}</a>
-                <a v-if="showOpenInNewWindow" class="tag is-primary is-small" :href='getSiteScenesUrl([item.site])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
-              </div>
-              <div class="tag-group" v-if="item.tags && item.tags.length > 0">
                 <span v-for="(tag, idx) in item.tags" :key="'tag' + idx">
                   <a @click='showTagScenes([tag.name])' class="tag is-info is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ tag.name }} ({{ tag.count }})</a>
                   <a v-if="showOpenInNewWindow" class="tag is-info is-small" :href='getTagScenesUrl([tag.name])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
@@ -502,6 +496,7 @@ export default {
       searchfields: [],
       alternateSources: [],
       waitingForQuickFind: false,
+      scenePalette: null,
     }
   },
   computed: {
@@ -657,6 +652,17 @@ export default {
           title: extdata.scene?.title || 'No Title'
         };
       });
+    },
+    paletteStyle () {
+      if (!this.scenePalette) return {}
+      const p = this.scenePalette
+      return {
+        '--accent': p.accent,
+        '--accent-bg': p.accentBg,
+        '--accent-text': p.accentText,
+        '--accent-light': p.accentLight,
+        '--accent-faint': p.accentFaint
+      }
     }
   },
   mounted () {
@@ -715,6 +721,7 @@ watch:{
       this.carouselImagesLoaded = {}
       this.carouselImageRetries = {}
       this.carouselImageKeys = {}
+      this.scenePalette = null
     },
     immediate: false
   }
@@ -832,6 +839,10 @@ watch:{
             this.$set(this.carouselImageRetries, index, 0)
             // Fetch image info (format and size) for the badge
             this.fetchCarouselImageInfo(img.src, index)
+            // Extract dominant color from first image
+            if (index === 0 && !this.scenePalette) {
+              this.extractSceneColor(img)
+            }
           } else if ((this.carouselImageRetries[index] || 0) < 3) {
             // Image too small, might be an error - retry
             this.retryCarouselImage(index)
@@ -1193,6 +1204,85 @@ watch:{
         return u
       }
       return u
+    },
+    extractSceneColor (imgEl) {
+      try {
+        const canvas = document.createElement('canvas')
+        const size = 30
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(imgEl, 0, 0, size, size)
+        const data = ctx.getImageData(0, 0, size, size).data
+
+        // Collect all pixels as [r,g,b]
+        const pixels = []
+        for (let i = 0; i < data.length; i += 4) {
+          pixels.push([data[i], data[i+1], data[i+2]])
+        }
+
+        // Simple k-means with 4 clusters
+        const k = 4
+        let centers = pixels.filter((_, i) => i % Math.floor(pixels.length / k) === 0).slice(0, k)
+        for (let iter = 0; iter < 8; iter++) {
+          const clusters = centers.map(() => [])
+          for (const px of pixels) {
+            let minD = Infinity, best = 0
+            for (let c = 0; c < centers.length; c++) {
+              const d = (px[0]-centers[c][0])**2 + (px[1]-centers[c][1])**2 + (px[2]-centers[c][2])**2
+              if (d < minD) { minD = d; best = c }
+            }
+            clusters[best].push(px)
+          }
+          centers = clusters.map((cl, i) => {
+            if (cl.length === 0) return centers[i]
+            const avg = [0, 0, 0]
+            for (const px of cl) { avg[0] += px[0]; avg[1] += px[1]; avg[2] += px[2] }
+            return avg.map(v => Math.round(v / cl.length))
+          })
+        }
+
+        // Sort by luminance
+        centers.sort((a, b) => (0.299*a[0]+0.587*a[1]+0.114*a[2]) - (0.299*b[0]+0.587*b[1]+0.114*b[2]))
+
+        const rgb = c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`
+        const pastel = (c, amt) => c.map(v => Math.round(v + (255 - v) * amt))
+
+        // Pick the most saturated cluster as accent
+        let bestSat = -1, accent = centers[1]
+        for (const c of centers) {
+          const mx = Math.max(...c), mn = Math.min(...c)
+          const sat = mx > 0 ? (mx - mn) / mx : 0
+          if (sat > bestSat) { bestSat = sat; accent = c }
+        }
+
+        // Compute luminance for contrast decisions (WCAG relative luminance)
+        const luminance = c => {
+          const toLinear = x => { const s = x/255; return s <= 0.03928 ? s/12.92 : ((s+0.055)/1.055)**2.4 }
+          return 0.2126*toLinear(c[0]) + 0.7152*toLinear(c[1]) + 0.0722*toLinear(c[2])
+        }
+        const lum = luminance(accent)
+
+        // For solid accent backgrounds: choose white or black text automatically
+        const accentText = lum > 0.179 ? '#1a1a1a' : '#ffffff'
+
+        // For use as background: darken only if needed to keep white text readable
+        let accentBg = [...accent]
+        if (lum > 0.18) {
+          const factor = Math.sqrt(0.18 / lum)
+          accentBg = accent.map(v => Math.round(v * factor))
+        }
+
+        this.scenePalette = {
+          accent: rgb(accent),            // vibrant — for text/borders/highlights
+          accentBg: rgb(accentBg),         // darker — for solid color backgrounds
+          accentText: accentText,           // auto white or black on accentBg
+          accentLight: rgb(pastel(accentBg, 0.35)),
+          accentFaint: rgb(pastel(accentBg, 0.88))
+        }
+      } catch (e) {
+        console.warn('Color extraction failed:', e.message)
+      }
     },
     getIndicatorURL (idx) {
       if (this.images[idx] !== undefined) {
@@ -1612,12 +1702,15 @@ watch:{
   width: 85%;
   max-height: calc(100vh - 40px);
   margin: 0 auto;
+  transition: background 1.2s ease;
 }
 
 :deep(.modal-card-body) {
   overflow-y: auto;
   max-height: calc(100vh - 40px);
   scrollbar-width: none;
+  border-top: 3px solid var(--accent, #7957d5);
+  transition: border-color 0.8s ease;
 }
 
 :deep(.modal-card-body)::-webkit-scrollbar {
@@ -1638,7 +1731,7 @@ watch:{
 }
 
 .detail-title {
-  font-size: 1.25em;
+  font-size: 1.2rem;
   font-weight: 600;
   margin-bottom: 4px !important;
   line-height: 1.3;
@@ -1648,7 +1741,7 @@ watch:{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 0.85rem;
   color: #666;
   margin-bottom: 8px;
 }
@@ -1668,6 +1761,22 @@ watch:{
   text-decoration: underline;
 }
 
+.site-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.site-external {
+  color: #999;
+  line-height: 0;
+  transition: color 0.15s;
+}
+
+.site-external:hover {
+  color: #485fc7;
+}
+
 .members-link {
   display: inline-flex;
   align-items: center;
@@ -1679,7 +1788,7 @@ watch:{
 
 .detail-date {
   color: #999;
-  font-size: 12px;
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 
@@ -1715,22 +1824,18 @@ watch:{
 .cast-row {
   display: flex;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
   padding-bottom: 4px;
-  justify-content: flex-start;
-}
-
-.cast-row::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
 }
 
 .cast-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: pointer;
   flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
   line-height: 0;
 }
 
@@ -1738,8 +1843,9 @@ watch:{
   line-height: 0;
 }
 
+
 .cast-thumb {
-  height: 80px;
+  height: clamp(70px, 6vw, 90px);
   border-radius: 4px;
   object-fit: cover;
   border: 2px solid transparent;
@@ -1749,17 +1855,6 @@ watch:{
 
 .cast-item:hover .cast-thumb {
   border-color: #7957d5;
-}
-
-.cast-name {
-  font-size: 10px;
-  color: #666;
-  margin-top: 3px;
-  text-align: center;
-  max-width: 72px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Tags Section */
@@ -1782,11 +1877,12 @@ watch:{
 
 .tags-section :deep(.tag) {
   margin-bottom: 4px !important;
+  font-size: 0.8rem !important;
 }
 
 /* Description */
 .description-text {
-  font-size: 13px;
+  font-size: 0.85rem;
   line-height: 1.5;
   color: #444;
 }
@@ -2095,8 +2191,9 @@ span.is-active img {
   padding: 4px 8px;
   background: rgba(0,0,0,0.85);
   color: #fff;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 400;
+  line-height: normal;
   white-space: nowrap;
   border-radius: 4px;
   pointer-events: none;
@@ -2107,5 +2204,63 @@ span.is-active img {
 
 [data-tooltip]:hover::after {
   opacity: 1;
+}
+
+/* ── Detail View Dark Mode ── */
+html[data-theme="dark"] .detail-title { color: #e8e8ec; }
+html[data-theme="dark"] .detail-meta,
+html[data-theme="dark"] .detail-duration,
+html[data-theme="dark"] .detail-date { color: #a0a0b0; }
+html[data-theme="dark"] .detail-meta-left a { color: #8ab4f8; }
+html[data-theme="dark"] .site-external { color: #888; }
+html[data-theme="dark"] .description-text { color: #c8c8d0; }
+html[data-theme="dark"] .pathDetails { color: #999; }
+html[data-theme="dark"] .scene-id { color: #666; }
+html[data-theme="dark"] .rating-reset { color: #aaa; }
+html[data-theme="dark"] .videosize { color: #b0b0c0; font-weight: 500; }
+html[data-theme="dark"] .prev,
+html[data-theme="dark"] .next { color: #ddd; }
+html[data-theme="dark"] .members-link { color: #888; }
+html[data-theme="dark"] .cast-thumb { border-color: #2a2a35; }
+html[data-theme="dark"] .is-divider { background-color: #2a2a35 !important; }
+html[data-theme="dark"] .heatmapFunscript img { border-color: #3a3a48; }
+
+/* ── Scene Accent Color ── */
+.detail-meta-left a {
+  color: var(--accent, #485fc7);
+}
+.detail-meta-left a:hover {
+  color: var(--accent, #485fc7);
+  filter: brightness(0.85);
+}
+.site-external:hover {
+  color: var(--accent, #485fc7);
+}
+.cast-item:hover .cast-thumb {
+  border-color: var(--accent, #7957d5);
+}
+.tags-section :deep(.tag.is-info) {
+  background-color: var(--accent-light, #485fc7) !important;
+  color: var(--accent-text, #fff) !important;
+}
+.tags-section :deep(.tag.is-warning) {
+  background-color: var(--accent-bg, #f0c040) !important;
+  color: var(--accent-text, #fff) !important;
+}
+.tags-section :deep(.tag.is-primary) {
+  background-color: var(--accent-bg, #7957d5) !important;
+  color: var(--accent-text, #fff) !important;
+}
+:deep(.tabs li.is-active a) {
+  color: var(--accent, #7957d5) !important;
+  border-bottom-color: var(--accent, #7957d5) !important;
+}
+.detail-actions :deep(.button.is-primary) {
+  border-color: var(--accent, #7957d5) !important;
+  color: var(--accent, #7957d5) !important;
+}
+.detail-actions :deep(.button.is-primary:hover) {
+  background-color: var(--accent-bg, #7957d5) !important;
+  color: var(--accent-text, #fff) !important;
 }
 </style>

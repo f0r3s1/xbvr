@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -50,6 +51,10 @@ func authHandle(pattern string, authEnabled bool, authSecret auth.SecretProvider
 
 func StartServer(version, commit, branch, date string) {
 	common.CurrentVersion = version
+
+	// Run GC more aggressively to keep memory usage lower.
+	// GOGC=50 means GC triggers when heap grows 50% above live data (default 100%).
+	debug.SetGCPercent(50)
 
 	config.LoadConfig()
 	common.CopyXbvrData()

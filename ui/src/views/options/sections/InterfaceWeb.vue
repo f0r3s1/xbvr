@@ -130,6 +130,20 @@
               </b-switch>
             </b-field>
 
+            <b-field label="Theme">
+              <div class="block">
+                <b-radio v-model="theme" name="theme" native-value="auto">
+                  Auto (follow browser/OS)
+                </b-radio>
+                <b-radio v-model="theme" name="theme" native-value="dark">
+                  Dark
+                </b-radio>
+                <b-radio v-model="theme" name="theme" native-value="light">
+                  Light
+                </b-radio>
+              </div>
+            </b-field>
+
             <b-field>
               <b-button type="is-primary" @click="save">Save</b-button>
             </b-field>
@@ -321,6 +335,14 @@ export default {
       },
       set (value) {
         this.$store.state.optionsWeb.web.actorCardScaleToFit = value
+      }
+    },
+    theme: {
+      get () {
+        return this.$store.state.optionsWeb.web.theme || 'auto'
+      },
+      set (value) {
+        this.$store.state.optionsWeb.web.theme = value
       }
     },
     isLoading: function () {

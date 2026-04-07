@@ -74,6 +74,10 @@ func GetDB() (*gorm.DB, error) {
 				db.Exec("PRAGMA journal_mode=WAL")
 				db.Exec("PRAGMA busy_timeout=30000")
 				db.Exec("PRAGMA synchronous=NORMAL")
+				// Limit per-connection page cache to 1MB (default ~8MB) to reduce RAM usage
+				db.Exec("PRAGMA cache_size=-1000")
+				// Store temp tables on disk instead of memory
+				db.Exec("PRAGMA temp_store=FILE")
 			}
 			return nil
 		},
@@ -112,6 +116,9 @@ func GetCommonDB() (*gorm.DB, error) {
 				commonConnection.Exec("PRAGMA journal_mode=WAL")
 				commonConnection.Exec("PRAGMA busy_timeout=30000")
 				commonConnection.Exec("PRAGMA synchronous=NORMAL")
+				// Limit page cache to 4MB for the persistent pool connection
+				commonConnection.Exec("PRAGMA cache_size=-4000")
+				commonConnection.Exec("PRAGMA temp_store=FILE")
 			}
 			return nil
 		},

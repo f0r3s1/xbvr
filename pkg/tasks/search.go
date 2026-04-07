@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -154,6 +155,8 @@ func SearchIndex() {
 		}
 
 		idx.Bleve.Close()
+		// Release Bleve's segment memory back to the OS after indexing
+		debug.FreeOSMemory()
 
 		tlog.Infof("Search index built!")
 	}

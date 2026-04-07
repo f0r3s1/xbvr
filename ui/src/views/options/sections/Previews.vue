@@ -173,6 +173,7 @@ export default {
     flex: 1 0 calc(25% - 10px);
     margin: 5px;
     background: #f0f0f0;
+
     display: flex;
     align-items: center;
     justify-content: center;
@@ -182,5 +183,9 @@ export default {
     content: '';
     display: block;
     padding-bottom: 100%;
+  }
+
+  html[data-theme="dark"] .bbox {
+    background: #222230 !important;
   }
 </style>

@@ -83,4 +83,12 @@ export default {
   #toTop:hover {
     background-color: #BDBDBD;
   }
+
+  html[data-theme="dark"] #toTop {
+    background-color: #2a2a3a !important;
+    color: #d4d4d8 !important;
+  }
+  html[data-theme="dark"] #toTop:hover {
+    background-color: #3a3a4a !important;
+  }
 </style>
