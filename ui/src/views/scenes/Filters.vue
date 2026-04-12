@@ -35,10 +35,10 @@
 
     <div class="is-divider" data-content="Sorting / Status / Release"></div>
 
-    <b-field :label="$t('Sort by')" label-position="on-border" :addons="true" class="field-extra">
+    <b-field :label="$t('Sort by')" label-for="filter-sort" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
-          <select v-model="sort">
+          <select id="filter-sort" v-model="sort">
             <option value="release_desc">↓ {{ $t("Release date") }}</option>
             <option value="release_asc">↑ {{ $t("Release date") }}</option>
             <option value="added_desc">↓ {{ $t("File added date") }}</option>
@@ -65,10 +65,10 @@
       </div>
     </b-field>
 
-    <b-field label="Watched" label-position="on-border" :addons="true" class="field-extra">
+    <b-field label="Watched" label-for="filter-watched" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
-          <select v-model="isWatched">
+          <select id="filter-watched" v-model="isWatched">
             <option :value="null">Everything</option>
             <option :value="true">Watched</option>
             <option :value="false">Unwatched</option>
@@ -77,10 +77,10 @@
       </div>
     </b-field>
 
-    <b-field label="Release month" label-position="on-border" :addons="true" class="field-extra">
+    <b-field label="Release month" label-for="filter-release-month" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
-          <select v-model="releaseMonth">
+          <select id="filter-release-month" v-model="releaseMonth">
             <option></option>
             <option v-for="t in filters.release_month" :key="t">{{ t }}</option>
           </select>
@@ -93,10 +93,10 @@
       </div>
     </b-field>
 
-    <b-field label="Folder" label-position="on-border" :addons="true" class="field-extra">
+    <b-field label="Folder" label-for="filter-volume" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
-          <select v-model="volume">
+          <select id="filter-volume" v-model="volume">
             <option :value="0"></option>
             <option v-for="t in filters.volumes" :key="t.id" :value="t.id">{{ t.path }}</option>
           </select>
@@ -272,9 +272,10 @@
           <p class="modal-card-title">Tag Group</p>
         </header>
         <section class="modal-card-body">
-          <b-field label="Name">
+          <b-field label="Name" label-for="tag-group-name">
             <b-input
-              type="name"
+              id="tag-group-name"
+              type="text"
               v-model="tagGroupName"
               required>
             </b-input>
@@ -845,4 +846,12 @@ export default {
 .tagicon {
   margin-right: -0.2em !important;
 }
+
+/* Dark mode divider labels - no background */
+html[data-theme="dark"] .is-divider[data-content]::after {
+  background: transparent !important;
+  color: #888 !important;
+}
+
+/* Mobile properties handled in App.vue global styles */
 </style>

@@ -15,7 +15,6 @@ const state = {
     showHspFile: true,
     showSubtitlesFile: true,
     sceneTrailerlist: true,
-    updateCheck: true,
     isAvailOpacity: 40,
     showScriptHeatmap: false,
     showAllHeatmaps: false,
@@ -24,6 +23,9 @@ const state = {
     sceneCardScaleToFit: true,
     actorCardAspectRatio: "1:1",
     actorCardScaleToFit: true,
+    showSiteLogo: true,
+    dateFormat: 'yyyy-MM-dd',
+    accentColorTags: true,
     updateCheck: true,
     theme: 'auto'
   }
@@ -58,6 +60,9 @@ const actions = {
         state.web.sceneCardScaleToFit = data.config.web.sceneCardScaleToFit
         state.web.actorCardAspectRatio = data.config.web.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.config.web.actorCardScaleToFit
+        state.web.showSiteLogo = data.config.web.showSiteLogo !== false
+        state.web.dateFormat = data.config.web.dateFormat || 'yyyy-MM-dd'
+        state.web.accentColorTags = data.config.web.accentColorTags !== false
         const theme = data.config.web.theme || 'auto'
         state.web.theme = theme
         localStorage.setItem('xbvr-theme', theme)
@@ -90,6 +95,9 @@ const actions = {
         state.web.sceneCardScaleToFit = data.sceneCardScaleToFit
         state.web.actorCardAspectRatio = data.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.actorCardScaleToFit
+        state.web.showSiteLogo = data.showSiteLogo !== false
+        state.web.dateFormat = data.dateFormat || 'yyyy-MM-dd'
+        state.web.accentColorTags = data.accentColorTags !== false
         const theme = data.theme || 'auto'
         state.web.theme = theme
         localStorage.setItem('xbvr-theme', theme)

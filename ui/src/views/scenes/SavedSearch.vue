@@ -41,9 +41,10 @@
           <p class="modal-card-title">{{ modalTitle }}</p>
         </header>
         <section class="modal-card-body">
-          <b-field label="Name">
+          <b-field label="Name" label-for="playlist-name">
             <b-input
-              type="name"
+              id="playlist-name"
+              type="text"
               v-model="playlistName"
               required>
             </b-input>
@@ -99,6 +100,7 @@ export default {
     },
     setPlaylist (val) {
       const obj = this.playlists.find(item => item.id === val)
+      if (!obj || !obj.search_params) return
 
       this.$router.push({
         name: 'scenes',

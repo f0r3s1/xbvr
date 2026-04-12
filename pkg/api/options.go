@@ -65,6 +65,9 @@ type RequestSaveOptionsWeb struct {
 	SceneCardScaleToFit  bool   `json:"sceneCardScaleToFit"`
 	ActorCardAspectRatio string `json:"actorCardAspectRatio"`
 	ActorCardScaleToFit  bool   `json:"actorCardScaleToFit"`
+	ShowSiteLogo         bool   `json:"showSiteLogo"`
+	DateFormat           string `json:"dateFormat"`
+	AccentColorTags      bool   `json:"accentColorTags"`
 	Theme                string `json:"theme"`
 }
 
@@ -559,6 +562,9 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.SceneCardScaleToFit = r.SceneCardScaleToFit
 	config.Config.Web.ActorCardAspectRatio = r.ActorCardAspectRatio
 	config.Config.Web.ActorCardScaleToFit = r.ActorCardScaleToFit
+	config.Config.Web.ShowSiteLogo = r.ShowSiteLogo
+	config.Config.Web.DateFormat = r.DateFormat
+	config.Config.Web.AccentColorTags = r.AccentColorTags
 	config.Config.Web.Theme = r.Theme
 	config.SaveConfig()
 

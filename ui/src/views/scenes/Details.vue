@@ -174,12 +174,14 @@
             </div>
 
             <!-- Tags: content only (cast shown above, site in meta) -->
-            <div class="tags-section" v-if="activeTab != 1 && item.tags && item.tags.length > 0">
+            <div class="tags-section" :class="{ 'no-accent': !accentColorTags }" v-if="activeTab != 1 && item.tags && item.tags.length > 0">
               <div class="tag-group">
-                <span v-for="(tag, idx) in item.tags" :key="'tag' + idx">
-                  <a @click='showTagScenes([tag.name])' class="tag is-info is-small" :style="showOpenInNewWindow ? 'margin-right: 0;': 'margin-right: .5em;'">{{ tag.name }} ({{ tag.count }})</a>
-                  <a v-if="showOpenInNewWindow" class="tag is-info is-small" :href='getTagScenesUrl([tag.name])' target="_blank" style="margin-right: 0.5em;"><b-icon pack="mdi" icon="open-in-new" size="is-small"></b-icon></a>
-                </span>
+                <a v-for="(tag, idx) in item.tags" :key="'tag' + idx"
+                   @click='showTagScenes([tag.name])' class="tag is-info is-small tag-pill">
+                  <span>{{ tag.name }} ({{ tag.count }})</span>
+                  <b-icon v-if="showOpenInNewWindow" pack="mdi" icon="open-in-new" size="is-small"
+                    class="tag-external" @click.native.stop="openTagInNewWindow(tag.name)"/>
+                </a>
               </div>
             </div>
 
@@ -398,7 +400,7 @@
     <button class="modal-close is-large" aria-label="close" @click="close()"></button>
     <a class="prev" @click="prevScene" v-if="$store.getters['sceneList/prevScene'](item) !== null && !displayingAlternateSource"
        title="Keyboard shortcut: O">&#10094;</a>
-    <a class="next" @click="nextScene" v-if="$store.getters['sceneList/nextScene'](item) !== null && !displayingAlternateSource"
+    <a class="next" @click="nextScene" v-if="hasNextScene && !displayingAlternateSource"
        title="Keyboard shortcut: P">&#10095;</a>
 
     <!-- Fullscreen Gallery Modal -->
@@ -644,6 +646,9 @@ export default {
     showOpenInNewWindow () {
       return this.$store.state.optionsWeb.web.showOpenInNewWindow
     },
+    accentColorTags () {
+      return this.$store.state.optionsWeb.web.accentColorTags !== false
+    },
     alternateSourcesWithTitles() {
       return this.alternateSources.map(altsrc => {
         const extdata = JSON.parse(altsrc.external_data);
@@ -652,6 +657,12 @@ export default {
           title: extdata.scene?.title || 'No Title'
         };
       });
+    },
+    hasNextScene () {
+      const next = this.$store.getters['sceneList/nextScene'](this.item)
+      if (next !== null) return true
+      const st = this.$store.state.sceneList
+      return st.items.length < st.total
     },
     paletteStyle () {
       if (!this.scenePalette) return {}
@@ -1100,6 +1111,10 @@ watch:{
       })
       this.close()
     },
+    openTagInNewWindow (tagName) {
+      const url = this.getTagScenesUrl([tagName])
+      window.open(url, '_blank')
+    },
     getTagScenesUrl(tag) {
       let newfilters = Object.assign({}, this.$store.state.sceneList.filters);      
       newfilters.tags = tag;       
@@ -1248,6 +1263,34 @@ watch:{
         const rgb = c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`
         const pastel = (c, amt) => c.map(v => Math.round(v + (255 - v) * amt))
 
+        // RGB <-> HSL helpers
+        const rgbToHsl = (r, g, b) => {
+          r /= 255; g /= 255; b /= 255
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b)
+          let h = 0, s = 0, l = (mx + mn) / 2
+          if (mx !== mn) {
+            const d = mx - mn
+            s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn)
+            if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
+            else if (mx === g) h = ((b - r) / d + 2) / 6
+            else h = ((r - g) / d + 4) / 6
+          }
+          return [h, s, l]
+        }
+        const hslToRgb = (h, s, l) => {
+          if (s === 0) { const v = Math.round(l * 255); return [v, v, v] }
+          const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1; if (t > 1) t -= 1
+            if (t < 1/6) return p + (q - p) * 6 * t
+            if (t < 1/2) return q
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+            return p
+          }
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+          const p = 2 * l - q
+          return [Math.round(hue2rgb(p, q, h + 1/3) * 255), Math.round(hue2rgb(p, q, h) * 255), Math.round(hue2rgb(p, q, h - 1/3) * 255)]
+        }
+
         // Pick the most saturated cluster as accent
         let bestSat = -1, accent = centers[1]
         for (const c of centers) {
@@ -1256,27 +1299,30 @@ watch:{
           if (sat > bestSat) { bestSat = sat; accent = c }
         }
 
-        // Compute luminance for contrast decisions (WCAG relative luminance)
+        // Convert to HSL and normalize: ensure minimum saturation, target nice lightness
+        let [h, s, l] = rgbToHsl(accent[0], accent[1], accent[2])
+        // Gently boost saturation only if it's weak (< 0.5), cap at 0.7
+        if (s < 0.5) s = s + (0.5 - s) * 0.6
+        s = Math.min(s, 0.85)
+        // Clamp lightness to a pleasant range (not too dark, not too bright)
+        l = Math.max(0.35, Math.min(0.55, l))
+        accent = hslToRgb(h, s, l)
+
+        // Compute luminance for contrast decisions
         const luminance = c => {
-          const toLinear = x => { const s = x/255; return s <= 0.03928 ? s/12.92 : ((s+0.055)/1.055)**2.4 }
+          const toLinear = x => { const v = x/255; return v <= 0.03928 ? v/12.92 : ((v+0.055)/1.055)**2.4 }
           return 0.2126*toLinear(c[0]) + 0.7152*toLinear(c[1]) + 0.0722*toLinear(c[2])
         }
         const lum = luminance(accent)
-
-        // For solid accent backgrounds: choose white or black text automatically
         const accentText = lum > 0.179 ? '#1a1a1a' : '#ffffff'
 
-        // For use as background: darken only if needed to keep white text readable
-        let accentBg = [...accent]
-        if (lum > 0.18) {
-          const factor = Math.sqrt(0.18 / lum)
-          accentBg = accent.map(v => Math.round(v * factor))
-        }
+        // Background variant: slightly darker for solid fills
+        const accentBg = hslToRgb(h, Math.min(s * 1.1, 0.9), Math.max(l - 0.08, 0.25))
 
         this.scenePalette = {
-          accent: rgb(accent),            // vibrant — for text/borders/highlights
-          accentBg: rgb(accentBg),         // darker — for solid color backgrounds
-          accentText: accentText,           // auto white or black on accentBg
+          accent: rgb(accent),
+          accentBg: rgb(accentBg),
+          accentText: accentText,
           accentLight: rgb(pastel(accentBg, 0.35)),
           accentFaint: rgb(pastel(accentBg, 0.88))
         }
@@ -1371,9 +1417,17 @@ watch:{
       this.item.star_rating = val
       this.$store.commit('sceneList/updateScene', updatedScene)
     },
-    nextScene () {
-      const data = this.$store.getters['sceneList/nextScene'](this.item)
-      if (data !== null && !this.displayingAlternateSource) {
+    async nextScene () {
+      if (this.displayingAlternateSource) return
+      let data = this.$store.getters['sceneList/nextScene'](this.item)
+      if (data === null) {
+        const st = this.$store.state.sceneList
+        if (st.items.length < st.total && !st.isLoading) {
+          await this.$store.dispatch('sceneList/load', { offset: st.offset })
+          data = this.$store.getters['sceneList/nextScene'](this.item)
+        }
+      }
+      if (data !== null) {
         this.$store.commit('overlay/showDetails', { scene: data })
         this.activeMedia = 0
         this.carouselSlide = 0
@@ -1673,6 +1727,7 @@ watch:{
 
 .is-1by1 {
   padding-top: calc(100% - 40px - 1em) !important;
+  background: transparent !important;
 }
 
 
@@ -1863,21 +1918,34 @@ watch:{
 }
 
 .tag-group {
-  display: inline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.tag-group > span {
-  display: inline-flex;
-  align-items: center;
+.tag-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px;
+  cursor: pointer;
 }
 
-.tag-group + .tag-group {
-  margin-left: 2px;
+.tag-external {
+  opacity: 0.6;
+  margin-left: 0 !important;
+  margin-right: -2px !important;
+  transition: opacity 0.15s;
+}
+.tag-external:hover {
+  opacity: 1;
 }
 
 .tags-section :deep(.tag) {
-  margin-bottom: 4px !important;
-  font-size: 0.8rem !important;
+  margin-bottom: 0 !important;
+  font-size: 0.75rem !important;
+  padding: 0 8px !important;
+  height: 24px !important;
+  border-radius: 4px !important;
 }
 
 /* Description */
@@ -1968,6 +2036,15 @@ span.is-active img {
 .altsrc-image-wrapper {
   display: inline-block;
   margin-left: 5px;  
+}
+
+/* Carousel background — match modal */
+:deep(.carousel) {
+  background: transparent !important;
+}
+:deep(.carousel .carousel-items),
+:deep(.carousel-item) {
+  background: transparent !important;
 }
 
 /* Fullscreen Gallery Styles */
@@ -2239,17 +2316,12 @@ html[data-theme="dark"] .heatmapFunscript img { border-color: #3a3a48; }
 .cast-item:hover .cast-thumb {
   border-color: var(--accent, #7957d5);
 }
-.tags-section :deep(.tag.is-info) {
-  background-color: var(--accent-light, #485fc7) !important;
+.tags-section:not(.no-accent) :deep(.tag.is-info) {
+  background-color: var(--accent-bg, #485fc7) !important;
   color: var(--accent-text, #fff) !important;
 }
-.tags-section :deep(.tag.is-warning) {
-  background-color: var(--accent-bg, #f0c040) !important;
-  color: var(--accent-text, #fff) !important;
-}
-.tags-section :deep(.tag.is-primary) {
-  background-color: var(--accent-bg, #7957d5) !important;
-  color: var(--accent-text, #fff) !important;
+.tags-section:not(.no-accent) :deep(.tag.is-info:hover) {
+  filter: brightness(1.15);
 }
 :deep(.tabs li.is-active a) {
   color: var(--accent, #7957d5) !important;
