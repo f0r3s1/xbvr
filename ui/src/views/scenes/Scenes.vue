@@ -85,6 +85,7 @@ export default {
     bottom: 20px;
     left: 30px;
     width: 18.5%;
+    z-index: 30;
   }
   #toTop, #toggleInfiniteScroll {
     display: none;
@@ -107,5 +108,12 @@ export default {
   html[data-theme="dark"] #toTop:hover,
   html[data-theme="dark"] #toggleInfiniteScroll:hover {
     background-color: #3a3a4a !important;
+  }
+
+  /* Mobile: hide scroll buttons, reduce container padding */
+  @media screen and (max-width: 768px) {
+    #scrollButtons {
+      display: none !important;
+    }
   }
 </style>

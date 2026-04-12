@@ -385,6 +385,18 @@ export default {
 
   /* Tooltips */
   html[data-theme="dark"] .b-tooltip .tooltip-content { background-color: #2a2a3a !important; color: #e8e8ec !important; }
+  .b-tooltip.is-small .tooltip-content {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    border-radius: 4px !important;
+    background: rgba(0,0,0,0.85) !important;
+    color: #fff !important;
+  }
+  html[data-theme="dark"] .b-tooltip.is-small .tooltip-content {
+    background: rgba(0,0,0,0.85) !important;
+    color: #fff !important;
+  }
 
   /* Progress */
   html[data-theme="dark"] .progress { background-color: #2a2a3a !important; }
@@ -451,11 +463,11 @@ export default {
   html[data-theme="dark"] .field .label,
   html[data-theme="dark"] .field-label .label { color: #b0b0c0 !important; }
   html[data-theme="dark"] .field.is-floating-label .label {
-    background-color: #121218 !important;
+    background-color: transparent !important;
     color: #888 !important;
     padding: 0 4px !important;
   }
-  html[data-theme="dark"] .field.is-floating-label .label::before { background-color: #121218 !important; }
+  html[data-theme="dark"] .field.is-floating-label .label::before { background-color: transparent !important; }
   html[data-theme="dark"] .field.has-addons .control .select select,
   html[data-theme="dark"] .field.has-addons .control .input {
     background-color: #222230 !important;
@@ -515,4 +527,73 @@ export default {
   html[data-theme="dark"] .image.is-4by3 { background-color: #222230 !important; }
   html[data-theme="dark"] .notices .toast,
   html[data-theme="dark"] .notices .snackbar { background-color: #2a2a3a !important; color: #d4d4d8 !important; }
+
+  /* ── Mobile Responsive ── */
+  @media screen and (max-width: 768px) {
+    /* Reduce container fluid padding on mobile */
+    .container.is-fluid {
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+
+    /* Stack columns vertically, filters full width */
+    .container.is-fluid > .columns > .column.is-one-fifth {
+      width: 100% !important;
+      flex: none !important;
+    }
+    .container.is-fluid > .columns > .column.is-four-fifths {
+      width: 100% !important;
+      flex: none !important;
+    }
+
+    /* Card grid: add bottom margin between cards */
+    .columns.is-multiline > .column {
+      padding-bottom: 0.5rem !important;
+    }
+
+    /* Properties 2x2 grid: force flex row on mobile */
+    .columns.is-multiline.is-gapless {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: wrap !important;
+    }
+    .columns.is-multiline.is-gapless > .column.is-half {
+      width: 50% !important;
+      flex: 0 0 50% !important;
+      max-width: 50% !important;
+    }
+    .columns.is-multiline.is-gapless > .column.is-half .b-checkbox.button {
+      width: 100% !important;
+      justify-content: center !important;
+    }
+    /* Hide button text, show only icon on mobile properties */
+    .columns.is-multiline.is-gapless > .column.is-half .b-checkbox.button span:not(.icon) {
+      display: none !important;
+    }
+
+    /* Navbar end: prevent status table from taking too much space */
+    .navbar-end .navbar-item table {
+      font-size: 0.75em !important;
+      max-width: 200px;
+      overflow: hidden;
+    }
+    .navbar-end .navbar-item table td {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Reduce top padding */
+    .navbar-pad {
+      margin-top: 0.5rem !important;
+    }
+  }
+
+  /* Medium screens: properties buttons icon-only when sidebar is narrow */
+  @media screen and (max-width: 1215px) {
+    .columns.is-multiline.is-gapless > .column.is-half .b-checkbox.button span:not(.icon) {
+      display: none !important;
+    }
+  }
 </style>

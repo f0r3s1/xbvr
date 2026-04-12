@@ -2,7 +2,7 @@
   <a :class="buttonClass"
    v-if="!item.is_available & item.trailer_source !=='' & this.$store.state.optionsWeb.web.sceneTrailerlist"
      @click="toggleState()"
-     :data-tooltip="item.trailerlist ? 'Remove from Trailer List (T)' : 'Add to Trailer List (T)'">
+     :data-tooltip="item.trailerlist ? 'Remove from Trailer List' : 'Add to Trailer List'">
     <b-icon pack="mdi" :icon="item.trailerlist ? 'movie-open-check' : 'movie-search-outline'" size="is-small"/>
   </a>
 </template>

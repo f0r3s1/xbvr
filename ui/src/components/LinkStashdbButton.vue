@@ -1,9 +1,8 @@
 <template>
-    <span data-tooltip="Link to stashdb">
-        <a class="button is-primary is-dark is-outlined is-small"
+    <a data-tooltip="Link to stashdb" class="button is-primary is-dark is-outlined is-small"
             @click="openDialog(item)">
-            <span class="icon">
-              <svg width="24pt" height="24pt" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
+            <span class="icon is-small">
+              <svg width="16" height="16" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
                 <g transform="matrix(0.1,0,0,-0.1,-3.071616,216.06899)" stroke="none">
                   <path d="m 731,1984 c -288,-84 -525,-155 -526,-156 -1,-2 -46,-59 -99,-126 -54,-68 -96,-125 -94,-127 2,-2 210,-76 463,-164 358,-125 462,-158 471,-148 9,10 252,305 259,315 2,2 18,-5 37,-14 31,-14 38,-14 71,0 l 37,15 141,-169 142,-168 51,18 c 295,103 853,303 858,308 6,6 -157,230 -195,269 -14,14 -1044,304 -1073,302 -10,-1 -255,-70 -543,-155 z m 923,-30 c 199,-59 363,-108 365,-110 2,-2 2,-6 0,-8 -7,-8 -719,-206 -737,-206 -19,0 -743,208 -750,215 -3,3 1,7 9,10 45,16 717,203 733,204 11,1 182,-47 380,-105 z"/>
                   <path d="m 1345,1398 c -3,-7 -4,-229 -3,-494 l 3,-481 492,201 492,201 3,273 c 2,194 0,272 -8,272 -6,0 -174,-54 -373,-119 l -362,-119 -112,139 c -61,76 -115,139 -119,139 -5,0 -11,-6 -13,-12 z"/>
@@ -14,7 +13,6 @@
               </svg>
            </span>
         </a>
-    </span>
 </template>
 
 <script>

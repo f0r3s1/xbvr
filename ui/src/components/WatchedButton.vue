@@ -1,7 +1,7 @@
 <template>
   <a :class="buttonClass"
      @click="toggleState()"
-     :data-tooltip="item.is_watched ? 'Mark as unwatched (Shift+W)' : 'Mark as watched (Shift+W)'">
+     :data-tooltip="item.is_watched ? 'Mark as unwatched' : 'Mark as watched'">
     <b-icon pack="mdi" :icon="item.is_watched ? 'eye-check' : 'eye'" size="is-small"/>
   </a>
 </template>

@@ -51,6 +51,9 @@ type ObjectConfig struct {
 		SceneCardScaleToFit  bool   `default:"true" json:"sceneCardScaleToFit"`
 		ActorCardAspectRatio string `default:"1:1" json:"actorCardAspectRatio"`
 		ActorCardScaleToFit  bool   `default:"true" json:"actorCardScaleToFit"`
+		ShowSiteLogo         bool   `default:"true" json:"showSiteLogo"`
+		DateFormat           string `default:"yyyy-MM-dd" json:"dateFormat"`
+		AccentColorTags      bool   `default:"true" json:"accentColorTags"`
 		Theme                string `default:"auto" json:"theme"`
 	} `json:"web"`
 	Advanced struct {

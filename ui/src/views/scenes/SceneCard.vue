@@ -68,33 +68,55 @@
       </div>
 
 
-    </div>
-
-    <!-- Hover Actions -->
-    <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview }" @click.stop>
-      <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
-      <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
-      <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
-      <favourite-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneFavourite"/>
-      <wishlist-button v-if="this.$store.state.optionsWeb.web.sceneWishlist && !item.is_available" :item="item"/>
-      <watched-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatched"/>
-      <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
-      <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
-      <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
-        <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
-          <vue-load-image>
-            <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
-            <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
-          </vue-load-image>
-        </a>
-      </b-tooltip>
+      <!-- Hover Actions - anchored inside thumbnail -->
+      <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview }" @click.stop>
+        <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
+        <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
+        <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
+        <favourite-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneFavourite"/>
+        <wishlist-button v-if="this.$store.state.optionsWeb.web.sceneWishlist && !item.is_available" :item="item"/>
+        <watched-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatched"/>
+        <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
+        <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
+        <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
+          <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
+            <vue-load-image>
+              <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
+              <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
+            </vue-load-image>
+          </a>
+        </b-tooltip>
+      </div>
     </div>
 
     <!-- Info Section -->
     <div class="info-section" :class="{ 'is-preview': preview && item.has_preview }">
-      <div class="scene-title">{{item.title}}</div>
+      <div class="title-row">
+        <div class="scene-title">{{item.title}}</div>
+        <span v-if="hasActiveStatus" class="status-icons">
+          <span v-if="item.is_hidden" class="status-icon status-danger" data-tooltip="Hidden">
+            <b-icon pack="mdi" icon="eye-off" size="is-small"/>
+          </span>
+          <span v-if="item.watchlist" class="status-icon status-primary" data-tooltip="Watchlist">
+            <b-icon pack="mdi" icon="calendar-check" size="is-small"/>
+          </span>
+          <span v-if="item.trailerlist && !item.is_available" class="status-icon status-primary" data-tooltip="Trailer List">
+            <b-icon pack="mdi" icon="movie-open-check" size="is-small"/>
+          </span>
+          <span v-if="item.favourite" class="status-icon status-danger" data-tooltip="Favourite">
+            <b-icon pack="mdi" icon="heart" size="is-small"/>
+          </span>
+          <span v-if="item.wishlist" class="status-icon status-info" data-tooltip="Wishlist">
+            <b-icon pack="mdi" icon="oil-lamp" size="is-small"/>
+          </span>
+          <span v-if="item.is_watched" class="status-icon status-dark" data-tooltip="Watched">
+            <b-icon pack="mdi" icon="eye-check" size="is-small"/>
+          </span>
+        </span>
+      </div>
       <div class="meta-row">
         <span class="site-link">
+          <img v-if="siteIconUrl && showSiteLogo" :src="siteIconUrl" class="site-icon" alt=""/>
           <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop>
             <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
           </a>
@@ -104,7 +126,7 @@
           </a>
         </span>
         <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="release-date">
-          {{format(parseISO(item.release_date), "yyyy-MM-dd")}}
+          {{format(parseISO(item.release_date), dateFormat)}}
         </span>
       </div>
     </div>
@@ -176,9 +198,22 @@ export default {
     sceneCardScaleToFit () {
       return this.$store.state.optionsWeb.web.sceneCardScaleToFit
     },
-    hasStatusIcons () {
-      return this.item.is_hidden || this.item.favourite || this.item.is_watched || 
-             this.item.watchlist || this.item.wishlist || this.item.trailerlist
+    showSiteLogo () {
+      return this.$store.state.optionsWeb.web.showSiteLogo !== false
+    },
+    dateFormat () {
+      return this.$store.state.optionsWeb.web.dateFormat || 'yyyy-MM-dd'
+    },
+    siteIconUrl () {
+      const sites = this.$store.state.optionsSites.items
+      if (!sites || !sites.length) return null
+      const site = sites.find(s => s.id === this.item.scraper_id)
+      if (!site || !site.avatar_url) return null
+      return this.getImageURL(site.avatar_url)
+    },
+    hasActiveStatus () {
+      return this.item.is_hidden || this.item.favourite || this.item.is_watched ||
+             this.item.watchlist || this.item.wishlist || (this.item.trailerlist && !this.item.is_available)
     },
     coverImageSrc () {
       // Add imageKey to force re-fetch on retry
@@ -313,11 +348,11 @@ export default {
   transition: box-shadow 0.2s ease;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
 }
 
 .scene-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 5;
 }
 
 /* Preview Overlay - covers the whole card, sits below info section */
@@ -330,6 +365,7 @@ export default {
   z-index: 20;
   background: #000;
   overflow: hidden;
+  border-radius: 8px;
 }
 
 .preview-overlay video {
@@ -355,15 +391,16 @@ export default {
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 8px 8px 0 0;
   flex-shrink: 0;
 }
 
 .thumbnail-img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  position: relative;
-  background-color: transparent;
   transition: transform 0.3s ease;
   overflow: hidden;
 }
@@ -372,14 +409,14 @@ export default {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: filter 0.5s ease, transform 0.5s ease;
+  object-position: center center;
+  display: block;
+  transition: filter 0.5s ease;
   filter: blur(15px);
-  transform: scale(1.05);
 }
 
 .thumbnail-img .cover-image.is-loaded {
   filter: blur(0);
-  transform: scale(1);
 }
 
 
@@ -498,16 +535,68 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-/* Hover Actions - positioned above info section */
+/* Status icons - inline next to title */
+.status-icons {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.status-icon {
+  position: relative;
+  width: 14px !important;
+  height: 14px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+.status-icon :deep(.icon) { width: 14px !important; height: 14px !important; }
+.status-icon :deep(.mdi) { font-size: 14px !important; color: inherit !important; }
+.status-icon.status-primary,
+.status-icon.status-primary:hover { color: #7957d5 !important; }
+.status-icon.status-danger,
+.status-icon.status-danger:hover { color: #f14668 !important; }
+.status-icon.status-info,
+.status-icon.status-info:hover { color: #3e8ed0 !important; }
+.status-icon.status-dark,
+.status-icon.status-dark:hover { color: #363636 !important; }
+html[data-theme="dark"] .status-icon.status-dark,
+html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !important; }
+
+/* CSS tooltips for status icons — same style as button tooltips */
+.status-icon[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 100;
+}
+.status-icon[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* Hover Actions - positioned at bottom-right of thumbnail */
 .hover-actions {
   position: absolute;
-  bottom: 56px;
+  bottom: 6px;
+  left: 6px;
   right: 6px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap-reverse;
   justify-content: flex-end;
   gap: 4px;
-  align-items: center;
+  align-items: flex-end;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
@@ -521,21 +610,12 @@ export default {
 
 
 
-/* Kill ALL margin/padding on every element inside hover-actions */
-.hover-actions :deep(*) {
-  margin: 0 !important;
-  margin-top: 0 !important;
-  margin-right: 0 !important;
-  margin-bottom: 0 !important;
-  margin-left: 0 !important;
-  padding: 0 !important;
-}
+/* Kill margins on direct children */
 .hover-actions > * {
   margin: 0 !important;
-  margin-bottom: 0 !important;
 }
 
-/* Base button reset — fixed 28x28, no extra spacing */
+/* Base button reset — fixed 28x28, solid filled */
 .hover-actions :deep(.button) {
   width: 28px !important;
   height: 28px !important;
@@ -544,142 +624,66 @@ export default {
   max-width: 28px !important;
   max-height: 28px !important;
   border-radius: 5px !important;
-  border: none !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: all 0.15s ease !important;
   line-height: 1 !important;
   box-sizing: border-box !important;
-  transform: none !important;
-  box-shadow: none !important;
-  /* Default: white bg */
-  background: rgba(255,255,255,0.92) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: #fff !important;
   color: #363636 !important;
 }
-.hover-actions :deep(.button:hover) {
-  background: #fff !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-}
-
-/* Active buttons with their semantic colors */
-.hover-actions :deep(.button.is-primary) {
-  background: rgba(121, 87, 213, 0.95) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-primary:hover) {
-  background: #7957d5 !important;
-}
-.hover-actions :deep(.button.is-success) {
-  background: rgba(72, 199, 142, 0.95) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-success:hover) {
-  background: #48c78e !important;
-}
-.hover-actions :deep(.button.is-danger) {
-  background: rgba(241, 70, 104, 0.95) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-danger:hover) {
-  background: #f14668 !important;
-}
-.hover-actions :deep(.button.is-warning) {
-  background: rgba(255, 221, 87, 0.95) !important;
-  color: rgba(0,0,0,0.7) !important;
-}
-.hover-actions :deep(.button.is-warning:hover) {
-  background: #ffdd57 !important;
-}
-.hover-actions :deep(.button.is-info) {
-  background: rgba(62, 142, 208, 0.95) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-info:hover) {
-  background: #3e8ed0 !important;
-}
-.hover-actions :deep(.button.is-link) {
-  background: rgba(72, 95, 199, 0.95) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-link:hover) {
-  background: #485fc7 !important;
-}
-.hover-actions :deep(.button.is-dark) {
-  background: rgba(54, 54, 54, 0.95) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-dark:hover) {
-  background: #363636 !important;
-}
-
-/* Outlined (inactive) buttons — same color as active but more transparent */
-/* Outlined (inactive) — same color, slightly transparent */
+/* Solid colors — active = full Bulma color, outlined = same color at 70% opacity */
+.hover-actions :deep(.button.is-primary),
 .hover-actions :deep(.button.is-primary.is-outlined) {
-  background: rgba(121, 87, 213, 0.7) !important;
-  color: #fff !important;
+  background: #7957d5 !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-primary.is-outlined:hover) {
-  background: #7957d5 !important;
-}
-.hover-actions :deep(.button.is-success.is-outlined) {
-  background: rgba(72, 199, 142, 0.7) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-success.is-outlined:hover) {
-  background: #48c78e !important;
-}
-.hover-actions :deep(.button.is-danger.is-outlined) {
-  background: rgba(241, 70, 104, 0.7) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-danger.is-outlined:hover) {
-  background: #f14668 !important;
-}
-.hover-actions :deep(.button.is-warning.is-outlined) {
-  background: rgba(255, 221, 87, 0.7) !important;
-  color: rgba(0,0,0,0.7) !important;
-}
-.hover-actions :deep(.button.is-warning.is-outlined:hover) {
-  background: #ffdd57 !important;
-}
-.hover-actions :deep(.button.is-info.is-outlined) {
-  background: rgba(62, 142, 208, 0.7) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-info.is-outlined:hover) {
-  background: #3e8ed0 !important;
-}
-.hover-actions :deep(.button.is-link.is-outlined) {
-  background: rgba(72, 95, 199, 0.7) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-link.is-outlined:hover) {
-  background: #485fc7 !important;
-}
-.hover-actions :deep(.button.is-dark.is-outlined) {
-  background: rgba(54, 54, 54, 0.7) !important;
-  color: #fff !important;
-}
-.hover-actions :deep(.button.is-dark.is-outlined:hover) {
-  background: #363636 !important;
-}
+.hover-actions :deep(.button.is-primary.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-primary.is-outlined:hover) { opacity: 1; }
 
-/* Preview mode: frosted glass for ALL buttons */
-.hover-actions.is-preview :deep(.button) {
-  background: rgba(255,255,255,0.15) !important;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  color: #fff !important;
-  border: 1px solid rgba(255,255,255,0.2) !important;
+.hover-actions :deep(.button.is-danger),
+.hover-actions :deep(.button.is-danger.is-outlined) {
+  background: #f14668 !important; color: #fff !important;
 }
-.hover-actions.is-preview :deep(.button:hover) {
-  background: rgba(255,255,255,0.3) !important;
-  box-shadow: none !important;
+.hover-actions :deep(.button.is-danger.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-danger.is-outlined:hover) { opacity: 1; }
+
+.hover-actions :deep(.button.is-info),
+.hover-actions :deep(.button.is-info.is-outlined) {
+  background: #3e8ed0 !important; color: #fff !important;
 }
-.hover-actions.is-preview :deep(.button:not(.is-outlined)) {
-  background: rgba(255,255,255,0.25) !important;
+.hover-actions :deep(.button.is-info.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-info.is-outlined:hover) { opacity: 1; }
+
+.hover-actions :deep(.button.is-link),
+.hover-actions :deep(.button.is-link.is-outlined) {
+  background: #485fc7 !important; color: #fff !important;
 }
+.hover-actions :deep(.button.is-link.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-link.is-outlined:hover) { opacity: 1; }
+
+.hover-actions :deep(.button.is-warning),
+.hover-actions :deep(.button.is-warning.is-outlined) {
+  background: #ffdd57 !important; color: rgba(0,0,0,0.7) !important;
+}
+.hover-actions :deep(.button.is-warning.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-warning.is-outlined:hover) { opacity: 1; }
+
+.hover-actions :deep(.button.is-success),
+.hover-actions :deep(.button.is-success.is-outlined) {
+  background: #48c78e !important; color: #fff !important;
+}
+.hover-actions :deep(.button.is-success.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-success.is-outlined:hover) { opacity: 1; }
+
+.hover-actions :deep(.button.is-dark),
+.hover-actions :deep(.button.is-dark.is-outlined) {
+  background: #363636 !important; color: #fff !important;
+}
+.hover-actions :deep(.button.is-dark.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-dark.is-outlined:hover) { opacity: 1; }
 
 .hover-actions :deep(.button .icon) {
   margin: 0 !important;
@@ -708,26 +712,23 @@ export default {
   height: 28px;
   min-width: 28px;
   min-height: 28px;
-  background: rgba(255,255,255,0.95);
+  background: #fff;
   border-radius: 5px;
   transition: all 0.15s ease;
   box-sizing: border-box;
 }
 .alt-link:hover {
-  background: #fff;
+  background: #e8e8e8;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-/* Preview mode alt-links */
+/* Preview mode alt-links — keep solid */
 .hover-actions.is-preview .alt-link {
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 .hover-actions.is-preview .alt-link:hover {
-  background: rgba(255,255,255,0.3);
-  box-shadow: none;
+  background: #e8e8e8;
 }
 
 .alt-img {
@@ -738,13 +739,18 @@ export default {
   display: block;
 }
 
-/* Info Section */
+/* Info Section — fixed height so all cards match */
 .info-section {
   position: relative;
   z-index: 21;
   padding: 7px 10px;
+  height: 52px;
+  box-sizing: border-box;
   transition: background 0.2s ease, color 0.2s ease;
   background: transparent;
+}
+.info-section:has(.status-icon:hover) {
+  z-index: 50;
 }
 
 /* Preview mode: frosted glass over video */
@@ -755,8 +761,16 @@ export default {
 }
 
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 20px;
+}
+
 .scene-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -769,7 +783,7 @@ export default {
 }
 
 .info-section.is-preview .scene-title {
-  color: #fff;
+  color: #fff !important;
 }
 
 
@@ -780,6 +794,7 @@ export default {
   font-size: 11px;
   color: var(--text-secondary, #666);
   min-width: 0;
+  height: 18px;
   gap: 8px;
 }
 
@@ -805,8 +820,18 @@ export default {
   overflow: hidden;
 }
 
+.site-icon {
+  width: 16px;
+  height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  border-radius: 2px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .site-link a {
-  color: inherit;
+  color: inherit !important;
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -814,7 +839,8 @@ export default {
 }
 
 .site-link a:hover {
-  color: var(--primary, #7957d5);
+  color: inherit !important;
+  text-decoration: underline;
 }
 
 .site-subscribed {
@@ -892,9 +918,10 @@ html[data-theme="dark"] .meta-row {
   color: #888;
 }
 html[data-theme="dark"] .site-link a:hover {
-  color: #8b7ff0;
+  color: inherit;
 }
 html[data-theme="dark"] .release-date {
   color: #999;
 }
+
 </style>
