@@ -11,7 +11,7 @@
          </div>
     </div>
 
-    <div style="padding-top:4px;">
+    <div class="card-info">
       <div class="scene_title">{{actor.name}}</div>
       <a v-if="colleague!=undefined" class="button is-info is-outlined is-small"
         @click="showColleague(actor.name,colleague)"
@@ -38,7 +38,7 @@
       <span class="is-pulled-right" style="font-size:11px;text-align:right;">                
           <span v-if="actor.birth_date != '0001-01-01T00:00:00Z'">{{format(parseISO(actor.birth_date), "yyyy-MM-dd")}}</span>
           <vue-load-image style="display:inline-block">
-            <img slot="image" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" style="height:10px;border: 1px solid black;margin-left:0.5em" />
+            <template #image><img :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" style="height:10px;border: 1px solid black;margin-left:0.5em"/></template>
           </vue-load-image>
           <div>
           <span v-if="actor.scenes.length == 1">{{actor.scenes.length}} scene</span>
@@ -51,6 +51,8 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import { format, parseISO } from 'date-fns'
 import ActorFavouriteButton from '../../components/ActorFavouriteButton'
 import ActorWatchlistButton from '../../components/ActorWatchlistButton'
@@ -59,10 +61,11 @@ import LinkStashdbButton from '../../components/LinkStashdbButton'
 import VueLoadImage from 'vue-load-image'
 import { tr } from 'date-fns/locale'
 
-export default {
+export default defineComponent({
   name: 'ActorCard',
   props: { actor: Object, colleague: String },
-   components: {ActorFavouriteButton, ActorWatchlistButton, VueLoadImage, ActorEditButton, LinkStashdbButton},
+  components: {ActorFavouriteButton, ActorWatchlistButton, VueLoadImage, ActorEditButton, LinkStashdbButton},
+
   data () {
     return {
       preview: false,
@@ -70,6 +73,7 @@ export default {
       parseISO
     }
   },
+
   computed: {
     isAvailOpacity () {      
       if (this.$store.state.optionsWeb.web.isAvailOpacity == undefined) {
@@ -94,6 +98,7 @@ export default {
       }
     },
   },
+
   methods: {
     getImageURL (u) {
       if (u=='' || u == undefined) {
@@ -129,7 +134,7 @@ export default {
     },
 
   },
-}
+});
 </script>
 
 <style scoped>
@@ -183,11 +188,19 @@ export default {
     margin-left: 0.1em;
   }
 
+  .card-info {
+    padding: 4px 4px 8px 4px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
   .scene_title {
     font-size: 12px;
-    text-align: right;
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+    font-weight: 500;
   }
 </style>

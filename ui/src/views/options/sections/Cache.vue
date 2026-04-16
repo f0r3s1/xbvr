@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
     <div class="content">
       <h3>{{$t("Cache")}}</h3>
       <hr/>
@@ -72,11 +72,14 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 import prettyBytes from 'pretty-bytes'
 
-export default {
+export default defineComponent({
   name: 'Cache',
+
   data () {
     return {
       isLoading: true,
@@ -85,10 +88,12 @@ export default {
       searchInprogress: false,
     }
   },
+
   async mounted () {
     await this.loadState()
     this.loadSearchState()
   },
+
   methods: {
     async loadState () {
       this.isLoading = true
@@ -125,6 +130,6 @@ export default {
       this.isLoading = false
     },
     prettyBytes
-  }
-}
+  },
+});
 </script>

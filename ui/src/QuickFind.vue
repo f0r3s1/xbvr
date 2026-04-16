@@ -1,6 +1,7 @@
 <template>
-  <b-modal :active.sync="isActive"
+  <b-modal :modelValue="isActive" @update:modelValue="isActive = $event"
            :destroy-on-hide="false"
+           :render-on-mounted="true"
            has-modal-card
            trap-focus
            aria-role="dialog"
@@ -38,13 +39,13 @@
         custom-class="is-large"
         max-height="450">
 
-        <template slot-scope="props">
+        <template v-slot="props">
           <div class="media">
             <div class="media-left">
               <vue-load-image>
-                <img slot="image" :src="getImageURL(props.option.cover_url)" width="80"/>
-                <img slot="preloader" src="/ui/images/blank.png" width="80"/>
-                <img slot="error" src="/ui/images/blank.png" width="80"/>
+                <template #image><img :src="getImageURL(props.option.cover_url)" width="80"/></template>
+                <template #preloader><img src="/ui/images/blank.png" width="80"/></template>
+                <template #error><img src="/ui/images/blank.png" width="80"/></template>
               </vue-load-image>
             </div>
             <div class="media-content">
@@ -71,42 +72,55 @@
 </template>
 
 <script>
+import { defineComponent, nextTick } from 'vue';
+
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 import { format, parseISO } from 'date-fns'
 import StarRating from 'vue-star-rating'
 
-export default {
+export default defineComponent({
   name: 'ModalNewTag',
+
   props: {
     active: Boolean,
     sceneId: String
   },
+
   components: { VueLoadImage, GlobalEvents, StarRating },
+
   computed: {
     isActive: {
       get () {
-        if (this.queryString!=null && this.queryString!="") {
-          this.getAsyncData(this.queryString)
-        }
-        const out = this.$store.state.overlay.quickFind.show
-        if (out === true) {
-          this.$nextTick(() => {
-            this.$refs.autocompleteInput.$refs.input.focus()
-          if (this.$store.state.overlay.quickFind.searchString !=null && this.$store.state.overlay.quickFind.searchString!="") {
-              this.queryString = this.$store.state.overlay.quickFind.searchString
-              this.$store.state.overlay.quickFind.searchString = null
-          }
-          })
-        }
-        return out
+        return this.$store.state.overlay.quickFind.show
       },
-      set (values) {
-        this.$store.state.overlay.quickFind.show = values
+      set (value) {
+        this.$store.state.overlay.quickFind.show = value
       }
     }
   },
+
+  watch: {
+    isActive (val) {
+      if (val) {
+        if (this.queryString != null && this.queryString != "") {
+          this.getAsyncData(this.queryString)
+        }
+        nextTick(() => {
+          const ac = this.$refs && this.$refs.autocompleteInput
+          const input = ac && ac.$refs && ac.$refs.input
+          if (input && input.focus) input.focus()
+          const qs = this.$store.state.overlay.quickFind.searchString
+          if (qs != null && qs != "") {
+            this.queryString = qs
+            this.$store.state.overlay.quickFind.searchString = null
+          }
+        })
+      }
+    }
+  },
+
   data () {
     return {
       data: [],
@@ -117,6 +131,7 @@ export default {
       queryString: ""
     }
   },
+
   methods: {
     format,
     parseISO,
@@ -208,8 +223,8 @@ export default {
       this.getAsyncData(this.queryString)
       this.$refs.autocompleteInput.focus()
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

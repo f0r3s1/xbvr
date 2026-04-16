@@ -32,12 +32,15 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 import { format, parseISO } from 'date-fns'
 import prettyBytes from 'pretty-bytes'
 
-export default {
-  name: 'CreateScene',  
+export default defineComponent({
+  name: 'CreateScene',
+
   data () {
     return {
       title: '',
@@ -46,14 +49,17 @@ export default {
       parseISO
     }
   },
+
   computed: {
     file () {
       return this.$store.state.overlay.createScene.file
     }
   },
+
   mounted () {
     this.initView()
   },
+
   methods: {
     initView () {
       const commonWords = [
@@ -93,8 +99,8 @@ export default {
         })
     },
     prettyBytes
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

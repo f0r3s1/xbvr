@@ -1,6 +1,6 @@
 <template>
   <div ref="scrollContainer" style="position: relative; min-height: 200px;">
-    <b-loading :is-full-page="false" :active.sync="isListReloading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isListReloading"></b-loading>
 
     <div class="columns is-multiline is-full">
       <div class="column">
@@ -66,18 +66,22 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import SceneCard from './SceneCard'
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   name: 'List',
   components: { SceneCard },
+
   props: {
     infiniteScrollEnabled: {
       type: Boolean,
       default: true
     }
   },
+
   data() {
     return {
       isLoadingMore: false,
@@ -85,6 +89,7 @@ export default {
       debounceTimeout: null
     }
   },
+
   computed: {
     cardSize: {
       get () {
@@ -163,6 +168,7 @@ export default {
       return this.$store.state.sceneList.counts
     }
   },
+
   watch: {
     '$store.state.sceneList.show_scene_id' (id) {
       if (id && id !== '') {
@@ -182,6 +188,7 @@ export default {
       }
     }
   },
+
   methods: {
     reloadList () {
       this.$router.push({
@@ -210,19 +217,21 @@ export default {
       }, 150)
     }
   },
+
   mounted () {
     this.scrollHandler = this.handleScroll.bind(this)
     if (this.infiniteScrollEnabled) {
       window.addEventListener('scroll', this.scrollHandler, { passive: true })
     }
   },
-  beforeDestroy () {
+
+  beforeUnmount () {
     if (this.scrollHandler) {
       window.removeEventListener('scroll', this.scrollHandler)
     }
     if (this.debounceTimeout) clearTimeout(this.debounceTimeout)
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

@@ -7,10 +7,13 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
-export default {
+export default defineComponent({
   name: 'RescrapeButton',
   props: { item: Object },
+
   methods: {
     delay(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
@@ -65,6 +68,6 @@ export default {
         }
       }
     }
-  }
-}
+  },
+});
 </script>

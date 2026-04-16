@@ -23,12 +23,12 @@
       <div class="modal-card-body">
         <div >
           <b-field label="Find actor...">
-            <b-input v-model="queryString" placeholder="Find actor..." @input="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
+            <b-input v-model="queryString" placeholder="Find actor..." @update:modelValue="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
           </b-field>
     
         <b-table :data="searchResults" @click="onRowSelected" >
           <b-table-column field="Name" >
-            <template slot-scope="props">
+            <template v-slot="props">
               <div class="media">
                 <div class="media-left">
                   <b-carousel 
@@ -38,17 +38,17 @@
                   >
                     <b-carousel-item v-for="(image, index) in props.row.ImageUrl" :key="index">
                           <vue-load-image height="50px">
-                            <img slot="image" :src="image && image.length ? getImageURL(image) : '/ui/images/blank_female_profile.png'" width="100"  @mouseover="setShowTooltipImage(image, props.row.Id)" @mouseout="setShowTooltipImage('','')"/>
-                            <img slot="preloader" src="/ui/images/blank.png" width="100" />
-                            <img slot="error" src="/ui/images/blank.png" width="100" />
+                            <template #image><img :src="image && image.length ? getImageURL(image) : '/ui/images/blank_female_profile.png'" width="100"  @mouseover="setShowTooltipImage(image, props.row.Id)" @mouseout="setShowTooltipImage('','')"/></template>
+                            <template #preloader><img src="/ui/images/blank.png" width="100"/></template>
+                            <template #error><img src="/ui/images/blank.png" width="100"/></template>
                           </vue-load-image>
                     </b-carousel-item>
                   </b-carousel>
                     <div v-if="tooltipImage!='' && tooltipID==props.row.Id" class="tooltipimg" @mouseout="setShowTooltipImage('','')">                      
                           <vue-load-image width="300">
-                            <img slot="image" :src="tooltipImage" width="300"  />
-                            <img slot="preloader" src="/ui/images/blank.png" width="300" />
-                            <img slot="error" src="/ui/images/blank.png" width="300" />
+                            <template #image><img :src="tooltipImage" width="300"/></template>
+                            <template #preloader><img src="/ui/images/blank.png" width="300"/></template>
+                            <template #error><img src="/ui/images/blank.png" width="300"/></template>
                           </vue-load-image>
                     </div>
                   <div v-if="props.row.DOB">
@@ -97,7 +97,9 @@
 </template>
 
 <script>
-import GlobalEvents from 'vue-global-events'
+import { defineComponent, nextTick } from 'vue';
+
+import { GlobalEvents } from 'vue-global-events'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 import { format, parseISO } from 'date-fns'
@@ -111,9 +113,10 @@ function debounce(func, wait) {
   };
 }
 
-export default {
+export default defineComponent({
   name: 'SearchStashdbActors',
   components: {  GlobalEvents, VueLoadImage },
+
   data () {
     return {
         isModalActive: true,
@@ -127,15 +130,18 @@ export default {
         selectedRow: undefined,
         }        
   },
+
   created() {
     this.debouncedSearch = debounce(this.searchStashdb, 750); // 750ms delay
   },
+
   mounted () {
     const item = Object.assign({}, this.$store.state.overlay.searchStashDbActors.actor)    
     this.actor = item
     this.openDialog(item)
     this.queryString=this.actor.name
   },
+
   methods: {
     format,
     parseISO,
@@ -154,7 +160,7 @@ export default {
     },
     selectActor(option) {
         this.stashdbUrl=option.Url.replace("https://stashdb.org/performers/","")
-        this.$nextTick(() => {
+        nextTick(() => {
             if (this.$refs.autocompleteInput) {
                 this.$refs.autocompleteInput.focus();
             }
@@ -178,7 +184,7 @@ export default {
     openDialog(actor) {
         this.isModalActive = true
         this.searchStashdb()
-        this.$nextTick(() => {
+        nextTick(() => {
             if (this.$refs.autocompleteInput) {
                 this.$refs.autocompleteInput.focus();
             }
@@ -209,10 +215,11 @@ export default {
       this.selectedRow= row      
     },
 },
+
   computed: {
 
-}
-}
+},
+});
 </script>
 
 <style scoped>

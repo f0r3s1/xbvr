@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
     <div class="content">
       <h3>{{$t("DLNA interface")}}</h3>
       <hr/>
@@ -38,7 +38,7 @@
               <p v-if="!isLoading">
                 Recent IP addresses:
                 <span v-if="dlnaOptions.recentIp.length > 0">
-                  <b-tag rounded v-for="s in dlnaOptions.recentIp" :value="s" :key="s.id" style="text-decoration: underline; margin-right:0.25em; cursor: pointer;" type="is-info"><span @click="addIP(s)">{{ s }}</span></b-tag>
+                  <b-tag rounded v-for="s in dlnaOptions.recentIp" :modelValue="s" :key="s.id" style="text-decoration: underline; margin-right:0.25em; cursor: pointer;" type="is-info"><span @click="addIP(s)">{{ s }}</span></b-tag>
                 </span>
                 <span v-else>none (connect to DLNA at least once to find out device's IP address)</span>
               </p>
@@ -64,11 +64,15 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'InterfaceDLNA',
+
   mounted () {
     this.$store.dispatch('optionsDLNA/load')
   },
+
   methods: {
     save () {
       this.$store.dispatch('optionsDLNA/save')
@@ -85,6 +89,7 @@ export default {
       return (new Set(array)).size !== array.length
     }
   },
+
   computed: {
     enabled: {
       get () {
@@ -124,6 +129,6 @@ export default {
     dlnaOptions: function () {
       return this.$store.state.optionsDLNA.dlna
     }
-  }
-}
+  },
+});
 </script>

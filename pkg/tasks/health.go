@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,9 +54,13 @@ var (
 	healthCancel   int32
 	lastReport     *HealthReport
 	lastReportLock sync.RWMutex
+
+	// imageErrorsMu guards imageErrors map (sceneID → timestamp of last failure)
+	imageErrorsMu sync.Mutex
+	imageErrors   = map[uint]time.Time{}
 )
 
-const totalHealthSteps = 15
+const totalHealthSteps = 16
 
 func publishProgress(step string, stepNum int) {
 	pct := float64(stepNum) / float64(totalHealthSteps) * 100
@@ -106,6 +109,34 @@ func GetLastHealthReport() *HealthReport {
 	lastReportLock.RLock()
 	defer lastReportLock.RUnlock()
 	return lastReport
+}
+
+// ReportImageError is called by the API when the browser reports a cover image 404.
+func ReportImageError(sceneID uint) {
+	imageErrorsMu.Lock()
+	imageErrors[sceneID] = time.Now()
+	imageErrorsMu.Unlock()
+}
+
+// getLastReportItemIDs returns the scene IDs from a specific issue in the last report.
+func getLastReportItemIDs(issueID string) []uint {
+	lastReportLock.RLock()
+	defer lastReportLock.RUnlock()
+	if lastReport == nil {
+		return nil
+	}
+	for _, issue := range lastReport.Issues {
+		if issue.ID == issueID {
+			ids := make([]uint, 0, len(issue.AffectedItems))
+			for _, item := range issue.AffectedItems {
+				if item.ID > 0 {
+					ids = append(ids, item.ID)
+				}
+			}
+			return ids
+		}
+	}
+	return nil
 }
 
 func RunHealthCheck() {
@@ -247,8 +278,9 @@ func RunHealthCheck() {
 			Where("(cover_url = '' OR cover_url IS NULL) AND is_available = ?", true).Count(&noCoverCount)
 		issues = append(issues, HealthIssue{
 			ID: "missing-covers", Category: "scenes", Severity: "info",
-			Description:   fmt.Sprintf("%d available scenes have no cover image", noCoverCount),
-			Detail:        "Re-scrape to fetch covers",
+			Description: fmt.Sprintf("%d available scenes have no cover image", noCoverCount),
+			Detail:      "Will trigger a metadata re-scrape for these scenes", Fixable: true,
+			FixAction: "rescrape-scenes", FixLabel: "Re-scrape Scenes",
 			AffectedItems: items,
 		})
 		stats["missing_covers"] = noCoverCount
@@ -282,7 +314,6 @@ func RunHealthCheck() {
 			Description:   fmt.Sprintf("%d scenes have no cast information", noCastCount),
 			AffectedItems: items,
 		})
-		stats["missing_cast"] = noCastCount
 	}
 
 	if cancelled() {
@@ -292,14 +323,26 @@ func RunHealthCheck() {
 
 	// -- Step 7: Missing tags --
 	publishProgress("Checking missing tags", 7)
+	var noTagScenes []struct {
+		ID    uint
+		Title string
+		Site  string
+	}
+	commonDb.Model(&models.Scene{}).Select("id, title, site").
+		Where("id NOT IN (SELECT scene_id FROM scene_tags) AND is_hidden = ?", false).
+		Limit(50).Scan(&noTagScenes)
 	var noTagCount int
 	commonDb.Model(&models.Scene{}).
 		Where("id NOT IN (SELECT scene_id FROM scene_tags) AND is_hidden = ?", false).Count(&noTagCount)
 	if noTagCount > 0 {
+		items := make([]AffectedItem, 0, len(noTagScenes))
+		for _, s := range noTagScenes {
+			items = append(items, AffectedItem{ID: s.ID, Label: s.Title, Extra: s.Site})
+		}
 		issues = append(issues, HealthIssue{
 			ID: "missing-tags", Category: "scenes", Severity: "info",
 			Description:   fmt.Sprintf("%d scenes have no tags", noTagCount),
-			AffectedItems: make([]AffectedItem, 0),
+			AffectedItems: items,
 		})
 	}
 
@@ -308,42 +351,31 @@ func RunHealthCheck() {
 		return
 	}
 
-	// -- Step 8: Files missing on disk (slowest check) --
+	// -- Step 8: Files missing on disk --
 	publishProgress("Checking files on disk", 8)
 	var filesToCheck []models.File
 	commonDb.Preload("Volume").Where("scene_id > 0").Find(&filesToCheck)
-	var missingItems []AffectedItem
-	for i, f := range filesToCheck {
+	var missingOnDisk []AffectedItem
+	for _, f := range filesToCheck {
 		if cancelled() {
 			publishCancelled()
 			return
 		}
 		if f.Volume.Type == "local" {
-			if _, err := os.Stat(f.GetPath()); os.IsNotExist(err) {
-				missingItems = append(missingItems, AffectedItem{ID: f.ID, Label: f.Filename, Extra: f.GetPath()})
+			fullPath := filepath.Join(f.Path, f.Filename)
+			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+				missingOnDisk = append(missingOnDisk, AffectedItem{ID: f.ID, Label: f.Filename, Extra: f.Path})
 			}
 		}
-		// Sub-progress for large file lists
-		if i > 0 && i%500 == 0 {
-			pct := 7.0 + float64(i)/float64(len(filesToCheck))
-			common.PublishWS("health.progress", map[string]interface{}{
-				"running":     true,
-				"step":        fmt.Sprintf("Checking files on disk (%d/%d)", i, len(filesToCheck)),
-				"step_num":    8,
-				"total_steps": totalHealthSteps,
-				"percent":     pct / float64(totalHealthSteps) * 100,
-			})
-		}
 	}
-	if len(missingItems) > 0 {
+	if len(missingOnDisk) > 0 {
 		issues = append(issues, HealthIssue{
-			ID: "missing-on-disk", Category: "files", Severity: "critical",
-			Description: fmt.Sprintf("%d matched files no longer exist on disk", len(missingItems)),
-			Detail:      "Rescan will remove stale file records", Fixable: true,
-			FixAction: "rescan", FixLabel: "Rescan Volumes", AffectedItems: missingItems,
+			ID: "files-missing-on-disk", Category: "files", Severity: "warning",
+			Description: fmt.Sprintf("%d matched files are missing from disk", len(missingOnDisk)),
+			Detail:      "Rescan volumes to update file statuses", Fixable: true,
+			FixAction: "rescan", FixLabel: "Rescan Volumes", AffectedItems: missingOnDisk,
 		})
 	}
-	stats["missing_on_disk"] = len(missingItems)
 
 	if cancelled() {
 		publishCancelled()
@@ -369,7 +401,9 @@ func RunHealthCheck() {
 		}
 		issues = append(issues, HealthIssue{
 			ID: "duplicate-scene-ids", Category: "scenes", Severity: "warning",
-			Description:   fmt.Sprintf("%d duplicate scene IDs (%d total records)", len(dups), total),
+			Description: fmt.Sprintf("%d duplicate scene IDs (%d total records)", len(dups), total),
+			Detail:      "Will keep the record with the most associated files and delete duplicates",
+			Fixable:     true, FixAction: "remove-duplicates", FixLabel: "Remove Duplicates",
 			AffectedItems: items,
 		})
 	}
@@ -421,7 +455,9 @@ func RunHealthCheck() {
 		}
 		issues = append(issues, HealthIssue{
 			ID: "blank-titles", Category: "scenes", Severity: "warning",
-			Description:   fmt.Sprintf("%d scenes have no title", len(blankTitleScenes)),
+			Description: fmt.Sprintf("%d scenes have no title", len(blankTitleScenes)),
+			Detail:      "Will delete scenes with no title and no associated files",
+			Fixable:     true, FixAction: "delete-blank-scenes", FixLabel: "Delete Untitled (no files)",
 			AffectedItems: items,
 		})
 	}
@@ -476,7 +512,9 @@ func RunHealthCheck() {
 	if len(brokenImageItems) > 0 {
 		issues = append(issues, HealthIssue{
 			ID: "broken-images-json", Category: "scenes", Severity: "warning",
-			Description:   fmt.Sprintf("%d scenes have malformed image data", len(brokenImageItems)),
+			Description: fmt.Sprintf("%d scenes have malformed image data", len(brokenImageItems)),
+			Detail:      "Will clear the broken image data; re-scrape to restore",
+			Fixable:     true, FixAction: "clear-broken-images", FixLabel: "Clear Broken Image Data",
 			AffectedItems: brokenImageItems,
 		})
 	}
@@ -532,38 +570,80 @@ func RunHealthCheck() {
 		return
 	}
 
-	// -- Step 15: Dead cover URLs --
-	publishProgress("Sampling cover URLs", 15)
-	var coverSample []struct {
+	// -- Step 15: Dead cover URLs (all scenes, capped at 300) --
+	publishProgress("Checking cover URLs", 15)
+	var coverScenes []struct {
 		ID       uint
 		Title    string
 		CoverURL string
 	}
 	commonDb.Model(&models.Scene{}).Select("id, title, cover_url").
 		Where("cover_url != '' AND cover_url IS NOT NULL AND cover_url LIKE 'http%'").
-		Order("RANDOM()").Limit(20).Scan(&coverSample)
+		Order("RANDOM()").Limit(300).Scan(&coverScenes)
 	var deadCoverItems []AffectedItem
-	client := &http.Client{Timeout: 5 * time.Second}
-	for _, s := range coverSample {
+	client := &http.Client{Timeout: 4 * time.Second}
+	for _, s := range coverScenes {
 		if cancelled() {
 			publishCancelled()
 			return
 		}
-		if strings.HasPrefix(s.CoverURL, "http") {
-			resp, err := client.Head(s.CoverURL)
-			if err != nil || resp.StatusCode >= 400 {
-				deadCoverItems = append(deadCoverItems, AffectedItem{ID: s.ID, Label: s.Title, Extra: s.CoverURL})
-			}
-			if resp != nil {
-				resp.Body.Close()
-			}
+		resp, err := client.Head(s.CoverURL)
+		if err != nil || resp.StatusCode >= 400 {
+			deadCoverItems = append(deadCoverItems, AffectedItem{ID: s.ID, Label: s.Title, Extra: s.CoverURL})
+		}
+		if resp != nil {
+			resp.Body.Close()
 		}
 	}
 	if len(deadCoverItems) > 0 {
 		issues = append(issues, HealthIssue{
 			ID: "dead-cover-urls", Category: "scenes", Severity: "warning",
-			Description:   fmt.Sprintf("%d of %d sampled cover URLs are unreachable", len(deadCoverItems), len(coverSample)),
+			Description: fmt.Sprintf("%d of %d sampled cover URLs are unreachable", len(deadCoverItems), len(coverScenes)),
+			Detail:      "Will clear dead cover URLs so the next scrape can re-fetch them",
+			Fixable:     true, FixAction: "clear-dead-covers", FixLabel: "Clear Dead Covers",
 			AffectedItems: deadCoverItems,
+		})
+	}
+
+	if cancelled() {
+		publishCancelled()
+		return
+	}
+
+	// -- Step 16: Browser-reported broken cover images --
+	publishProgress("Checking browser-reported image errors", 16)
+	imageErrorsMu.Lock()
+	reportedErrors := make(map[uint]time.Time, len(imageErrors))
+	for k, v := range imageErrors {
+		reportedErrors[k] = v
+	}
+	imageErrorsMu.Unlock()
+
+	if len(reportedErrors) > 0 {
+		// Look up scene titles for the reported IDs
+		ids := make([]uint, 0, len(reportedErrors))
+		for id := range reportedErrors {
+			ids = append(ids, id)
+		}
+		var reportedScenes []struct {
+			ID    uint
+			Title string
+		}
+		commonDb.Model(&models.Scene{}).Select("id, title").Where("id IN (?)", ids).Scan(&reportedScenes)
+		titleMap := make(map[uint]string, len(reportedScenes))
+		for _, s := range reportedScenes {
+			titleMap[s.ID] = s.Title
+		}
+		items := make([]AffectedItem, 0, len(reportedErrors))
+		for id, ts := range reportedErrors {
+			items = append(items, AffectedItem{ID: id, Label: titleMap[id], Extra: ts.Format("15:04:05")})
+		}
+		issues = append(issues, HealthIssue{
+			ID: "browser-image-errors", Category: "scenes", Severity: "warning",
+			Description: fmt.Sprintf("%d scenes had cover image load failures in this session", len(items)),
+			Detail:      "Will clear cover URLs so the next scrape re-fetches them",
+			Fixable:     true, FixAction: "clear-reported-covers", FixLabel: "Clear Failed Covers",
+			AffectedItems: items,
 		})
 	}
 
@@ -592,12 +672,96 @@ func FixHealthIssue(action string) error {
 	switch action {
 	case "refresh-status":
 		go RefreshSceneStatuses()
+
 	case "rescan":
 		go RescanVolumes(-1)
+
 	case "clean-tags":
 		go CleanTags()
+
 	case "generate-previews":
 		go GeneratePreviews(nil)
+
+	case "rescrape-scenes":
+		go Scrape("_enabled", "", "", false)
+
+	case "clear-broken-images":
+		go func() {
+			ids := getLastReportItemIDs("broken-images-json")
+			if len(ids) == 0 {
+				return
+			}
+			db, _ := models.GetDB()
+			defer db.Close()
+			db.Model(&models.Scene{}).Where("id IN (?)", ids).Updates(map[string]interface{}{"images": ""})
+		}()
+
+	case "clear-dead-covers":
+		go func() {
+			ids := getLastReportItemIDs("dead-cover-urls")
+			if len(ids) == 0 {
+				return
+			}
+			db, _ := models.GetDB()
+			defer db.Close()
+			db.Model(&models.Scene{}).Where("id IN (?)", ids).Updates(map[string]interface{}{"cover_url": ""})
+		}()
+
+	case "clear-reported-covers":
+		go func() {
+			ids := getLastReportItemIDs("browser-image-errors")
+			if len(ids) == 0 {
+				return
+			}
+			db, _ := models.GetDB()
+			defer db.Close()
+			db.Model(&models.Scene{}).Where("id IN (?)", ids).Updates(map[string]interface{}{"cover_url": ""})
+			// Also clear from in-memory error tracking
+			imageErrorsMu.Lock()
+			for _, id := range ids {
+				delete(imageErrors, id)
+			}
+			imageErrorsMu.Unlock()
+		}()
+
+	case "remove-duplicates":
+		go func() {
+			db, _ := models.GetDB()
+			defer db.Close()
+			// Find all duplicate scene_ids
+			type dupResult struct {
+				SceneID string
+				Cnt     int
+			}
+			var dups []dupResult
+			db.Model(&models.Scene{}).
+				Select("scene_id, count(*) as cnt").Where("scene_id != ''").
+				Group("scene_id").Having("count(*) > 1").Scan(&dups)
+			for _, d := range dups {
+				// Get all records for this scene_id, ordered by file count desc then id asc
+				var sceneIDs []uint
+				db.Raw(`SELECT s.id FROM scenes s
+					LEFT JOIN (SELECT scene_id, count(*) as fc FROM files GROUP BY scene_id) f ON f.scene_id = s.id
+					WHERE s.scene_id = ?
+					ORDER BY COALESCE(f.fc, 0) DESC, s.id ASC`, d.SceneID).Pluck("id", &sceneIDs)
+				if len(sceneIDs) <= 1 {
+					continue
+				}
+				// Keep the first (most files, oldest), delete the rest
+				toDelete := sceneIDs[1:]
+				db.Where("id IN (?)", toDelete).Delete(&models.Scene{})
+			}
+		}()
+
+	case "delete-blank-scenes":
+		go func() {
+			db, _ := models.GetDB()
+			defer db.Close()
+			// Only delete scenes with no title AND no files
+			db.Exec(`DELETE FROM scenes WHERE (title = '' OR title IS NULL)
+				AND id NOT IN (SELECT DISTINCT scene_id FROM files WHERE scene_id > 0)`)
+		}()
+
 	default:
 		return fmt.Errorf("unknown fix action: %s", action)
 	}

@@ -63,13 +63,18 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import draggable from 'vuedraggable'
 
-export default {
+export default defineComponent({
+  emits: ['setCover', 'update:list'],
   name: 'GalleryEditor',
+
   components: {
     draggable
   },
+
   props: {
     list: {
       type: Array,
@@ -84,6 +89,7 @@ export default {
       default: () => {}
     }
   },
+
   data () {
     return {
       internalList: [...this.list],
@@ -91,11 +97,17 @@ export default {
       isLocked: true // Default to locked
     }
   },
+
   watch: {
-    list(newList) {
-      this.internalList = [...newList];
+    list: {
+      deep: true,
+
+      handler(newList) {
+        this.internalList = [...newList];
+      },
     }
   },
+
   methods: {
     toggleLock() {
       this.isLocked = !this.isLocked;
@@ -183,8 +195,8 @@ export default {
         reader.readAsDataURL(file);
       }
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

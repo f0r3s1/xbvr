@@ -3,99 +3,114 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import { Wampy } from 'wampy'
 
-export default {
+export default defineComponent({
   name: 'Socket',
+
   data () {
     return {
       wsStatus: ''
     }
   },
+
   mounted () {
-    const ws = new Wampy('/ws/', {
-      realm: 'default',
-      onConnect: () => {
-        this.wsStatus = 'connected'
-      },
-      onClose: () => {
-        this.wsStatus = 'disconnected'
-      },
-      onError: () => {
-        this.wsStatus = 'disconnected'
-      },
-      onReconnect: () => {
-        this.wsStatus = 'connecting'
-      },
-      onReconnectSuccess: () => {
-        this.wsStatus = 'connected'
-      }
-    })    
+    this._connectWs()
+  },
 
-    ws.subscribe('service.log', (dataArr, dataObj) => {
-      if (dataArr.argsDict.level == 'debug') {
-        console.debug(dataArr.argsDict.message)
-      }
-      if (dataArr.argsDict.level == 'info') {
-        console.info(dataArr.argsDict.message)
-      }
-      if (dataArr.argsDict.level == 'error') {
-        console.error(dataArr.argsDict.message)
-      }
+  methods: {
+    async _connectWs () {
+      const ws = new Wampy('/ws/', {
+        realm: 'default',
+        autoReconnect: true,
+        reconnectInterval: 2000,
+        maxRetries: 0,
+        onClose: () => { this.wsStatus = 'disconnected' },
+        onReconnect: () => { this.wsStatus = 'connecting' },
+        onReconnectSuccess: async () => {
+          this.wsStatus = 'connected'
+          await this._subscribe(ws)
+        },
+      })
 
-      if (dataArr.argsDict.data.task === 'scrape') {
-        this.$store.state.messages.lastScrapeMessage = dataArr.argsDict
-      }
-
-      if (dataArr.argsDict.data.task === 'scraperProgress') {
-        if (dataArr.argsDict.message === 'DONE') {
-          this.$store.state.messages.runningScrapers = []
-        }
-
-        if (dataArr.argsDict.data.started) {
-          this.$store.state.messages.runningScrapers.push(dataArr.argsDict.data.scraperID)
-        }
-
-        if (dataArr.argsDict.data.completed) {
-          this.$store.state.messages.runningScrapers.splice(this.$store.state.messages.runningScrapers.indexOf(dataArr.argsDict.data.scraperID), 1)
+      // Retry initial connection until Go backend is ready
+      while (true) {
+        try {
+          await ws.connect()
+          this.wsStatus = 'connected'
+          break
+        } catch {
+          this.wsStatus = 'disconnected'
+          await new Promise(r => setTimeout(r, 2000))
         }
       }
 
-      if (dataArr.argsDict.data.task === 'rescan') {
-        this.$store.state.messages.lastRescanMessage = dataArr.argsDict
-      }
-    })
+      await this._subscribe(ws)
+    },
 
-    ws.subscribe('lock.change', (dataArr, dataObj) => {
-      if (dataArr.argsDict.name === 'scrape') {
-        this.$store.state.messages.lockScrape = dataArr.argsDict.locked
-      }
-      if (dataArr.argsDict.name === 'rescan') {
-        this.$store.state.messages.lockRescan = dataArr.argsDict.locked
-      }
-    })
+    async _subscribe (ws) {
+      await ws.subscribe('service.log', (eventData) => {
+        if (eventData.argsDict.level == 'debug') {
+          console.debug(eventData.argsDict.message)
+        }
+        if (eventData.argsDict.level == 'info') {
+          console.info(eventData.argsDict.message)
+        }
+        if (eventData.argsDict.level == 'error') {
+          console.error(eventData.argsDict.message)
+        }
 
-    ws.subscribe('state.change.optionsStorage', (arr, obj) => {
-      this.$store.dispatch('optionsStorage/load')
-    })
+        if (eventData.argsDict.data.task === 'scrape') {
+          this.$store.state.messages.lastScrapeMessage = eventData.argsDict
+        }
 
-    ws.subscribe('options.previews.previewReady', (arr, obj) => {
-      this.$store.commit('optionsPreviews/showPreview', { previewFn: arr.argsDict.previewFn })
-    })
+        if (eventData.argsDict.data.task === 'scraperProgress') {
+          if (eventData.argsDict.message === 'DONE') {
+            this.$store.state.messages.runningScrapers = []
+          }
+          if (eventData.argsDict.data.started) {
+            this.$store.state.messages.runningScrapers.push(eventData.argsDict.data.scraperID)
+          }
+          if (eventData.argsDict.data.completed) {
+            this.$store.state.messages.runningScrapers.splice(this.$store.state.messages.runningScrapers.indexOf(eventData.argsDict.data.scraperID), 1)
+          }
+        }
 
-    // Health check progress
-    ws.subscribe('health.progress', (arr, obj) => {
-      this.$store.commit('health/setProgress', arr.argsDict)
-    })
+        if (eventData.argsDict.data.task === 'rescan') {
+          this.$store.state.messages.lastRescanMessage = eventData.argsDict
+        }
+      })
 
-    // Remote
-    ws.subscribe('remote.state', (arr, obj) => {
-      this.$store.dispatch('remote/processMessage', arr.argsDict)
-    })
+      await ws.subscribe('lock.change', (eventData) => {
+        if (eventData.argsDict.name === 'scrape') {
+          this.$store.state.messages.lockScrape = eventData.argsDict.locked
+        }
+        if (eventData.argsDict.name === 'rescan') {
+          this.$store.state.messages.lockRescan = eventData.argsDict.locked
+        }
+      })
+
+      await ws.subscribe('state.change.optionsStorage', () => {
+        this.$store.dispatch('optionsStorage/load')
+      })
+
+      await ws.subscribe('options.previews.previewReady', (eventData) => {
+        this.$store.commit('optionsPreviews/showPreview', { previewFn: eventData.argsDict.previewFn })
+      })
+
+      await ws.subscribe('health.progress', (eventData) => {
+        this.$store.commit('health/setProgress', eventData.argsDict)
+      })
+
+      await ws.subscribe('remote.state', (eventData) => {
+        this.$store.dispatch('remote/processMessage', eventData.argsDict)
+      })
+    }
   }
-}
+});
 </script>
 
 <style scoped>
-
 </style>

@@ -1,7 +1,7 @@
 <template>
   <div>
     <b-field grouped>
-      <b-select size="is-small" @input="setPlaylist" expanded v-model="currentPlaylist">
+      <b-select size="is-small" @update:modelValue="setPlaylist" expanded v-model="currentPlaylist">
         <optgroup label="Web">
           <option v-for="(obj, idx) in playlistsWeb" :value="obj.id" :key="idx">
             {{ obj.name }}
@@ -31,7 +31,7 @@
       </b-tooltip>
     </b-field>
 
-    <b-modal :active.sync="isPlaylistModalActive"
+    <b-modal v-model="isPlaylistModalActive"
              has-modal-card
              trap-focus
              aria-role="dialog"
@@ -59,13 +59,17 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   name: 'SavedSearch',
+
   mounted () {
     this.$store.dispatch('actorList/filters')
   },
+
   data () {
     return {
       currentPlaylistObj: null,
@@ -76,6 +80,7 @@ export default {
       playlistName: ''      
     }
   },
+
   methods: {
     showNewDialog () {
       this.modalTitle = 'Create new saved search'
@@ -142,6 +147,7 @@ export default {
     }
 
   },
+
   computed: {
     playlists () {
       return this.$store.state.actorList.playlists
@@ -178,8 +184,8 @@ export default {
       }
       return false
     }
-  }
-}
+  },
+});
 </script>
 
 <style lang="scss" scoped>

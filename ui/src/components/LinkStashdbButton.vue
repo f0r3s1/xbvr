@@ -16,9 +16,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'LinkStashdbButton',
-  props: { item: Object, objectType: String },  
+  props: { item: Object, objectType: String },
+
   data () {
     return {
         isModalActive: false,
@@ -28,11 +31,13 @@ export default {
         isFetching: false,
         }
   },
+
   computed: {
     buttonClass () {
       return 'button  is-outlined is-small'
     }
   },
+
   methods: {
     openDialog(item) {
         if (this.objectType == "scene") {
@@ -41,7 +46,7 @@ export default {
           this.$store.commit('overlay/showSearchStashdbActors', { item })
         }
       },
-    }
-}
+    },
+});
 </script>
     

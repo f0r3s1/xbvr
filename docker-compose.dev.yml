@@ -9,12 +9,14 @@ services:
         mkdir -p /root/.config/xbvr/xbvr_data/migrations/release
         mkdir -p /root/.config/xbvr/xbvr_data/migrations/custom
         cp -ru /app/xbvr_data /root/.config/xbvr 2>/dev/null || true
-        # Create ui/dist with public assets for go:embed (Vue dev server serves the real UI)
+        # Create ui/dist with public assets for go:embed (Vite dev server serves the real UI)
         mkdir -p /app/ui/dist
         echo '<!-- dev placeholder -->' > /app/ui/dist/index.html
         cp -r /app/ui/public/dlna /app/ui/dist/dlna 2>/dev/null || true
-        # Start Vue dev server (HMR) in background
-        cd /app/ui && node ../node_modules/@vue/cli-service/bin/vue-cli-service.js serve &
+        # Sync JS deps if volume is stale
+        cd /app && bun install --frozen-lockfile
+        # Start Vite dev server (HMR) in background
+        cd /app/ui && /app/node_modules/.bin/vite --host 0.0.0.0 &
         # Start Go with air (hot reload)
         cd /app && air
       "

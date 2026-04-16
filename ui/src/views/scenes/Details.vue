@@ -44,12 +44,12 @@
                         <span class="carousel-type-tag" v-if="carouselImageInfo[i]">{{ carouselImageInfo[i] }}</span>
                       </div>
                     </b-carousel-item>
-                    <template slot="indicators" slot-scope="props">
+                    <template #indicators="props">
                         <span class="al image" style="width:max-content;">
                           <vue-load-image>
-                            <img slot="image" :src="getIndicatorURL(props.i)" style="height:40px;"/>
-                            <img slot="preloader" src="/ui/images/blank.png" style="height:40px;"/>
-                            <img slot="error" src="/ui/images/blank.png" style="height:40px;"/>
+                            <template #image><img :src="getIndicatorURL(props.i)" style="height:40px;"/></template>
+                            <template #preloader><img src="/ui/images/blank.png" style="height:40px;"/></template>
+                            <template #error><img src="/ui/images/blank.png" style="height:40px;"/></template>
                           </vue-load-image>
                         </span>
                     </template>
@@ -64,22 +64,24 @@
                 <div class="player-wrapper">
                   <video ref="player" class="video-js vjs-default-skin" controls playsinline preload="none"/>
                 </div>
-                <b-field position="is-centered">
-                  <b-field>
-                    <b-tooltip v-for="(skipBack, i) in skipBackIntervals" class="is-size-7" :key="i" :active="skipBack == lastSkipBackInterval ? true : false" :label="$t('Keyboard shortcut: Left Arrow')"
-                        position="is-top" type="is-primary is-light" >
-                    <b-button class="tag is-small is-outlined is-info is-light"  @click="playerStepBack(skipBack)">
-                      <b-icon v-if="skipBack == lastSkipBackInterval" pack="mdi" icon="arrow-left-thin" size="is-small"></b-icon> {{ skipBack }}</b-button>
+                <div class="skip-controls">
+                  <div class="skip-group">
+                    <b-tooltip v-for="(skipBack, i) in skipBackIntervals" :key="i" :active="skipBack == lastSkipBackInterval" :label="$t('Keyboard shortcut: Left Arrow')"
+                        position="is-top" type="is-primary is-light">
+                      <b-button class="tag is-small is-outlined is-info is-light" @click="playerStepBack(skipBack)">
+                        <b-icon v-if="skipBack == lastSkipBackInterval" pack="mdi" icon="arrow-left-thin" size="is-small"></b-icon> {{ skipBack }}
+                      </b-button>
                     </b-tooltip>
-                  </b-field>
-                  <b-field style="margin-left:1em">
-                    <b-tooltip v-for="(skipForward, i) in skipForwardIntervals" :key="i" :active="skipForward == lastSkipFowardInterval ? true : false" :label="$t('Keyboard shortcut: Right Arrow')"
-                        position="is-top" type="is-primary is-light" >
-                    <b-button class="tag is-small is-outlined is-info is-light" @click="playerStepForward(skipForward)">
-                      <b-icon v-if="skipForward == lastSkipFowardInterval" pack="mdi" icon="arrow-right-thin" size="is-small"></b-icon> +{{ skipForward }}</b-button>
+                  </div>
+                  <div class="skip-group">
+                    <b-tooltip v-for="(skipForward, i) in skipForwardIntervals" :key="i" :active="skipForward == lastSkipFowardInterval" :label="$t('Keyboard shortcut: Right Arrow')"
+                        position="is-top" type="is-primary is-light">
+                      <b-button class="tag is-small is-outlined is-info is-light" @click="playerStepForward(skipForward)">
+                        <b-icon v-if="skipForward == lastSkipFowardInterval" pack="mdi" icon="arrow-right-thin" size="is-small"></b-icon> +{{ skipForward }}
+                      </b-button>
                     </b-tooltip>
-                  </b-field>
-                </b-field>
+                  </div>
+                </div>
              </b-tab-item>
 
             </b-tabs>
@@ -149,8 +151,8 @@
                   <div v-for="(altsrc, idx) in alternateSourcesWithTitles" :key="idx" class="altsrc-image-wrapper" @click="showExtRefScene(altsrc)">
                     <b-tooltip type="is-light" :label="altsrc.title" :delay="0" append-to-body>
                       <vue-load-image>
-                        <img slot="image" :src="getImageURL(altsrc.site_icon)" alt="Image" width="28px"/>
-                        <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
+                        <template #image><img :src="getImageURL(altsrc.site_icon)" alt="Image" width="28px"/></template>
+                        <template #error><b-icon pack="mdi" icon="link" size="is-small"/></template>
                       </vue-load-image>
                     </b-tooltip>
                   </div>
@@ -165,9 +167,9 @@
                      :data-tooltip="image.actor_label"
                      @click='showActorDetail([image.actor_id])'>
                   <vue-load-image>
-                    <img slot="image" :src="getImageURL(image.src)" class="cast-thumb"/>
-                    <img slot="preloader" src="/ui/images/blank_female_profile.png" class="cast-thumb"/>
-                    <img slot="error" src="/ui/images/blank_female_profile.png" class="cast-thumb"/>
+                    <template #image><img :src="getImageURL(image.src)" class="cast-thumb"/></template>
+                    <template #preloader><img src="/ui/images/blank_female_profile.png" class="cast-thumb"/></template>
+                    <template #error><img src="/ui/images/blank_female_profile.png" class="cast-thumb"/></template>
                   </vue-load-image>
                 </div>
               </div>
@@ -440,11 +442,12 @@
 <script>
 import ky from 'ky'
 import videojs from 'video.js'
-import 'videojs-vr/dist/videojs-vr.min.js'
+import 'videojs-vr'
+import 'videojs-hotkeys'
 import { format, formatDistance, parseISO } from 'date-fns'
 import prettyBytes from 'pretty-bytes'
 import VueLoadImage from 'vue-load-image'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 import StarRating from 'vue-star-rating'
 import FavouriteButton from '../../components/FavouriteButton'
 import LinkStashdbButton from '../../components/LinkStashdbButton'
@@ -466,6 +469,7 @@ export default {
       activeTab: 0,
       activeMedia: 0,
       player: {},
+      vrPlugin: null,
       tagAct: '',
       cuepointName: '',
       cuepointRating: 0,
@@ -717,14 +721,25 @@ watch:{
   },
   activeMedia(newVal, oldVal) {
     // Auto-load first video when Player tab is opened (without auto-playing)
-    // The webUI video player doesn't work for some users without autoloading
     if (newVal === 1 && !this.displayingAlternateSource) {
       const videoFiles = this.filesByType.filter(f => f.type === 'video')
       if (videoFiles.length > 0) {
-        this.activeMedia = 1
         this.updatePlayer('/api/dms/file/' + videoFiles[0].id + '?dnt=true', (videoFiles[0].projection == 'flat' ? 'NONE' : '180'))
       }
     }
+  },
+  'item.scene_id'(newVal, oldVal) {
+    // Scene changed via prev/next nav — fully rebuild the player so the
+    // next time the Player tab is opened it loads cleanly for the new scene.
+    if (!newVal || oldVal === undefined || newVal === oldVal) return
+    if (this.player && typeof this.player.dispose === 'function') {
+      try { this.player.dispose() } catch (e) { /* already disposed */ }
+    }
+    this.player = {}
+    this.vrPlugin = null
+    this.activeMedia = 0
+    this.carouselSlide = 0
+    this.$nextTick(() => this.setupPlayer())
   },
   images: {
     handler () {
@@ -834,7 +849,7 @@ watch:{
         if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
           const img = this.$refs.carouselImages[index]
           if (img.complete && img.naturalWidth > 0) {
-            this.$set(this.carouselImagesLoaded, index, true)
+            this.carouselImagesLoaded[index] = true
           }
         }
       })
@@ -846,8 +861,8 @@ watch:{
           const img = this.$refs.carouselImages[index]
           if (img.naturalWidth > 100) {
             // Image loaded successfully with reasonable size
-            this.$set(this.carouselImagesLoaded, index, true)
-            this.$set(this.carouselImageRetries, index, 0)
+            this.carouselImagesLoaded[index] = true
+            this.carouselImageRetries[index] = 0
             // Fetch image info (format and size) for the badge
             this.fetchCarouselImageInfo(img.src, index)
             // Extract dominant color from first image
@@ -859,10 +874,10 @@ watch:{
             this.retryCarouselImage(index)
           } else {
             // Give up, show whatever we have
-            this.$set(this.carouselImagesLoaded, index, true)
+            this.carouselImagesLoaded[index] = true
           }
         } else {
-          this.$set(this.carouselImagesLoaded, index, true)
+          this.carouselImagesLoaded[index] = true
         }
       })
     },
@@ -901,7 +916,7 @@ watch:{
           const format = this.detectFormatFromBytes(bytes)
           const size = fileSize ? this.formatBytes(fileSize) : ''
           const info = size ? `${format} · ${size}` : format
-          this.$set(this.carouselImageInfo, index, info)
+          this.carouselImageInfo[index] = info
         })
         .catch(() => {
           // Silently fail - no info displayed
@@ -988,16 +1003,16 @@ watch:{
         this.retryCarouselImage(index)
       } else {
         // Give up, remove blur anyway
-        this.$set(this.carouselImagesLoaded, index, true)
+        this.carouselImagesLoaded[index] = true
       }
     },
     retryCarouselImage (index) {
       const retries = (this.carouselImageRetries[index] || 0) + 1
-      this.$set(this.carouselImageRetries, index, retries)
+      this.carouselImageRetries[index] = retries
       const delay = retries * 1500 // 1.5s, 3s, 4.5s
       setTimeout(() => {
         // Increment the key to force a new request
-        this.$set(this.carouselImageKeys, index, (this.carouselImageKeys[index] || 0) + 1)
+        this.carouselImageKeys[index] = (this.carouselImageKeys[index] || 0) + 1
       }, delay)
     },
     setupPlayer () {
@@ -1038,6 +1053,9 @@ watch:{
 
       const videoElement = this.player.el();
       videoElement.addEventListener('wheel', this.zoomHandlerWeb.bind(this))
+
+      // Initialize VR once; projection is updated per-source via updatePlayer
+      this.vrPlugin = this.player.vr({ projection: '180', forceCardboard: false })
     },
 
     zoomHandlerWeb(event) {
@@ -1047,6 +1065,7 @@ watch:{
 
     zoomHandler(isZoomingIn) {
       const vr = this.player.vr()
+      if (!vr || !vr.camera) return
       const minFov = 30
       const maxFov = 130
       let fov = vr.camera.fov + (isZoomingIn ? -1 : 1)
@@ -1063,20 +1082,17 @@ watch:{
       vr.camera.updateProjectionMatrix()
     },
     updatePlayer (src, projection) {
-      this.player.reset()
-      /* const vr = */ this.player.vr({
-        projection: projection,
-        forceCardboard: false
-      })
-
-      this.player.on('loadedmetadata', function () {
-        // vr.camera.position.set(-1, 0, 2);
-      })
+      if (!this.vrPlugin) return  // player tab not mounted yet
+      // setProjection queues the projection for the next loadedmetadata → init() cycle
+      const vr = this.player.vr()
+      if (vr) {
+        vr.setProjection(projection)
+      }
 
       if (src) {
         this.player.src({ src: src, type: 'video/mp4' })
       }
-      this.player.poster(this.getImageURL(this.item.cover_url, ''))
+      this.player.poster(this.getImageURL(this.item.cover_url, '1200x'))
     },
     showCastScenes (actor) {
       this.$store.state.sceneList.filters.cast = actor
@@ -1097,7 +1113,7 @@ watch:{
       newfilters.attributes = []
       return this.$router.resolve({
         name: 'scenes',
-        query: { q: Buffer.from(JSON.stringify(newfilters)).toString('base64') }
+        query: { q: btoa(unescape(encodeURIComponent(JSON.stringify(newfilters)))) }
       }).href
     },
     showTagScenes (tag) {
@@ -1123,7 +1139,7 @@ watch:{
       newfilters.attributes = []
       return this.$router.resolve({
         name: 'scenes',
-        query: { q: Buffer.from(JSON.stringify(newfilters)).toString('base64') }
+        query: { q: btoa(unescape(encodeURIComponent(JSON.stringify(newfilters)))) }
       }).href
     },
     showSiteScenes (site) {
@@ -1145,7 +1161,7 @@ watch:{
       newfilters.attributes = []
       return this.$router.resolve({
         name: 'scenes',
-        query: { q: Buffer.from(JSON.stringify(newfilters)).toString('base64') }
+        query: { q: btoa(unescape(encodeURIComponent(JSON.stringify(newfilters)))) }
       }).href
     },
     showActorDetail (actor_id) {
@@ -1163,8 +1179,11 @@ watch:{
     },
     playFile (file) {
       this.activeMedia = 1
-      this.updatePlayer('/api/dms/file/' + file.id + '?dnt=true', (file.projection == 'flat' ? 'NONE' : '180'))
-      this.player.play()
+      this.$nextTick(() => {
+        if (!this.vrPlugin) this.setupPlayer()
+        this.updatePlayer('/api/dms/file/' + file.id + '?dnt=true', (file.projection == 'flat' ? 'NONE' : '180'))
+        if (this.vrPlugin) this.player.play()
+      })
     },
     unmatchFile (file) {
       this.$buefy.dialog.confirm({
@@ -1429,18 +1448,12 @@ watch:{
       }
       if (data !== null) {
         this.$store.commit('overlay/showDetails', { scene: data })
-        this.activeMedia = 0
-        this.carouselSlide = 0
-        this.updatePlayer(undefined, '180')
       }
     },
     prevScene () {
       const data = this.$store.getters['sceneList/prevScene'](this.item)
       if (data !== null && !this.displayingAlternateSource) {
         this.$store.commit('overlay/showDetails', { scene: data })
-        this.activeMedia = 0
-        this.carouselSlide = 0
-        this.updatePlayer(undefined, '180')
       }
     },
     playerStepBack (interval) {
@@ -1739,6 +1752,20 @@ watch:{
   margin-bottom: 8px;
 }
 
+.skip-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75em;
+  margin-top: 6px;
+}
+
+.skip-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .player-wrapper .video-js {
   width: 100%;
 }
@@ -1748,8 +1775,10 @@ watch:{
 }
 
 :deep(.video-js .vjs-big-play-button) {
-  left: 50% !important;
   top: 50% !important;
+  left: 50% !important;
+  margin-top: 0 !important;
+  margin-left: 0 !important;
   transform: translate(-50%, -50%) !important;
 }
 

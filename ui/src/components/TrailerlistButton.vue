@@ -8,9 +8,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'TrailerlistButton',
   props: { item: Object },
+
   computed: {
     buttonClass () {
       if (this.item.trailerlist) {
@@ -19,12 +22,13 @@ export default {
       return 'button is-primary is-outlined is-small'
     }
   },
+
   methods: {
     toggleState() {
       let currentToggle=this.item.trailerlist
       this.$store.commit('sceneList/toggleSceneList', {scene_id: this.item.scene_id, list: 'trailerlist'})
       this.item.trailerlist=!currentToggle
     }
-  }
-}
+  },
+});
 </script>

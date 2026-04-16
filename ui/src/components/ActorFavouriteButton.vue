@@ -7,9 +7,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'ActorFavouriteButton',
   props: { actor: Object },
+
   computed: {
     buttonClass () {
       if (this.actor.favourite) {
@@ -18,12 +21,13 @@ export default {
       return 'button is-danger is-outlined is-small'
     }
   },
+
   methods: {
     toggleState() {
       let currentToggle=this.actor.favourite
       this.$store.commit('actorList/toggleActorList', {actor_id: this.actor.id, list: 'favourite'})
       this.actor.favourite=!currentToggle
     }
-  }
-}
+  },
+});
 </script>

@@ -55,6 +55,8 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import InterfaceWeb from './sections/InterfaceWeb'
 import Storage from './sections/Storage'
 import SceneDataScrapers from './sections/OptionsSceneDataScrapers'
@@ -70,13 +72,15 @@ import InterfaceDeoVR from './sections/InterfaceDeoVR.vue'
 import InterfaceAdvanced from './sections/InterfaceAdvanced.vue'
 import SceneMatchParams from './overlays/SceneMatchParams.vue'
 
-export default {
+export default defineComponent({
   components: { Storage, SceneDataScrapers, SceneCreate, Funscripts, SceneDataImportExport, InterfaceWeb, InterfaceDLNA, InterfaceDeoVR, Cache, Previews, Schedules, InterfaceAdvanced, SceneMatchParams, LibraryHealth },
+
   data: function () {
     return {
       active: this.$route.query.tab || localStorage.getItem('optionsActiveTab') || 'storage'
     }
   },
+
   methods: {
     setActive: function (e) {
       this.active = e
@@ -87,12 +91,14 @@ export default {
       }
     }
   },
+
   mounted () {
     // Restore tab from URL query if present
     if (this.$route.query.tab) {
       this.active = this.$route.query.tab
     }
   },
+
   computed: {
     showMatchParamsOverlay () {      
       return this.$store.state.overlay.sceneMatchParams.show
@@ -105,12 +111,13 @@ export default {
       return this.$store.state.optionsSceneCreate.showSceneCreate;
     },
   },
+
   watch: {
     showSceneCreate(newValue, oldValue) {
       // dummy watch to trigger the computed function
     },
   },
-}
+});
 </script>
 
 <style scoped>

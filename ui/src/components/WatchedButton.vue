@@ -7,9 +7,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'WatchedButton',
   props: { item: Object },
+
   computed: {
     buttonClass () {
       if (this.item.is_watched) {
@@ -18,6 +21,7 @@ export default {
       return 'button is-dark is-outlined is-small'
     }
   },
+
   methods: {
     toggleState() {
       let currentToggle=this.item.is_watched
@@ -26,6 +30,6 @@ export default {
       this.item.is_watched=!currentToggle
       console.log("watched toggleState", this.item.is_watched)
     }
-  }
-}
+  },
+});
 </script>

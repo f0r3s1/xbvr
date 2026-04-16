@@ -122,6 +122,46 @@ release:
 		ghcr.io/goreleaser/goreleaser-cross:${GORELEASER_CROSS_VERSION} \
 		release --clean
 
+# ── Lint / Format / Test ────────────────────────────────────────────
+
+.PHONY: lint
+lint: lint-go lint-js ## Run all linters (Go + JS)
+
+.PHONY: lint-go
+lint-go: ## Run Go linters (gofmt + go vet + golangci-lint)
+	@echo "→ gofmt"
+	@out=$$(gofmt -l . | grep -v '^vendor/' || true); \
+		if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+	@echo "→ go vet"
+	@go vet ./...
+	@echo "→ golangci-lint"
+	@golangci-lint run
+
+.PHONY: lint-js
+lint-js: ## Run JS/Vue linter
+	@echo "→ eslint"
+	@cd ui && bunx eslint src/
+
+.PHONY: lint-fix
+lint-fix: ## Auto-fix lint issues where possible
+	@gofmt -w .
+	@cd ui && bunx eslint src/ --fix
+
+.PHONY: fmt
+fmt: ## Format Go + JS code
+	@gofmt -w .
+	@cd ui && bunx eslint src/ --fix
+
+.PHONY: test
+test: ## Run Go tests
+	@go test ./...
+
+.PHONY: vuln
+vuln: ## Run security scanners (govulncheck + bun audit)
+	@command -v govulncheck >/dev/null || go install golang.org/x/vuln/cmd/govulncheck@latest
+	@govulncheck ./...
+	@bun audit
+
 # ── Help ─────────────────────────────────────────────────────────────
 
 .PHONY: help

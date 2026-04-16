@@ -1,5 +1,4 @@
-import ky from 'ky'
-import Vue from 'vue'
+import ky from '@/api'
 
 function defaultValue (v, d) {
   if (v === undefined) {
@@ -56,13 +55,13 @@ const getters = {
     const st = Object.assign({}, state.filters)
     delete st.cardSize
 
-    return Buffer.from(JSON.stringify(st)).toString('base64')
+    return btoa(unescape(encodeURIComponent(JSON.stringify(st))))
   },
   getQueryParamsFromObject: (state) => (payload) => {
     const st = Object.assign({}, JSON.parse(payload))
     delete st.cardSize
 
-    return Buffer.from(JSON.stringify(st)).toString('base64')
+    return btoa(unescape(encodeURIComponent(JSON.stringify(st))))
   },
   prevScene: (state) => (currentScene) => {
     const i = state.items.findIndex(item => item.scene_id === currentScene.scene_id)
@@ -89,25 +88,25 @@ const mutations = {
     if (idx !== -1) {
       const item = state.items[idx]
       if (payload.list === 'watchlist') {
-        Vue.set(item, 'watchlist', !item.watchlist)
+        item.watchlist = !item.watchlist
       }
       if (payload.list === 'favourite') {
-        Vue.set(item, 'favourite', !item.favourite)
+        item.favourite = !item.favourite
       }
       if (payload.list == 'watched') {
-        Vue.set(item, 'is_watched', !item.is_watched)
+        item.is_watched = !item.is_watched
       }
       if (payload.list === 'trailerlist') {
-        Vue.set(item, 'trailerlist', !item.trailerlist)
+        item.trailerlist = !item.trailerlist
       }
       if (payload.list === 'needs_update') {
-        Vue.set(item, 'needs_update', !item.needs_update)
+        item.needs_update = !item.needs_update
       }
       if (payload.list === 'is_hidden') {
-        Vue.set(item, 'is_hidden', !item.is_hidden)
+        item.is_hidden = !item.is_hidden
       }
       if (payload.list === 'wishlist') {
-        Vue.set(item, 'wishlist', !item.wishlist)
+        item.wishlist = !item.wishlist
       }
     }
 
@@ -121,14 +120,14 @@ const mutations = {
   updateScene (state, payload) {
     const idx = state.items.findIndex(obj => obj.scene_id === payload.scene_id)
     if (idx !== -1) {
-      Vue.set(state.items, idx, payload)
+      state.items[idx] = payload
     }
   },
   stateFromJSON (state, payload) {
     try {
       const obj = JSON.parse(payload)
       for (const [k, v] of Object.entries(obj)) {
-        Vue.set(state.filters, k, v)
+        state.filters[k] = v
       }
     } catch (err) {
     }
@@ -136,9 +135,9 @@ const mutations = {
   stateFromQuery (state, payload) {
     try {
       state.show_scene_id=payload.scene_id
-      const obj = JSON.parse(Buffer.from(payload.q, 'base64').toString('utf-8'))
+      const obj = JSON.parse(decodeURIComponent(escape(atob(payload.q))))
       for (const [k, v] of Object.entries(obj)) {
-        Vue.set(state.filters, k, v)
+        state.filters[k] = v
       }
     } catch (err) {
     }
@@ -147,10 +146,9 @@ const mutations = {
 
 const actions = {
   async filters ({ state }) {
-    state.playlists = await ky.get('/api/playlist', {timeout: 30000}).json()
-    state.filterOpts = await ky.get('/api/scene/filters', {timeout: 30000}).json()
+    state.playlists = await ky.get('/api/playlist').json()
+    state.filterOpts = await ky.get('/api/scene/filters').json()
 
-    // Reverse list of release months for display purposes
     if (state.filterOpts.release_month) {
       state.filterOpts.release_month = state.filterOpts.release_month.reverse()
     }
@@ -160,32 +158,29 @@ const actions = {
 
     state.isLoading = true
 
-    const q = Object.assign({}, state.filters)
-    q.offset = iOffset
-    q.limit = state.limit
+    try {
+      const q = Object.assign({}, state.filters)
+      q.offset = iOffset
+      q.limit = state.limit
 
-    const data = await ky
-      .post('/api/scene/list', {
-        json: q,
-        timeout: 30000
-      })
-      .json()
+      const data = await ky.post('/api/scene/list', { json: q }).json()
 
-    state.isLoading = false
+      if (iOffset === 0) {
+        commit('setItems', data.scenes || [])
+      } else {
+        commit('setItems', state.items.concat(data.scenes || []))
+      }
+      state.offset = iOffset + state.limit
+      state.total = data.results
 
-    if (iOffset === 0) {
-      commit('setItems', data.scenes || [])
-    } else {
-      commit('setItems', state.items.concat(data.scenes || []))
+      state.counts.any = data.count_any
+      state.counts.available = data.count_available
+      state.counts.downloaded = data.count_downloaded
+      state.counts.not_downloaded = data.count_not_downloaded
+      state.counts.hidden = data.count_hidden
+    } finally {
+      state.isLoading = false
     }
-    state.offset = iOffset + state.limit
-    state.total = data.results
-
-    state.counts.any = data.count_any
-    state.counts.available = data.count_available
-    state.counts.downloaded = data.count_downloaded
-    state.counts.not_downloaded = data.count_not_downloaded
-    state.counts.hidden = data.count_hidden
   }
 }
 

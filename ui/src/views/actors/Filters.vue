@@ -54,8 +54,8 @@
     <div v-if="Object.keys(filters).length !== 0">
       <b-field :label="$t('Cast')" label-position="on-border" class="field-extra">
         <b-taginput v-model="cast" autocomplete :data="filteredCast" @typing="getFilteredCast">
-          <template slot-scope="props">{{ props.option }}</template>
-          <template slot="empty">{{ $t("No matching cast") }}</template>
+          <template v-slot="props">{{ props.option }}</template>
+          <template #empty>{{ $t("No matching cast") }}</template>
           <template #selected="props">
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -73,8 +73,8 @@
 
       <b-field :label="$t('Site')" label-position="on-border" class="field-extra">
         <b-taginput v-model="sites" autocomplete :data="filteredSites" @typing="getFilteredSites">
-          <template slot-scope="props">{{ props.option }}</template>
-          <template slot="empty">{{ $t("No matching sites") }}No matching sites</template>
+          <template v-slot="props">{{ props.option }}</template>
+          <template #empty>{{ $t("No matching sites") }}No matching sites</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -92,8 +92,8 @@
       <b-tooltip position="is-top" :label="$t('Allows searching a variety of attributes such as: Possible Aka actors, Cup Size, Eye/Hair Color, Has Tattoo, Has Piercing, Breast Type, Nationailty, Ethnicity, Aka, Has Images')" multilined :delay="1000" style="width:100%">
         <b-field :label="$t('Attributes')" label-position="on-border" class="field-extra">
           <b-taginput v-model="attributes" autocomplete :data="filteredAttributes" @typing="getFilteredAttributes">
-            <template slot-scope="props">{{ props.option }}</template>
-            <template slot="empty">{{ $t("No matching attributes") }}</template>
+            <template v-slot="props">{{ props.option }}</template>
+            <template #empty>{{ $t("No matching attributes") }}</template>
             <template #selected="props">
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -166,16 +166,20 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import SavedSearch from './SavedSearch'
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   name: 'Filters',
   components: { SavedSearch },
+
   mounted () {
     this.$store.dispatch('actorList/filters')
     this.fetchFilters()
   },
+
   data () {
     return {
       filteredCast: [],
@@ -184,6 +188,7 @@ export default {
       filteredAttributes: [],
     }
   },
+
   methods: {
     reloadList () {
       this.$router.push({
@@ -342,6 +347,7 @@ export default {
       })      
     }
   },
+
   computed: {
     filters () {
       return this.$store.state.actorList.filterOpts
@@ -535,8 +541,8 @@ export default {
       return akaCastCnt == 1 && actorCnt > 0 ? false : true
 
     },
-}
-}
+},
+});
 </script>
 
 <style lang="scss" scoped>
@@ -572,8 +578,12 @@ export default {
 }
 .slider-title {
   width: 80px;
+  vertical-align: middle;
+  padding: 4px 0;
 }
 .slider {
-  margin-right: "3em";
+  padding-right: 1.5rem;
+  vertical-align: middle;
 }
+
 </style>

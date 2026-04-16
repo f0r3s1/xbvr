@@ -87,7 +87,7 @@
 
           <b-tab-item :label="$t('Gallery')">
             <GalleryEditor
-              :list.sync="scene.gallery"
+              v-model:list="scene.gallery"
               :blurFn="() => blur('gallery')"
               :coverUrl="this.scene.cover_url"
               @setCover="setCoverImage"
@@ -106,14 +106,17 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 import ListEditor from '../../components/ListEditor'
 import GalleryEditor from '../../components/GalleryEditor'
 
-export default {
+export default defineComponent({
   name: 'EditScene',
   components: { ListEditor, GlobalEvents, GalleryEditor },
+
   data () {
     /*
     title: string,
@@ -167,6 +170,7 @@ export default {
       changesMade: false
     }
   },
+
   methods: {
     getFilteredCast (text) {
       this.filteredCast = this.filters.cast.filter(option => (
@@ -293,12 +297,13 @@ export default {
       this.changesMade = true
     }
   },
+
   computed: {
     filters () {
       return this.$store.state.sceneList.filterOpts
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
     <div class="content">
       <h3>{{$t("Task Schedules")}}</h3>
       <hr/>
@@ -33,16 +33,16 @@
               </b-field>
               <div v-if="useRescrapeTimeRange && rescrapeEnabled">
                 <b-field>
-                  <b-slider v-model="rescrapeTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictRescrapTo24Hours">
-                    <b-slider-tick :value="0">00:00</b-slider-tick>
-                    <b-slider-tick :value="6">06:00</b-slider-tick>
-                    <b-slider-tick :value="12">12:00</b-slider-tick>
-                    <b-slider-tick :value="18">18:00</b-slider-tick>
-                    <b-slider-tick :value="24">Midnight</b-slider-tick>
-                    <b-slider-tick :value="30">06:00</b-slider-tick>
-                    <b-slider-tick :value="36">12:00</b-slider-tick>
-                    <b-slider-tick :value="42">18:00</b-slider-tick>
-                    <b-slider-tick :value="48">00:00</b-slider-tick>
+                  <b-slider v-model="rescrapeTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictRescrapTo24Hours">
+                    <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                    <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                    <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                   </b-slider>
                   <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.rescrapeTimeRange[0]]} - ${this.timeRange[this.rescrapeTimeRange[1]]}`}}</div>
                 </b-field>
@@ -71,16 +71,16 @@
               </b-field>
               <div v-if="useRescanTimeRange && rescanEnabled">
                 <b-field>
-                  <b-slider v-model="rescanTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictRescanTo24Hours">
-                    <b-slider-tick :value="0">00:00</b-slider-tick>
-                    <b-slider-tick :value="6">06:00</b-slider-tick>
-                    <b-slider-tick :value="12">12:00</b-slider-tick>
-                    <b-slider-tick :value="18">18:00</b-slider-tick>
-                    <b-slider-tick :value="24">Midnight</b-slider-tick>
-                    <b-slider-tick :value="30">06:00</b-slider-tick>
-                    <b-slider-tick :value="36">12:00</b-slider-tick>
-                    <b-slider-tick :value="42">18:00</b-slider-tick>
-                    <b-slider-tick :value="48">00:00</b-slider-tick>
+                  <b-slider v-model="rescanTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictRescanTo24Hours">
+                    <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                    <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                    <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                   </b-slider>
                   <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.rescanTimeRange[0]]} - ${this.timeRange[this.rescanTimeRange[1]]}`}}</div>
                 </b-field>
@@ -108,16 +108,16 @@
               </b-field>
               <div v-if="usePreviewTimeRange && previewEnabled">
                 <b-field>
-                  <b-slider v-model="previewTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictPreviewTo24Hours">
-                    <b-slider-tick :value="0">00:00</b-slider-tick>
-                    <b-slider-tick :value="6">06:00</b-slider-tick>
-                    <b-slider-tick :value="12">12:00</b-slider-tick>
-                    <b-slider-tick :value="18">18:00</b-slider-tick>
-                    <b-slider-tick :value="24">Midnight</b-slider-tick>
-                    <b-slider-tick :value="30">06:00</b-slider-tick>
-                    <b-slider-tick :value="36">12:00</b-slider-tick>
-                    <b-slider-tick :value="42">18:00</b-slider-tick>
-                    <b-slider-tick :value="48">00:00</b-slider-tick>
+                  <b-slider v-model="previewTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictPreviewTo24Hours">
+                    <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                    <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                    <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                   </b-slider>
                   <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.previewTimeRange[0]]} - ${this.timeRange[this.previewTimeRange[1]]}`}}</div>
                 </b-field>
@@ -154,16 +154,16 @@
               </b-field>
               <div v-if="useActorRescrapeTimeRange && actorRescrapeEnabled">
                 <b-field>
-                  <b-slider v-model="actorRescrapeTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictActorRescrapeTo24Hours">
-                    <b-slider-tick :value="0">00:00</b-slider-tick>
-                    <b-slider-tick :value="6">06:00</b-slider-tick>
-                    <b-slider-tick :value="12">12:00</b-slider-tick>
-                    <b-slider-tick :value="18">18:00</b-slider-tick>
-                    <b-slider-tick :value="24">Midnight</b-slider-tick>
-                    <b-slider-tick :value="30">06:00</b-slider-tick>
-                    <b-slider-tick :value="36">12:00</b-slider-tick>
-                    <b-slider-tick :value="42">18:00</b-slider-tick>
-                    <b-slider-tick :value="48">00:00</b-slider-tick>
+                  <b-slider v-model="actorRescrapeTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictActorRescrapeTo24Hours">
+                    <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                    <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                    <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                   </b-slider>
                   <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.actorRescrapeTimeRange[0]]} - ${this.timeRange[this.actorRescrapeTimeRange[1]]}`}}</div>
                 </b-field>
@@ -196,16 +196,16 @@
               </b-field>
               <div v-if="useStashdbRescrapeTimeRange && stashdbRescrapeEnabled">
                 <b-field>
-                  <b-slider v-model="stashdbRescrapeTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictStashdbRescrapeTo24Hours">
-                    <b-slider-tick :value="0">00:00</b-slider-tick>
-                    <b-slider-tick :value="6">06:00</b-slider-tick>
-                    <b-slider-tick :value="12">12:00</b-slider-tick>
-                    <b-slider-tick :value="18">18:00</b-slider-tick>
-                    <b-slider-tick :value="24">Midnight</b-slider-tick>
-                    <b-slider-tick :value="30">06:00</b-slider-tick>
-                    <b-slider-tick :value="36">12:00</b-slider-tick>
-                    <b-slider-tick :value="42">18:00</b-slider-tick>
-                    <b-slider-tick :value="48">00:00</b-slider-tick>
+                  <b-slider v-model="stashdbRescrapeTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictStashdbRescrapeTo24Hours">
+                    <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                    <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                    <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                    <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                    <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                    <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                   </b-slider>
                   <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.stashdbRescrapeTimeRange[0]]} - ${this.timeRange[this.stashdbRescrapeTimeRange[1]]}`}}</div>
                 </b-field>
@@ -233,16 +233,16 @@
             </b-field>
             <div v-if="useLinkScenesTimeRange && linkScenesEnabled">
               <b-field>
-                <b-slider v-model="linkScenesTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictLinkScenesTo24Hours">
-                  <b-slider-tick :value="0">00:00</b-slider-tick>
-                  <b-slider-tick :value="6">06:00</b-slider-tick>
-                  <b-slider-tick :value="12">12:00</b-slider-tick>
-                  <b-slider-tick :value="18">18:00</b-slider-tick>
-                  <b-slider-tick :value="24">Midnight</b-slider-tick>
-                  <b-slider-tick :value="30">06:00</b-slider-tick>
-                  <b-slider-tick :value="36">12:00</b-slider-tick>
-                  <b-slider-tick :value="42">18:00</b-slider-tick>
-                  <b-slider-tick :value="48">00:00</b-slider-tick>
+                <b-slider v-model="linkScenesTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictLinkScenesTo24Hours">
+                  <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                  <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                  <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                  <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                  <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                  <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                  <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                  <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                  <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                 </b-slider>
                 <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.linkScenesTimeRange[0]]} - ${this.timeRange[this.linkScenesTimeRange[1]]}`}}</div>
               </b-field>
@@ -277,16 +277,16 @@
             </b-field>
             <div v-if="useAvifTimeRange && avifEnabled">
               <b-field>
-                <b-slider v-model="avifTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @input="restrictAvifTo24Hours">
-                  <b-slider-tick :value="0">00:00</b-slider-tick>
-                  <b-slider-tick :value="6">06:00</b-slider-tick>
-                  <b-slider-tick :value="12">12:00</b-slider-tick>
-                  <b-slider-tick :value="18">18:00</b-slider-tick>
-                  <b-slider-tick :value="24">Midnight</b-slider-tick>
-                  <b-slider-tick :value="30">06:00</b-slider-tick>
-                  <b-slider-tick :value="36">12:00</b-slider-tick>
-                  <b-slider-tick :value="42">18:00</b-slider-tick>
-                  <b-slider-tick :value="48">00:00</b-slider-tick>
+                <b-slider v-model="avifTimeRange" :min="0" :max="48" :step="1" :custom-formatter="val => timeRange[val]" @update:modelValue="restrictAvifTo24Hours">
+                  <b-slider-tick :modelValue="0">00:00</b-slider-tick>
+                  <b-slider-tick :modelValue="6">06:00</b-slider-tick>
+                  <b-slider-tick :modelValue="12">12:00</b-slider-tick>
+                  <b-slider-tick :modelValue="18">18:00</b-slider-tick>
+                  <b-slider-tick :modelValue="24">Midnight</b-slider-tick>
+                  <b-slider-tick :modelValue="30">06:00</b-slider-tick>
+                  <b-slider-tick :modelValue="36">12:00</b-slider-tick>
+                  <b-slider-tick :modelValue="42">18:00</b-slider-tick>
+                  <b-slider-tick :modelValue="48">00:00</b-slider-tick>
                 </b-slider>
                 <div class="column is-one-third" style="margin-left:.75em">{{`${this.timeRange[this.avifTimeRange[0]]} - ${this.timeRange[this.avifTimeRange[1]]}`}}</div>
               </b-field>
@@ -325,11 +325,14 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 import prettyBytes from 'pretty-bytes'
 
-export default {
+export default defineComponent({
   name: 'Schedules',
+
   data () {
     return {
       isLoading: true,
@@ -431,9 +434,11 @@ export default {
       ]
     }
   },
+
   async mounted () {
     await this.loadState()
   },
+
   computed: {
     stashApiKey: {
       get () {        
@@ -445,6 +450,7 @@ export default {
       }
     },
   },
+
   methods: {
     restrictRescrapTo24Hours () {
       this.rescrapeTimeRange = this.restrictTo24Hours(this.rescrapeTimeRange, this.lastTimeRange)
@@ -672,6 +678,6 @@ export default {
         })
     },
     prettyBytes
-  }
-}
+  },
+});
 </script>

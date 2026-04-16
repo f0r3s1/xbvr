@@ -7,9 +7,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'WatchlistButton',
   props: { actor: Object },
+
   computed: {
     buttonClass () {
       if (this.actor.watchlist) {
@@ -18,12 +21,13 @@ export default {
       return 'button is-primary is-outlined is-small'
     }
   },
+
   methods: {
     toggleState() {
       let currentToggle=this.actor.watchlist
       this.$store.commit('actorList/toggleActorList', {actor_id: this.actor.id, list: 'watchlist'})
       this.actor.watchlist=!currentToggle
     }
-  }
-}
+  },
+});
 </script>

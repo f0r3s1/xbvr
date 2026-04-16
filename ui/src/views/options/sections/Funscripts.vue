@@ -58,13 +58,17 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from "ky";
 
-export default {
+export default defineComponent({
   name: "Funscripts",
+
   mounted() {
     this.$store.dispatch("optionsFunscripts/load");
   },
+
   methods: {
     exportAllFunscripts() {
       const link = document.createElement("a");
@@ -80,6 +84,7 @@ export default {
       this.$store.dispatch('optionsFunscripts/save')
     },
   },
+
   computed: {
     countTotal: function () {
       return this.$store.state.optionsFunscripts.countTotal;
@@ -96,5 +101,5 @@ export default {
       },
     },
   },
-};
+});
 </script>

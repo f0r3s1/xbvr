@@ -1,31 +1,27 @@
-import Vue from 'vue'
-import Router from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
-Vue.use(Router)
-
-export default new Router({
-  mode: 'hash',
-  base: process.env.BASE_URL,
+export default createRouter({
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',
       name: 'scenes',
-      component: () => import('./views/scenes/Scenes')
+      component: () => import('./views/scenes/Scenes.vue')
     },
     {
       path: '/actors',
       name: 'actors',
-      component: () => import('./views/actors/Actors')
+      component: () => import('./views/actors/Actors.vue')
     },
     {
       path: '/files',
       name: 'files',
-      component: () => import('./views/files/Files')
+      component: () => import('./views/files/Files.vue')
     },
     {
       path: '/options',
       name: 'options',
-      component: () => import('./views/options/Options')
+      component: () => import('./views/options/Options.vue')
     }
   ]
 })

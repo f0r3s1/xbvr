@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
     <div class="content">
       <h3 class="title">{{$t('Import Japanese Adult VR (JAVR) Scene')}}</h3>
       <div class="card">
@@ -65,7 +65,7 @@
         </div>
       </div>
 
-      <b-modal :active.sync="isSingleScrapeModalActive"
+      <b-modal v-model="isSingleScrapeModalActive"
               has-modal-card
               trap-focus
               aria-role="dialog"
@@ -93,10 +93,13 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   name: 'OptionsCreateScene',
+
   data () {
     return {
       isLoading: true,
@@ -111,6 +114,7 @@ export default {
       additionalInfo: [],
     }
   },
+
   async mounted () {
     await this.loadState()
     this.$store.dispatch('optionsVendor/load')
@@ -121,6 +125,7 @@ export default {
       this.scrapeSingleScene()
     } 
   },
+
   methods: {
     async loadState () {
       this.isLoading = true
@@ -237,6 +242,7 @@ export default {
       })
     },
   },
+
   computed: {
     tpdbApiToken: {
       get () {
@@ -246,8 +252,8 @@ export default {
         this.$store.state.optionsVendor.tpdb.apiToken = value
       }
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
     <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="playertab">
       <b-tab-item label="Shared Settings"/>
       <b-tab-item label="DeoVR"/>
@@ -262,11 +262,15 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'InterfaceDeoVR',
+
   mounted () {
     this.$store.dispatch('optionsDeoVR/load')
   },
+
   data () {
     return {
       activeTab: 0,
@@ -278,6 +282,7 @@ export default {
       selectedSubtitleSequence: 'Ascending'
     }
   },
+
   methods: {
     save () {
       this.$store.dispatch('optionsDeoVR/save')
@@ -352,6 +357,7 @@ export default {
       }
     }
   },
+
   computed: {
     enabled: {
       get () {
@@ -524,6 +530,6 @@ export default {
     deoVROptions: function () {
       return this.$store.state.optionsDeoVR.deovr
     }
-  }
-}
+  },
+});
 </script>

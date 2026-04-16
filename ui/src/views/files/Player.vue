@@ -14,17 +14,21 @@
 </template>
 
 <script>
-import videojs from 'video.js'
-import vr from 'videojs-vr/dist/videojs-vr.min.js'
-import hotkeys from 'videojs-hotkeys'
+import { defineComponent } from 'vue';
 
-export default {
+import videojs from 'video.js'
+import 'videojs-vr'
+import 'videojs-hotkeys'
+
+export default defineComponent({
   name: 'Details',
+
   data () {
     return {
       player: {}
     }
   },
+
   computed: {
     sourceUrl () {
       if (this.$store.state.overlay.player.file) {
@@ -33,6 +37,7 @@ export default {
       return ''
     }
   },
+
   mounted () {
     this.player = videojs(this.$refs.player)
     const vr = this.player.vr({
@@ -59,20 +64,27 @@ export default {
     })
 
     this.player.on('loadedmetadata', function () {
-      vr.camera.position.set(-1, 0, -1)
+      if (vr && vr.camera) vr.camera.position.set(-1, 0, -1)
     })
   },
+
   methods: {
     close () {
       this.player.dispose()
       this.$store.commit('overlay/hidePlayer')
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>
+  .modal-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
   .video-js {
+    display: block;
     margin: 0 auto;
   }
 </style>

@@ -41,12 +41,12 @@
                         <span class="carousel-type-tag" v-if="carouselImageInfo[i]">{{ carouselImageInfo[i] }}</span>
                       </div>
                     </b-carousel-item>
-                    <template slot="indicators" slot-scope="props">
+                    <template #indicators="props">
                         <span class="al image" style="width:max-content;">
                           <vue-load-image>
-                            <img slot="image" :src="getIndicatorURL(props.i)" style="height:85px;"/>
-                            <img slot="preloader" :src="getImageURL('https://i.stack.imgur.com/kOnzy.gif')" style="height:25px;"/>
-                            <img slot="error" src="/ui/images/blank_female_profile.png" style="height:85px;"/>
+                            <template #image><img :src="getIndicatorURL(props.i)" style="height:85px;"/></template>
+                            <template #preloader><img :src="getImageURL('https://i.stack.imgur.com/kOnzy.gif')" style="height:25px;"/></template>
+                            <template #error><img src="/ui/images/blank_female_profile.png" style="height:85px;"/></template>
                           </vue-load-image>
                         </span>
                     </template>
@@ -95,7 +95,7 @@
                       <star-rating :key="actor.id" v-model="actor.star_rating" :rating="actor.star_rating" @rating-selected="setRating"
                                    :increment="0.5" :star-size="20" :show-rating="true" />
                       <b-tooltip :label="$t('Reset Rating')" position="is-right" :delay="250">
-                        <b-icon pack="mdi" icon="autorenew" size="is-small" @click.native="setRating(0)" style="padding-left: 1em;padding-top: .5em;"/>
+                        <b-icon pack="mdi" icon="autorenew" size="is-small" @click="setRating(0)" style="padding-left: 1em;padding-top: .5em;"/>
                       </b-tooltip>
                     </b-field>
                     <b-field>
@@ -130,7 +130,7 @@
                       <strong class="attribute-heading">{{ $t('Nationality') }}:</strong>
                       <b-field grouped class="attribute-data">
                         <vue-load-image>
-                            <img slot="image" :src="getImageURL(this.getCountryFlag(actor.nationality))" style="height:15px;border: 1px solid black;margin-right:0.5em;"/>
+                            <template #image><img :src="getImageURL(this.getCountryFlag(actor.nationality))" style="height:15px;border: 1px solid black;margin-right:0.5em;"/></template>
                         </vue-load-image>
                         <small>{{ this.getCountryName(actor.nationality) }}</small>
                       </b-field>
@@ -172,7 +172,7 @@
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
-                    Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: hsl(0, 0%, 100%);"></b-icon></a>
+                    Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: transparent;"></b-icon></a>
                   </template>
                   <div v-show="activeTab == 1" :class="['columns', 'is-multiline', actor.scenes.length > 6 ? 'scroll' : '']">
                     <div :class="['column', 'is-multiline', 'is-one-third']"
@@ -303,12 +303,14 @@
 </template>
 
 <script>
+import { defineComponent, nextTick } from 'vue';
+
 import ky from 'ky'
 import videojs from 'video.js'
-import 'videojs-vr/dist/videojs-vr.min.js'
+import 'videojs-vr'
 import { format, parseISO } from 'date-fns'
 import VueLoadImage from 'vue-load-image'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 import StarRating from 'vue-star-rating'
 import ActorFavouriteButton from '../../components/ActorFavouriteButton'
 import ActorWatchlistButton from '../../components/ActorWatchlistButton'
@@ -317,9 +319,10 @@ import LinkStashdbButton from '../../components/LinkStashdbButton'
 import SceneCard from '../scenes/SceneCard'
 import ActorCard from './ActorCard'
 
-export default {
+export default defineComponent({
   name: 'ActorDetails',
   components: { VueLoadImage, GlobalEvents, StarRating, ActorWatchlistButton, ActorFavouriteButton, SceneCard, ActorEditButton,  ActorCard, LinkStashdbButton },
+
   data () {
     return {
       index: 1,
@@ -343,6 +346,7 @@ export default {
       carouselImageInfo: {},
     }
   },
+
   computed: {
     actor () {      
       const actor = this.$store.state.overlay.actordetails.actor
@@ -377,6 +381,7 @@ export default {
       return this.$store.state.optionsWeb.web.showOpenInNewWindow
     },
   },
+
   mounted () {    
       ky.get('/api/actor/countrylist')
         .json()
@@ -384,6 +389,7 @@ export default {
           this.countries=list
         })
   },
+
   watch: {
     // when a file is selected, then this will fire the upload process
     activeTab: function (newval, oldval) {      
@@ -395,562 +401,575 @@ export default {
         this.carouselImageRetries = {}
         this.carouselImageKeys = {}
       },
-      immediate: false
-    }
-  },  
-    methods: {
-    getCarouselImageURL (url, index) {
-      // Add a cache-busting key when retrying
-      const key = this.carouselImageKeys[index] || 0
-      const baseUrl = this.getImageURL(url, '1200x')
-      return key > 0 ? baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_retry=' + key : baseUrl
-    },
-    getFullscreenImageURL (url) {
-      // Full resolution for fullscreen view
-      return this.getImageURL(url, '0x0')
-    },
-    openFullscreenGallery (index) {
-      this.fullscreenIndex = index
-      this.fullscreenImageLoaded = false
-      this.fullscreenGallery = true
-      // Disable body scroll when fullscreen is open
-      document.body.style.overflow = 'hidden'
-    },
-    closeFullscreenGallery () {
-      this.fullscreenGallery = false
-      this.fullscreenZoomed = false
-      // Re-enable body scroll
-      document.body.style.overflow = ''
-      // Sync carousel with fullscreen position
-      this.carouselSlide = this.fullscreenIndex
-    },
-    fullscreenPrev () {
-      this.fullscreenImageLoaded = false
-      this.fullscreenImageInfo = null
-      this.fullscreenZoomed = false
-      this.fullscreenCanZoom = false
-      this.fullscreenIndex = (this.fullscreenIndex - 1 + this.images.length) % this.images.length
-    },
-    fullscreenNext () {
-      this.fullscreenImageLoaded = false
-      this.fullscreenImageInfo = null
-      this.fullscreenZoomed = false
-      this.fullscreenCanZoom = false
-      this.fullscreenIndex = (this.fullscreenIndex + 1) % this.images.length
-    },
-    handleGalleryClick () {
-      if (this.fullscreenZoomed) {
-        this.fullscreenZoomed = false
-      } else {
-        this.closeFullscreenGallery()
-      }
-    },
-    handleImageClick (event) {
-      if (!this.fullscreenCanZoom) return
-      
-      const gallery = this.$refs.fullscreenGallery
-      const img = this.$refs.fullscreenImage
-      
-      if (this.fullscreenZoomed) {
-        // Zoom out
-        this.fullscreenZoomed = false
-      } else {
-        // Capture click position BEFORE zoom (as ratio 0-1)
-        const rect = img.getBoundingClientRect()
-        const clickRatioX = (event.clientX - rect.left) / rect.width
-        const clickRatioY = (event.clientY - rect.top) / rect.height
-        
-        // Enable zoom
-        this.fullscreenZoomed = true
-        
-        // Use requestAnimationFrame + setTimeout to ensure layout is complete
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            // Image natural size (full resolution)
-            const natW = img.naturalWidth
-            const natH = img.naturalHeight
-            // Where the clicked point is in the full-size image
-            const pointX = natW * clickRatioX
-            const pointY = natH * clickRatioY
-            // Scroll so that point is at center of viewport
-            const scrollX = Math.max(0, pointX - (window.innerWidth / 2))
-            const scrollY = Math.max(0, pointY - (window.innerHeight / 2))
-            
-            gallery.scrollTo(scrollX, scrollY)
-          }, 50)
-        })
-      }
-    },
-    handleEscape () {
-      if (this.fullscreenGallery) {
-        this.closeFullscreenGallery()
-      } else {
-        this.close()
-      }
-    },
-    toggleGallery () {
-      if (this.fullscreenGallery) {
-        this.closeFullscreenGallery()
-      } else {
-        this.openFullscreenGallery(this.carouselSlide)
-      }
-    },
-    handleLeftArrow () {
-      if (this.fullscreenGallery) {
-        this.fullscreenPrev()
-      } else {
-        this.carouselSlide = this.carouselSlide - 1
-      }
-    },
-    handleRightArrow () {
-      if (this.fullscreenGallery) {
-        this.fullscreenNext()
-      } else {
-        this.carouselSlide = this.carouselSlide + 1
-      }
-    },
-    onCarouselChange (index) {
-      this.scrollToActiveIndicator(index)
-      // Check if the new slide's image is already loaded
-      this.$nextTick(() => {
-        if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
-          const img = this.$refs.carouselImages[index]
-          if (img.complete && img.naturalWidth > 0) {
-            this.$set(this.carouselImagesLoaded, index, true)
-          }
-        }
-      })
-    },
-    onCarouselImageLoad (index) {
-      // Verify the image actually loaded with valid dimensions
-      this.$nextTick(() => {
-        if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
-          const img = this.$refs.carouselImages[index]
-          if (img.naturalWidth > 100) {
-            // Image loaded successfully with reasonable size
-            this.$set(this.carouselImagesLoaded, index, true)
-            this.$set(this.carouselImageRetries, index, 0)
-            // Fetch image info (format and size) for the badge
-            this.fetchCarouselImageInfo(img.src, index)
-          } else if ((this.carouselImageRetries[index] || 0) < 3) {
-            // Image too small, might be an error - retry
-            this.retryCarouselImage(index)
-          } else {
-            // Give up, show whatever we have
-            this.$set(this.carouselImagesLoaded, index, true)
-          }
-        } else {
-          this.$set(this.carouselImagesLoaded, index, true)
-        }
-      })
-    },
-    onFullscreenImageLoad () {
-      this.fullscreenImageLoaded = true
-      if (this.$refs.fullscreenImage) {
-        const img = this.$refs.fullscreenImage
-        // Can zoom if image is larger than 90% of viewport in either dimension
-        const fitsWidth = img.naturalWidth <= window.innerWidth * 0.9
-        const fitsHeight = img.naturalHeight <= window.innerHeight * 0.9
-        this.fullscreenCanZoom = !(fitsWidth && fitsHeight)
-        // Fetch image info for fullscreen
-        this.fetchFullscreenImageInfo(img.src)
-      }
-    },
-    fetchCarouselImageInfo (url, index) {
-      // Use Range request to get first 16 bytes for magic number detection
-      fetch(url, { 
-        method: 'GET',
-        headers: { 'Range': 'bytes=0-15' }
-      })
-        .then(response => {
-          // Get file size from Content-Range header (format: bytes 0-15/totalSize)
-          const contentRange = response.headers.get('Content-Range')
-          let fileSize = null
-          if (contentRange) {
-            const match = contentRange.match(/\/(\d+)$/)
-            if (match) {
-              fileSize = parseInt(match[1])
-            }
-          }
-          return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
-        })
-        .then(({ buffer, fileSize }) => {
-          const bytes = new Uint8Array(buffer)
-          const format = this.detectFormatFromBytes(bytes)
-          const size = fileSize ? this.formatBytes(fileSize) : ''
-          const info = size ? `${format} · ${size}` : format
-          this.$set(this.carouselImageInfo, index, info)
-        })
-        .catch(() => {
-          // Silently fail - no info displayed
-        })
-    },
-    fetchFullscreenImageInfo (url) {
-      this.fullscreenImageInfo = null
-      // Use Range request to get first 16 bytes for magic number detection + full response for size
-      fetch(url, { 
-        method: 'GET',
-        headers: { 'Range': 'bytes=0-15' }
-      })
-        .then(response => {
-          // Get file size from Content-Range header (format: bytes 0-15/totalSize)
-          const contentRange = response.headers.get('Content-Range')
-          let fileSize = null
-          if (contentRange) {
-            const match = contentRange.match(/\/(\d+)$/)
-            if (match) {
-              fileSize = parseInt(match[1])
-            }
-          }
-          // Fallback to Content-Length if no range support
-          if (!fileSize) {
-            const cl = response.headers.get('Content-Length')
-            if (cl) fileSize = parseInt(cl)
-          }
-          return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
-        })
-        .then(({ buffer, fileSize }) => {
-          const bytes = new Uint8Array(buffer)
-          const format = this.detectFormatFromBytes(bytes)
-          const size = fileSize ? this.formatBytes(fileSize) : ''
-          this.fullscreenImageInfo = size ? `${format} · ${size}` : format
-        })
-        .catch(() => {
-          // Silently fail
-        })
-    },
-    detectFormatFromBytes (bytes) {
-      if (bytes.length < 12) return 'IMG'
-      
-      // AVIF: check for 'ftyp' at offset 4 and 'avif', 'avis', or 'mif1' at offset 8
-      if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-        const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
-        if (brand === 'avif' || brand === 'avis' || brand === 'mif1') return 'AVIF'
-        if (brand === 'heic' || brand === 'heix') return 'HEIC'
-      }
-      
-      // JPEG: starts with FF D8 FF
-      if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'JPEG'
-      
-      // PNG: starts with 89 50 4E 47 (‰PNG)
-      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'PNG'
-      
-      // GIF: starts with GIF87a or GIF89a
-      if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'GIF'
-      
-      // WebP: starts with RIFF....WEBP
-      if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-          bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'WebP'
-      
-      return 'IMG'
-    },
-    formatBytes (bytes) {
-      if (bytes === 0) return '0 B'
-      const k = 1024
-      const sizes = ['B', 'KB', 'MB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-    },
-    onCarouselImageError (index) {
-      const retries = this.carouselImageRetries[index] || 0
-      if (retries < 3) {
-        this.retryCarouselImage(index)
-      } else {
-        // Give up, remove blur anyway
-        this.$set(this.carouselImagesLoaded, index, true)
-      }
-    },
-    retryCarouselImage (index) {
-      const retries = (this.carouselImageRetries[index] || 0) + 1
-      this.$set(this.carouselImageRetries, index, retries)
-      const delay = retries * 1500 // 1.5s, 3s, 4.5s
-      setTimeout(() => {
-        // Increment the key to force a new request
-        this.$set(this.carouselImageKeys, index, (this.carouselImageKeys[index] || 0) + 1)
-      }, delay)
-    },
-    getImageURL (u, size) {
-      if (u.startsWith('http') || u.startsWith('https')) {
-        return '/img/' + size + '/' + u.replace('://', ':/')
-      } else {
-        return u
-      }
-    },
-    getIndicatorURL (idx) {      
-      if (this.images[idx] !== undefined) {
-        return this.getImageURL(this.images[idx], 'x85')
-      } else {
-        return '/ui/images/blank_female_profile.png'
-      }
-    },
-    close () {      
-      this.$store.commit('overlay/hideActorDetails')
-    },
-    setRating (val) {
-      ky.post(`/api/actor/rate/${this.actor.id}`, { json: { rating: val } })
-      const updatedActor = Object.assign({}, this.actor)
-      updatedActor.star_rating = val
-      this.actor.star_rating = val      
-      this.$store.commit('actorList/updateActor', updatedActor)
-    },
-    async nextActor () {      
-      const data = this.$store.getters['actorList/nextActor'](this.actor)
-      if (data !== null) {
-        this.$store.commit('overlay/showActorDetails', { actor: data })
-        this.activeMedia = 0
-        this.carouselSlide = 0        
-      } else {
-        // no actor, get the next page (note offset already points to it)
-        let newoffset = this.$store.state.actorList.offset
-        if (newoffset>this.$store.state.actorList.total)
-        {
-          // wrap back to the start
-          newoffset = 0
-        }
-        await this.$store.dispatch('actorList/load', { offset: newoffset })
-        const data = this.$store.getters['actorList/firstActor'](this.actor)
-        if (data !== null) {
-          this.$store.commit('overlay/showActorDetails', { actor: data })
-          this.activeMedia = 0
-          this.carouselSlide = 0
-        }
-      }
-    },
-    async prevActor () {
-      const data = this.$store.getters['actorList/prevActor'](this.actor)
-      if (data !== null) {
-        this.$store.commit('overlay/showActorDetails', { actor: data })
-        this.activeMedia = 0
-        this.carouselSlide = 0        
-      } else {
-        // no actor, get the previous page
-        let newoffset = this.$store.state.actorList.offset - (this.$store.state.actorList.limit * 2)
-        if (newoffset < 0) {
-          // wrap back to the last actor
-          newoffset = Math.floor(this.$store.state.actorList.total / this.$store.state.actorList.limit) * this.$store.state.actorList.limit
-        }
-        await this.$store.dispatch('actorList/load', { offset: newoffset })
-        const data = this.$store.getters['actorList/lastActor'](this.actor)
-        if (data !== null) {
-          this.$store.commit('overlay/showActorDetails', { actor: data })
-          this.activeMedia = 0
-          this.carouselSlide = 0
-        }
-      }
-    },    
-    scrollToActiveIndicator (value) {
-      const indicators = document.querySelector('.carousel-indicator')
-      const active = indicators.children[value]
-      indicators.scrollTo({
-        top: 0,
-        left: active.offsetLeft + active.offsetWidth / 2 - indicators.offsetWidth / 2,
-        behavior: 'smooth'
-      })
-    },
-    calcAge(birthdate){       
-      const birthdateObj = new Date(birthdate);
-      const now = new Date();
-      const diffInMs = now - birthdateObj;
-      const msPerYear = 1000 * 60 * 60 * 24 * 365.25; // average milliseconds per year, accounting for leap years
-      const age = Math.floor(diffInMs / msPerYear);      
-      return age
-    },
-    getYearsActive(){      
-      let active = ""
-      if (this.actor.start_year > 0) {
-        active = this.actor.start_year 
-      }      
-      active +=  "-"      
-      if (this.actor.end_year > 0) {
-        active += this.actor.end_year 
-      }
-      return active
-    },
-    measurements(){      
-      let metric_measurements=""
-      let imperial_measurements=""
-      if (this.actor.band_size != 0) {
-        metric_measurements=this.actor.band_size
-        imperial_measurements=Math.round(this.actor.band_size / 2.54)
-      }
-      if (this.actor.cup_size != ''){
-        metric_measurements +=  this.actor.cup_size        
-        imperial_measurements += this.actor.cup_size        
-      }
-      if (this.actor.waist_size != 0) {
-        if (metric_measurements!='') {
-          metric_measurements += '-'
-          imperial_measurements += '-'
-        }
-        metric_measurements += this.actor.waist_size
-        imperial_measurements += Math.round(this.actor.waist_size  / 2.54)
-      }
-      if (this.actor.hip_size != 0) {
-        if (metric_measurements!='') {
-          metric_measurements += '-'
-          imperial_measurements += '-'
-        }
-        metric_measurements += this.actor.hip_size
-        imperial_measurements += Math.round(this.actor.hip_size / 2.54)
-      } 
-      if (metric_measurements==''){
-        return ''
-      }
-      return imperial_measurements + " / " + metric_measurements
-    },
-    joinArray(jsonArr){
-      const arr = JSON.parse(jsonArr);
-      return  arr.join(", ");       
-    },
-    setActorImage (val) {
-      ky.post('/api/actor/setimage', {
-      json: {
-        actor_id: this.actor.id,
-        url: this.images[this.carouselSlide]
-      }}).json().then(data => {        
-        this.$store.state.overlay.actordetails.actor = data
-        this.carouselSlide=0
-        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
-      })    
-    },
-    deleteActorImage (val) {
-      ky.delete('/api/actor/delimage', {
-      json: {
-        actor_id: this.actor.id,
-        url: this.images[this.carouselSlide]
-      }}).json().then(data => {
-        this.$store.state.overlay.actordetails.actor = data
-      })    
-    },
-    getCountryName(countryCode){
-      const country = this.countries.find(c => c.code === countryCode)
-      if (country == undefined) {
-        return countryCode
-      }
-      return country.name
-    },
-    getCountryFlag(countryCode){
-      const country = this.countries.find(c => c.code === countryCode)
-      if (country == undefined) {
-        return 'https://flagcdn.com/' + countryCode.toLowerCase() +'.svg'
-      }
-      return country.flag_url
-    },
-    getWeight(kg) {
-        return kg + " kg - " + Math.round( kg * 2.20462) + " lbs"
-    },
-    getHeight(cm){
-      const totalInches = Math.round(cm / 2.54)
-      let feet = Math.floor(totalInches / 12)
-      return cm + " cm - " + feet + "' " +  Math.round(totalInches - (feet*12)) + '"'
-    },
-    getActorUrls() {
-      if (this.actor.urls=="")
-      {
-        return []
-      }      
-      let array = JSON.parse(this.actor.urls)      
-      return array
-    },
-    createAkaGroup () {
-      this.$store.state.actorList.isLoading = true
-      let actorlist = [this.actor.name]
-      for (let idx = 0; idx < this.akas.possible_akas.length; idx++) {
-        actorlist.push(this.akas.possible_akas[idx].name)
-      }
-      ky.post('/api/aka/create', {json: {actorList: actorlist}}).json().then(data => {
-        if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
-        }
-        ky.get('/api/actor/'+this.actor.id).json().then(data => {
-          if (data.id != 0){
-            this.$store.state.overlay.actordetails.actor = data          
-          }          
-        })
-        this.$store.state.actorList.isLoading = false
-        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
 
-      })
-    },
-    deleteAkaGroup () {
-      this.$store.state.actorList.isLoading = true
-      ky.post('/api/aka/delete', {json: {name: this.actor.name}}).json().then(data => {
-        this.$store.state.actorList.isLoading = false
-      }).then(data => {
-        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
-        this.close()
-      }
-      )
-    },
-    addToAkaGroup (newMember) {
-      this.$store.state.actorList.isLoading = true
-      ky.post('/api/aka/add', {json: {actorList: [this.actor.name, newMember]}}).json().then(data => {        
-        // delete old aka & add new name
-        if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
-        }
-        ky.get('/api/actor/'+this.actor.id).json().then(data => {
-          if (data.id != 0){
-            this.$store.state.overlay.actordetails.actor = data          
-          }          
-        })
-        this.$store.state.actorList.isLoading = false
-      })
+      immediate: false,
+      deep: true,
+    }
+  },
+
+  methods: {
+  getCarouselImageURL (url, index) {
+    // Add a cache-busting key when retrying
+    const key = this.carouselImageKeys[index] || 0
+    const baseUrl = this.getImageURL(url, '1200x')
+    return key > 0 ? baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_retry=' + key : baseUrl
+  },
+  getFullscreenImageURL (url) {
+    // Full resolution for fullscreen view
+    return this.getImageURL(url, '0x0')
+  },
+  openFullscreenGallery (index) {
+    this.fullscreenIndex = index
+    this.fullscreenImageLoaded = false
+    this.fullscreenGallery = true
+    // Disable body scroll when fullscreen is open
+    document.body.style.overflow = 'hidden'
+  },
+  closeFullscreenGallery () {
+    this.fullscreenGallery = false
+    this.fullscreenZoomed = false
+    // Re-enable body scroll
+    document.body.style.overflow = ''
+    // Sync carousel with fullscreen position
+    this.carouselSlide = this.fullscreenIndex
+  },
+  fullscreenPrev () {
+    this.fullscreenImageLoaded = false
+    this.fullscreenImageInfo = null
+    this.fullscreenZoomed = false
+    this.fullscreenCanZoom = false
+    this.fullscreenIndex = (this.fullscreenIndex - 1 + this.images.length) % this.images.length
+  },
+  fullscreenNext () {
+    this.fullscreenImageLoaded = false
+    this.fullscreenImageInfo = null
+    this.fullscreenZoomed = false
+    this.fullscreenCanZoom = false
+    this.fullscreenIndex = (this.fullscreenIndex + 1) % this.images.length
+  },
+  handleGalleryClick () {
+    if (this.fullscreenZoomed) {
+      this.fullscreenZoomed = false
+    } else {
+      this.closeFullscreenGallery()
+    }
+  },
+  handleImageClick (event) {
+    if (!this.fullscreenCanZoom) return
+    
+    const gallery = this.$refs.fullscreenGallery
+    const img = this.$refs.fullscreenImage
+    
+    if (this.fullscreenZoomed) {
+      // Zoom out
+      this.fullscreenZoomed = false
+    } else {
+      // Capture click position BEFORE zoom (as ratio 0-1)
+      const rect = img.getBoundingClientRect()
+      const clickRatioX = (event.clientX - rect.left) / rect.width
+      const clickRatioY = (event.clientY - rect.top) / rect.height
       
-    },
-    removeFromAkaGroup (memberToRemove) {
-      this.$store.state.actorList.isLoading = true
-      ky.post('/api/aka/remove', {json: {actorList: [this.actor.name, memberToRemove]}}).json().then(data => {        
-        // delete old aka & add new name
-        if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+      // Enable zoom
+      this.fullscreenZoomed = true
+      
+      // Use requestAnimationFrame + setTimeout to ensure layout is complete
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          // Image natural size (full resolution)
+          const natW = img.naturalWidth
+          const natH = img.naturalHeight
+          // Where the clicked point is in the full-size image
+          const pointX = natW * clickRatioX
+          const pointY = natH * clickRatioY
+          // Scroll so that point is at center of viewport
+          const scrollX = Math.max(0, pointX - (window.innerWidth / 2))
+          const scrollY = Math.max(0, pointY - (window.innerHeight / 2))
+          
+          gallery.scrollTo(scrollX, scrollY)
+        }, 50)
+      })
+    }
+  },
+  handleEscape () {
+    if (this.fullscreenGallery) {
+      this.closeFullscreenGallery()
+    } else {
+      this.close()
+    }
+  },
+  toggleGallery () {
+    if (this.fullscreenGallery) {
+      this.closeFullscreenGallery()
+    } else {
+      this.openFullscreenGallery(this.carouselSlide)
+    }
+  },
+  handleLeftArrow () {
+    if (this.fullscreenGallery) {
+      this.fullscreenPrev()
+    } else {
+      this.carouselSlide = this.carouselSlide - 1
+    }
+  },
+  handleRightArrow () {
+    if (this.fullscreenGallery) {
+      this.fullscreenNext()
+    } else {
+      this.carouselSlide = this.carouselSlide + 1
+    }
+  },
+  onCarouselChange (index) {
+    this.scrollToActiveIndicator(index)
+    // Check if the new slide's image is already loaded
+    nextTick(() => {
+      if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
+        const img = this.$refs.carouselImages[index]
+        if (img.complete && img.naturalWidth > 0) {
+          this.carouselImagesLoaded[index] = true
         }
+      }
+    })
+  },
+  onCarouselImageLoad (index) {
+    // Verify the image actually loaded with valid dimensions
+    nextTick(() => {
+      if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
+        const img = this.$refs.carouselImages[index]
+        if (img.naturalWidth > 100) {
+          // Image loaded successfully with reasonable size
+          this.carouselImagesLoaded[index] = true
+          this.carouselImageRetries[index] = 0
+          // Fetch image info (format and size) for the badge
+          this.fetchCarouselImageInfo(img.src, index)
+        } else if ((this.carouselImageRetries[index] || 0) < 3) {
+          // Image too small, might be an error - retry
+          this.retryCarouselImage(index)
+        } else {
+          // Give up, show whatever we have
+          this.carouselImagesLoaded[index] = true
+        }
+      } else {
+        this.carouselImagesLoaded[index] = true
+      }
+    })
+  },
+  onFullscreenImageLoad () {
+    this.fullscreenImageLoaded = true
+    if (this.$refs.fullscreenImage) {
+      const img = this.$refs.fullscreenImage
+      // Can zoom if image is larger than 90% of viewport in either dimension
+      const fitsWidth = img.naturalWidth <= window.innerWidth * 0.9
+      const fitsHeight = img.naturalHeight <= window.innerHeight * 0.9
+      this.fullscreenCanZoom = !(fitsWidth && fitsHeight)
+      // Fetch image info for fullscreen
+      this.fetchFullscreenImageInfo(img.src)
+    }
+  },
+  fetchCarouselImageInfo (url, index) {
+    // Use Range request to get first 16 bytes for magic number detection
+    fetch(url, { 
+      method: 'GET',
+      headers: { 'Range': 'bytes=0-15' }
+    })
+      .then(response => {
+        // Get file size from Content-Range header (format: bytes 0-15/totalSize)
+        const contentRange = response.headers.get('Content-Range')
+        let fileSize = null
+        if (contentRange) {
+          const match = contentRange.match(/\/(\d+)$/)
+          if (match) {
+            fileSize = parseInt(match[1])
+          }
+        }
+        return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
+      })
+      .then(({ buffer, fileSize }) => {
+        const bytes = new Uint8Array(buffer)
+        const format = this.detectFormatFromBytes(bytes)
+        const size = fileSize ? this.formatBytes(fileSize) : ''
+        const info = size ? `${format} · ${size}` : format
+        this.carouselImageInfo[index] = info
+      })
+      .catch(() => {
+        // Silently fail - no info displayed
+      })
+  },
+  fetchFullscreenImageInfo (url) {
+    this.fullscreenImageInfo = null
+    // Use Range request to get first 16 bytes for magic number detection + full response for size
+    fetch(url, { 
+      method: 'GET',
+      headers: { 'Range': 'bytes=0-15' }
+    })
+      .then(response => {
+        // Get file size from Content-Range header (format: bytes 0-15/totalSize)
+        const contentRange = response.headers.get('Content-Range')
+        let fileSize = null
+        if (contentRange) {
+          const match = contentRange.match(/\/(\d+)$/)
+          if (match) {
+            fileSize = parseInt(match[1])
+          }
+        }
+        // Fallback to Content-Length if no range support
+        if (!fileSize) {
+          const cl = response.headers.get('Content-Length')
+          if (cl) fileSize = parseInt(cl)
+        }
+        return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
+      })
+      .then(({ buffer, fileSize }) => {
+        const bytes = new Uint8Array(buffer)
+        const format = this.detectFormatFromBytes(bytes)
+        const size = fileSize ? this.formatBytes(fileSize) : ''
+        this.fullscreenImageInfo = size ? `${format} · ${size}` : format
+      })
+      .catch(() => {
+        // Silently fail
+      })
+  },
+  detectFormatFromBytes (bytes) {
+    if (bytes.length < 12) return 'IMG'
+    
+    // AVIF: check for 'ftyp' at offset 4 and 'avif', 'avis', or 'mif1' at offset 8
+    if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+      const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
+      if (brand === 'avif' || brand === 'avis' || brand === 'mif1') return 'AVIF'
+      if (brand === 'heic' || brand === 'heix') return 'HEIC'
+    }
+    
+    // JPEG: starts with FF D8 FF
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'JPEG'
+    
+    // PNG: starts with 89 50 4E 47 (‰PNG)
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'PNG'
+    
+    // GIF: starts with GIF87a or GIF89a
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'GIF'
+    
+    // WebP: starts with RIFF....WEBP
+    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+        bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'WebP'
+    
+    return 'IMG'
+  },
+  formatBytes (bytes) {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  },
+  onCarouselImageError (index) {
+    const retries = this.carouselImageRetries[index] || 0
+    if (retries < 3) {
+      this.retryCarouselImage(index)
+    } else {
+      // Give up, remove blur anyway
+      this.carouselImagesLoaded[index] = true
+    }
+  },
+  retryCarouselImage (index) {
+    const retries = (this.carouselImageRetries[index] || 0) + 1
+    this.carouselImageRetries[index] = retries
+    const delay = retries * 1500 // 1.5s, 3s, 4.5s
+    setTimeout(() => {
+      // Increment the key to force a new request
+      this.carouselImageKeys[index] = (this.carouselImageKeys[index] || 0) + 1
+    }, delay)
+  },
+  getImageURL (u, size) {
+    if (u.startsWith('http') || u.startsWith('https')) {
+      return '/img/' + size + '/' + u.replace('://', ':/')
+    } else {
+      return u
+    }
+  },
+  getIndicatorURL (idx) {      
+    if (this.images[idx] !== undefined) {
+      return this.getImageURL(this.images[idx], 'x85')
+    } else {
+      return '/ui/images/blank_female_profile.png'
+    }
+  },
+  close () {      
+    this.$store.commit('overlay/hideActorDetails')
+  },
+  setRating (val) {
+    ky.post(`/api/actor/rate/${this.actor.id}`, { json: { rating: val } })
+    const updatedActor = Object.assign({}, this.actor)
+    updatedActor.star_rating = val
+    this.actor.star_rating = val      
+    this.$store.commit('actorList/updateActor', updatedActor)
+  },
+  async nextActor () {      
+    const data = this.$store.getters['actorList/nextActor'](this.actor)
+    if (data !== null) {
+      this.$store.commit('overlay/showActorDetails', { actor: data })
+      this.activeMedia = 0
+      this.carouselSlide = 0        
+    } else {
+      // no actor, get the next page (note offset already points to it)
+      let newoffset = this.$store.state.actorList.offset
+      if (newoffset>this.$store.state.actorList.total)
+      {
+        // wrap back to the start
+        newoffset = 0
+      }
+      await this.$store.dispatch('actorList/load', { offset: newoffset })
+      const data = this.$store.getters['actorList/firstActor'](this.actor)
+      if (data !== null) {
+        this.$store.commit('overlay/showActorDetails', { actor: data })
+        this.activeMedia = 0
+        this.carouselSlide = 0
+      }
+    }
+  },
+  async prevActor () {
+    const data = this.$store.getters['actorList/prevActor'](this.actor)
+    if (data !== null) {
+      this.$store.commit('overlay/showActorDetails', { actor: data })
+      this.activeMedia = 0
+      this.carouselSlide = 0        
+    } else {
+      // no actor, get the previous page
+      let newoffset = this.$store.state.actorList.offset - (this.$store.state.actorList.limit * 2)
+      if (newoffset < 0) {
+        // wrap back to the last actor
+        newoffset = Math.floor(this.$store.state.actorList.total / this.$store.state.actorList.limit) * this.$store.state.actorList.limit
+      }
+      await this.$store.dispatch('actorList/load', { offset: newoffset })
+      const data = this.$store.getters['actorList/lastActor'](this.actor)
+      if (data !== null) {
+        this.$store.commit('overlay/showActorDetails', { actor: data })
+        this.activeMedia = 0
+        this.carouselSlide = 0
+      }
+    }
+  },    
+  scrollToActiveIndicator (value) {
+    const indicators = document.querySelector('.carousel-indicator')
+    const active = indicators.children[value]
+    indicators.scrollTo({
+      top: 0,
+      left: active.offsetLeft + active.offsetWidth / 2 - indicators.offsetWidth / 2,
+      behavior: 'smooth'
+    })
+  },
+  calcAge(birthdate){       
+    const birthdateObj = new Date(birthdate);
+    const now = new Date();
+    const diffInMs = now - birthdateObj;
+    const msPerYear = 1000 * 60 * 60 * 24 * 365.25; // average milliseconds per year, accounting for leap years
+    const age = Math.floor(diffInMs / msPerYear);      
+    return age
+  },
+  getYearsActive(){      
+    let active = ""
+    if (this.actor.start_year > 0) {
+      active = this.actor.start_year 
+    }      
+    active +=  "-"      
+    if (this.actor.end_year > 0) {
+      active += this.actor.end_year 
+    }
+    return active
+  },
+  measurements(){      
+    let metric_measurements=""
+    let imperial_measurements=""
+    if (this.actor.band_size != 0) {
+      metric_measurements=this.actor.band_size
+      imperial_measurements=Math.round(this.actor.band_size / 2.54)
+    }
+    if (this.actor.cup_size != ''){
+      metric_measurements +=  this.actor.cup_size        
+      imperial_measurements += this.actor.cup_size        
+    }
+    if (this.actor.waist_size != 0) {
+      if (metric_measurements!='') {
+        metric_measurements += '-'
+        imperial_measurements += '-'
+      }
+      metric_measurements += this.actor.waist_size
+      imperial_measurements += Math.round(this.actor.waist_size  / 2.54)
+    }
+    if (this.actor.hip_size != 0) {
+      if (metric_measurements!='') {
+        metric_measurements += '-'
+        imperial_measurements += '-'
+      }
+      metric_measurements += this.actor.hip_size
+      imperial_measurements += Math.round(this.actor.hip_size / 2.54)
+    } 
+    if (metric_measurements==''){
+      return ''
+    }
+    return imperial_measurements + " / " + metric_measurements
+  },
+  joinArray(jsonArr){
+    const arr = JSON.parse(jsonArr);
+    return  arr.join(", ");       
+  },
+  setActorImage (val) {
+    ky.post('/api/actor/setimage', {
+    json: {
+      actor_id: this.actor.id,
+      url: this.images[this.carouselSlide]
+    }}).json().then(data => {        
+      this.$store.state.overlay.actordetails.actor = data
+      this.carouselSlide=0
+      this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
+    })    
+  },
+  deleteActorImage (val) {
+    ky.delete('/api/actor/delimage', {
+    json: {
+      actor_id: this.actor.id,
+      url: this.images[this.carouselSlide]
+    }}).json().then(data => {
+      this.$store.state.overlay.actordetails.actor = data
+    })    
+  },
+  getCountryName(countryCode){
+    const country = this.countries.find(c => c.code === countryCode)
+    if (country == undefined) {
+      return countryCode
+    }
+    return country.name
+  },
+  getCountryFlag(countryCode){
+    const country = this.countries.find(c => c.code === countryCode)
+    if (country == undefined) {
+      return 'https://flagcdn.com/' + countryCode.toLowerCase() +'.svg'
+    }
+    return country.flag_url
+  },
+  getWeight(kg) {
+      return kg + " kg - " + Math.round( kg * 2.20462) + " lbs"
+  },
+  getHeight(cm){
+    const totalInches = Math.round(cm / 2.54)
+    let feet = Math.floor(totalInches / 12)
+    return cm + " cm - " + feet + "' " +  Math.round(totalInches - (feet*12)) + '"'
+  },
+  getActorUrls() {
+    if (this.actor.urls=="")
+    {
+      return []
+    }      
+    let array = JSON.parse(this.actor.urls)      
+    return array
+  },
+  createAkaGroup () {
+    this.$store.state.actorList.isLoading = true
+    let actorlist = [this.actor.name]
+    for (let idx = 0; idx < this.akas.possible_akas.length; idx++) {
+      actorlist.push(this.akas.possible_akas[idx].name)
+    }
+    ky.post('/api/aka/create', {json: {actorList: actorlist}}).json().then(data => {
+      if (data.status != '') {
+        this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+      }
+      ky.get('/api/actor/'+this.actor.id).json().then(data => {
+        if (data.id != 0){
+          this.$store.state.overlay.actordetails.actor = data          
+        }          
+      })
+      this.$store.state.actorList.isLoading = false
+      this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
+
+    })
+  },
+  deleteAkaGroup () {
+    this.$store.state.actorList.isLoading = true
+    ky.post('/api/aka/delete', {json: {name: this.actor.name}}).json().then(data => {
+      this.$store.state.actorList.isLoading = false
+    }).then(data => {
+      this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
+      this.close()
+    }
+    )
+  },
+  addToAkaGroup (newMember) {
+    this.$store.state.actorList.isLoading = true
+    ky.post('/api/aka/add', {json: {actorList: [this.actor.name, newMember]}}).json().then(data => {        
+      // delete old aka & add new name
+      if (data.status != '') {
+        this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+      }
+      ky.get('/api/actor/'+this.actor.id).json().then(data => {
+        if (data.id != 0){
+          this.$store.state.overlay.actordetails.actor = data          
+        }          
+      })
+      this.$store.state.actorList.isLoading = false
+    })
+    
+  },
+  removeFromAkaGroup (memberToRemove) {
+    this.$store.state.actorList.isLoading = true
+    ky.post('/api/aka/remove', {json: {actorList: [this.actor.name, memberToRemove]}}).json().then(data => {        
+      // delete old aka & add new name
+      if (data.status != '') {
+        this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+      }
+      ky.get('/api/actor/'+this.actor.id).json().then(data => {          
+        if (data.id != 0){
+          this.$store.state.overlay.actordetails.actor = data          
+        }          
+      })
+      this.$store.state.actorList.isLoading = false
+    })
+  },
+  enableNewAkaGroup () {
+    if (this.actor.name.startsWith("aka:")){
+      return false
+    }
+    if (this.akas.aka_groups != null)
+    {
+      return false
+    }
+    if (this.akas.possible_akas == null)
+    {
+      return false
+    }
+    for (let idx = 0; idx < this.akas.possible_akas.length; idx++) {
+      if (this.akas.possible_akas[idx].name.startsWith("aka:")) {
+        return false
+      }
+    }      
+    return true
+  },
+  getCastScenesUrl(actor) {
+    let newfilters = Object.assign({}, this.$store.state.sceneList.filters);
+    newfilters.cast = actor;
+    newfilters.dlState = "any"
+    newfilters.isAvailable=null
+    newfilters.isAccessible=null
+    return this.$router.resolve({
+      name: 'scenes',
+      query: { q: btoa(unescape(encodeURIComponent(JSON.stringify(newfilters)))) }
+    }).href
+  },
+  refreshScraper(url){
+    if (url.includes('stashdb')) {
+      this.$store.state.actorList.isLoading = true
+      const lastSlashIndex = url.lastIndexOf('/');
+      ky.get('/api/extref/stashdb/refresh_performer/'+url.substring(lastSlashIndex + 1)).then(data => {
         ky.get('/api/actor/'+this.actor.id).json().then(data => {          
           if (data.id != 0){
-            this.$store.state.overlay.actordetails.actor = data          
-          }          
+            this.$store.state.overlay.actordetails.actor = data
+            this.$store.state.actorList.isLoading = false
+            this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
+          }
         })
-        this.$store.state.actorList.isLoading = false
       })
-    },
-    enableNewAkaGroup () {
-      if (this.actor.name.startsWith("aka:")){
-        return false
-      }
-      if (this.akas.aka_groups != null)
-      {
-        return false
-      }
-      if (this.akas.possible_akas == null)
-      {
-        return false
-      }
-      for (let idx = 0; idx < this.akas.possible_akas.length; idx++) {
-        if (this.akas.possible_akas[idx].name.startsWith("aka:")) {
-          return false
-        }
-      }      
-      return true
-    },
-    getCastScenesUrl(actor) {
-      let newfilters = Object.assign({}, this.$store.state.sceneList.filters);
-      console.log(newfilters)
-      newfilters.cast = actor;
-      newfilters.dlState = "any"
-      newfilters.isAvailable=null
-      newfilters.isAccessible=null
-      console.log(newfilters)
-      return this.$router.resolve({
-        name: 'scenes',
-        query: { q: Buffer.from(JSON.stringify(newfilters)).toString('base64') }
-      }).href
-    },
-    refreshScraper(url){
-      if (url.includes('stashdb')) {
-        this.$store.state.actorList.isLoading = true
-        const lastSlashIndex = url.lastIndexOf('/');
-        ky.get('/api/extref/stashdb/refresh_performer/'+url.substring(lastSlashIndex + 1)).then(data => {
-          ky.get('/api/actor/'+this.actor.id).json().then(data => {          
+    } else {
+      this.$store.state.actorList.isLoading = true
+      ky.post('/api/extref/generic/scrape_single', { json: {id: this.actor.id,url: url}})
+        .then(data => {
+          ky.get('/api/actor/'+this.actor.id).json().then(data => {
             if (data.id != 0){
               this.$store.state.overlay.actordetails.actor = data
               this.$store.state.actorList.isLoading = false
@@ -958,25 +977,13 @@ export default {
             }
           })
         })
-      } else {
-        this.$store.state.actorList.isLoading = true
-        ky.post('/api/extref/generic/scrape_single', { json: {id: this.actor.id,url: url}})
-          .then(data => {
-            ky.get('/api/actor/'+this.actor.id).json().then(data => {
-              if (data.id != 0){
-                this.$store.state.overlay.actordetails.actor = data
-                this.$store.state.actorList.isLoading = false
-                this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
-              }
-            })
-          })
-      }
-      this.$store.state.actorList.isLoading = false
-    },
-    format,
-    parseISO
-  }
-}
+    }
+    this.$store.state.actorList.isLoading = false
+  },
+  format,
+  parseISO
+},
+});
 </script>
 
 <style lang="less" scoped>
@@ -996,6 +1003,15 @@ export default {
 
 .modal-card {
   width: 85%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .modal-card {
+    width: 96vw;
+    margin: 0 2vw;
+  }
 }
 
 .missing {
@@ -1135,18 +1151,23 @@ div.scroll {
   overflow-y: auto;
   text-align: center;
 }
-.attribute-container {  
-  display: flex; 
+.attribute-container {
+  display: flex;
   flex-wrap: wrap;
 }
-.attribute-heading {  
-  width: 120px; 
+.attribute-heading {
+  flex: 0 0 120px;
+  min-width: 0;
 }
-.attribute-data {  
-  width: 200px;  
+.attribute-data {
+  flex: 1 1 150px;
+  min-width: 0;
+  word-break: break-word;
 }
-.attribute-long-data {  
-  min-width: 320px;  
+.attribute-long-data {
+  flex: 1 1 150px;
+  min-width: 0;
+  word-break: break-word;
 }
 .flexcentre {
   display: flex;
@@ -1181,6 +1202,10 @@ div.scroll {
 /* Fullscreen Gallery Styles */
 .carousel-wrapper {
   position: relative;
+  /* Maintain portrait aspect ratio so the modal doesn't jump when image is absent */
+  aspect-ratio: 2 / 3;
+  min-height: 180px;
+  overflow: hidden;
 }
 .fullscreen-btn {
   position: absolute;
