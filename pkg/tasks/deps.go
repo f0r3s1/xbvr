@@ -1,14 +1,15 @@
 package tasks
 
 import (
+	"archive/zip"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/mholt/archiver"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"github.com/xbapps/xbvr/pkg/common"
@@ -94,7 +95,7 @@ func downloadFfbinaries(tool string) error {
 		return err
 	}
 
-	err = archiver.Unarchive(filepath.Join(common.BinDir, tool+".zip"), common.BinDir)
+	err = unzipToDir(filepath.Join(common.BinDir, tool+".zip"), common.BinDir)
 	if err != nil {
 		return err
 	}
@@ -126,5 +127,54 @@ func downloadFile(url, destPath string) error {
 		return err
 	}
 
+	return nil
+}
+
+func unzipToDir(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	destAbs, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range r.File {
+		target := filepath.Join(destAbs, f.Name)
+		if !strings.HasPrefix(target, destAbs+string(os.PathSeparator)) && target != destAbs {
+			return errors.Errorf("unsafe path in zip: %s", f.Name)
+		}
+
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(target, f.Mode()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			rc.Close()
+			return err
+		}
+		if _, err := io.Copy(out, rc); err != nil {
+			rc.Close()
+			out.Close()
+			return err
+		}
+		rc.Close()
+		out.Close()
+	}
 	return nil
 }
