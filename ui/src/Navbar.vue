@@ -1,11 +1,11 @@
 <template>
   <b-navbar :fixed-top="true" type="is-light">
-    <template slot="brand">
+    <template #brand>
       <b-navbar-item>
         <h1 class="title">XBVR <small>{{currentVersion}}</small></h1>
       </b-navbar-item>
     </template>
-    <template slot="start">
+    <template #start>
       <b-navbar-item tag="router-link" :to="{ path: './' }">
         {{$t('Scenes')}}
       </b-navbar-item>
@@ -22,8 +22,8 @@
         {{$t('Quick find')}}
       </b-navbar-item>
     </template>
-    <template slot="end">
-      <b-navbar-item>
+    <template #end>
+      <b-navbar-item v-if="hasStatusMessages">
         <table style="font-size:0.9em">
           <tr v-if="Object.keys(lastRescanMessage).length !== 0">
             <th><span :class="[lockRescan ? 'pulsate' : '']">{{$t('Files')}} →</span></th>
@@ -40,15 +40,18 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   data () {
     return {
       currentVersion: '',
       latestVersion: ''
     }
   },
+
   computed: {
     lockRescan () {
       return this.$store.state.messages.lockRescan
@@ -61,8 +64,13 @@ export default {
     },
     lastScrapeMessage () {
       return this.$store.state.messages.lastScrapeMessage
+    },
+    hasStatusMessages () {
+      return Object.keys(this.lastRescanMessage).length !== 0 ||
+             Object.keys(this.lastScrapeMessage).length !== 0
     }
   },
+
   mounted () {
     ky.get('/api/options/version-check').json().then(data => {
       this.currentVersion = data.current_version
@@ -81,8 +89,8 @@ export default {
         })
       }
     })
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

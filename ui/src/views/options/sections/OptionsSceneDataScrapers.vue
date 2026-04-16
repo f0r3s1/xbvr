@@ -6,7 +6,7 @@
       <h3>{{$t('Scrape scenes from studios')}}</h3>
       <div class="header-actions">
         <b-dropdown aria-role="list" position="is-bottom-left">
-          <template slot="trigger">
+          <template #trigger>
             <b-button icon-left="cog" size="is-small" />
           </template>
           <b-dropdown-item aria-role="listitem" custom>
@@ -38,9 +38,9 @@
         <div class="studio-cell">
           <span class="studio-icon image is-24x24">
             <vue-load-image>
-              <img slot="image" :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/>
-              <img slot="preloader" src="/ui/images/blank.png"/>
-              <img slot="error" src="/ui/images/blank.png"/>
+              <template #image><img :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/></template>
+              <template #preloader><img src="/ui/images/blank.png"/></template>
+              <template #error><img src="/ui/images/blank.png"/></template>
             </vue-load-image>
           </span>
           <span class="studio-info">
@@ -216,7 +216,6 @@
       </div>
     </b-modal>
 
-    </div>
   </div>
 
 </template>

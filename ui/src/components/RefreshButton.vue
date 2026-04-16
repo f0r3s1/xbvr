@@ -7,9 +7,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'RefreshButton',
   props: { item: Object },
+
   computed: {
     buttonClass () {
       if (this.item.needs_update) {
@@ -18,12 +21,13 @@ export default {
       return 'button is-dark is-outlined is-small'
     }
   },
+
   methods: {
     toggleState() {
       let currentToggle=this.item.needs_update
       this.$store.commit('sceneList/toggleSceneList', {scene_id: this.item.scene_id, list: 'needs_update'})
       this.item.needs_update=!currentToggle
     }
-  }
-}
+  },
+});
 </script>

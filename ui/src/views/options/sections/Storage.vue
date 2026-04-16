@@ -46,7 +46,7 @@
             </button>
           </b-field>
         </b-table-column>
-        <template slot="footer">
+        <template #footer>
           <td></td>
           <td></td>
           <td></td>

@@ -81,8 +81,8 @@
         <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
           <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
             <vue-load-image>
-              <img slot="image" :src="getImageURL(altsrc.site_icon)" class="alt-img"/>
-              <b-icon slot="error" pack="mdi" icon="link" size="is-small"/>
+              <template #image><img :src="getImageURL(altsrc.site_icon)" class="alt-img"/></template>
+              <template #error><b-icon pack="mdi" icon="link" size="is-small"/></template>
             </vue-load-image>
           </a>
         </b-tooltip>
@@ -134,6 +134,8 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import { format, parseISO } from 'date-fns'
 import WatchlistButton from '../../components/WatchlistButton'
 import FavouriteButton from '../../components/FavouriteButton'
@@ -146,10 +148,11 @@ import HiddenButton from '../../components/HiddenButton'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 
-export default {
+export default defineComponent({
   name: 'SceneCard',
   props: { item: Object, reRead: Boolean },
   components: { WatchlistButton, FavouriteButton, WishlistButton, WatchedButton, EditButton, LinkStashdbButton, TrailerlistButton, HiddenButton, VueLoadImage },
+
   data () {
     return {
       preview: false,
@@ -163,9 +166,11 @@ export default {
       imageKey: 0,
     }
   },
+
   mounted () {
     this.loadAlternateSources()
   },
+
   computed: {
     videoFilesCount () {
       if (this.item.file == null) { return 0 }
@@ -229,6 +234,7 @@ export default {
       return this.imageKey > 0 ? url + '?retry=' + this.imageKey : url
     }
   },
+
   methods: {
     onImageError () {
       if (this.imageRetryCount < 2) {
@@ -239,6 +245,13 @@ export default {
         }, this.imageRetryCount * 1000)
       } else {
         this.imageLoaded = true
+        if (this.item && this.item.id) {
+          fetch('/api/health/image-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scene_id: this.item.id }),
+          }).catch(() => {})
+        }
       }
     },
     onImageLoad () {
@@ -335,8 +348,8 @@ export default {
         return false;
       }
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

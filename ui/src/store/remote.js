@@ -1,4 +1,4 @@
-import ky from 'ky'
+import ky from '@/api'
 
 const state = {
   connected: false,

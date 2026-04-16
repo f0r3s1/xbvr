@@ -1,5 +1,4 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
+import { createStore } from 'vuex'
 
 import sceneList from './sceneList'
 import actorList from './actorList'
@@ -19,9 +18,7 @@ import optionsAdvanced from './optionsAdvanced'
 import optionsSceneCreate from './optionsSceneCreate'
 import health from './health'
 
-Vue.use(Vuex)
-
-export default new Vuex.Store({
+export default createStore({
   modules: {
     sceneList,
     actorList,

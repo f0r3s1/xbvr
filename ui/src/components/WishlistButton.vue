@@ -8,9 +8,12 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'WishlistButton',
   props: { item: Object },
+
   computed: {
     buttonClass () {
       if (this.item.wishlist) {
@@ -19,12 +22,13 @@ export default {
       return 'button is-info is-outlined is-small'
     }
   },
+
   methods: {
     toggleState() {
       let currentToggle = this.item.wishlist
       this.$store.commit('sceneList/toggleSceneList', {scene_id: this.item.scene_id, list: 'wishlist'})
       this.item.wishlist = !currentToggle
     }
-  }
-}
+  },
+});
 </script>

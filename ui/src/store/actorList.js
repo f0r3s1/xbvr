@@ -1,5 +1,4 @@
-import ky from 'ky'
-import Vue from 'vue'
+import ky from '@/api'
 
 function defaultValue (v, d) {
   if (v === undefined) {
@@ -56,13 +55,13 @@ const getters = {
     const st = Object.assign({}, state.filters)
     delete st.cardSize
 
-    return Buffer.from(JSON.stringify(st)).toString('base64')
+    return btoa(unescape(encodeURIComponent(JSON.stringify(st))))
   },
   getQueryParamsFromObject: (state) => (payload) => {
     const st = Object.assign({}, JSON.parse(payload))
     delete st.cardSize
 
-    return Buffer.from(JSON.stringify(st)).toString('base64')
+    return btoa(unescape(encodeURIComponent(JSON.stringify(st))))
   },
   prevActor: (state) => (currentActor) => {
     const i = state.actors.findIndex(actor => actor.id === currentActor.id)
@@ -95,13 +94,13 @@ const mutations = {
     if (idx !== -1) {
       const item = state.actors[idx]
       if (payload.list === 'watchlist') {
-        Vue.set(item, 'watchlist', !item.watchlist)
+        item.watchlist = !item.watchlist
       }
       if (payload.list === 'favourite') {
-        Vue.set(item, 'favourite', !item.favourite)
+        item.favourite = !item.favourite
       }
       if (payload.list === 'needs_update') {
-        Vue.set(item, 'needs_update', !item.needs_update)
+        item.needs_update = !item.needs_update
       }
     }
 
@@ -115,14 +114,14 @@ const mutations = {
   updateActor (state, payload) {
     const idx = state.actors.findIndex(obj => obj.id === payload.id)
     if (idx !== -1) {
-      Vue.set(state.actors, idx, payload)
+      state.actors[idx] = payload
     }
   },
   stateFromJSON (state, payload) {
     try {
       const obj = JSON.parse(payload)
       for (const [k, v] of Object.entries(obj)) {
-        Vue.set(state.filters, k, v)
+        state.filters[k] = v
       }
     } catch (err) {
     }
@@ -130,9 +129,9 @@ const mutations = {
   stateFromQuery (state, payload) {
     try {
       state.show_actor_id=payload.actor_id
-      const obj = JSON.parse(Buffer.from(payload.q, 'base64').toString('utf-8'))
+      const obj = JSON.parse(decodeURIComponent(escape(atob(payload.q))))
       for (const [k, v] of Object.entries(obj)) {
-        Vue.set(state.filters, k, v)
+        state.filters[k] = v
       }
     } catch (err) {
     }

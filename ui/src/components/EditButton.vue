@@ -7,13 +7,16 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'EditButton',
   props: { item: Object },
+
   methods: {
     editScene (scene) {
       this.$store.commit('overlay/editDetails', { scene })
     }
-  }
-}
+  },
+});
 </script>

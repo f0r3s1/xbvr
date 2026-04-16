@@ -219,14 +219,17 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 import { format, parseISO } from 'date-fns'
 import prettyBytes from 'pretty-bytes'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 
-export default {
+export default defineComponent({
   name: 'SceneMatchParams',
   components: { GlobalEvents },
+
   data () {
     return {
       site: null,
@@ -236,11 +239,14 @@ export default {
       parseISO
     }
   },
+
   computed: {
   },
+
   mounted () {    
     this.initView()
   },
+
   methods: {
     initView () {
       this.site=this.$store.state.overlay.sceneMatchParams.site
@@ -274,8 +280,8 @@ export default {
       }
     },
     prettyBytes
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

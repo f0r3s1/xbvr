@@ -49,10 +49,10 @@
         <div class="column">
           <label class="label">{{$t("Resolution")}}</label>
           <b-dropdown v-model="fileResolutions" multiple hoverable aria-role="list">
-              <button class="button" type="button" slot="trigger">
+              <template #trigger><button class="button" type="button">
                   <span>{{$t("Selected")}} ({{fileResolutions.length}})</span>
                   <b-icon icon="menu-down"></b-icon>
-              </button>
+              </button></template>
               <b-dropdown-item value="below4k" aria-role="listitem">
                   <span>{{$t("Below 4K")}}</span>
               </b-dropdown-item>
@@ -73,10 +73,10 @@
         <div class="column">
           <label class="label">{{$t("Bitrate")}}</label>
           <b-dropdown v-model="fileBitrates" multiple hoverable aria-role="list">
-              <button class="button" type="button" slot="trigger">
+              <template #trigger><button class="button" type="button">
                   <span>{{$t("Selected")}} ({{fileBitrates.length}})</span>
                   <b-icon icon="menu-down"></b-icon>
-              </button>
+              </button></template>
               <b-dropdown-item value="low" aria-role="listitem">
                   <span>{{$t("Low (below 15 Mbps)")}}</span>
               </b-dropdown-item>
@@ -94,10 +94,10 @@
         <div class="column">
           <label class="label">{{$t("Framerate")}}</label>
           <b-dropdown v-model="fileFramerates" multiple hoverable aria-role="list">
-              <button class="button" type="button" slot="trigger">
+              <template #trigger><button class="button" type="button">
                   <span>{{$t("Selected")}} ({{fileFramerates.length}})</span>
                   <b-icon icon="menu-down"></b-icon>
-              </button>
+              </button></template>
               <b-dropdown-item value="30fps" aria-role="listitem">
                   <span>30</span>
               </b-dropdown-item>
@@ -115,10 +115,13 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import { subDays } from 'date-fns'
 
-export default {
+export default defineComponent({
   name: 'Filters',
+
   methods: {
     clearFilename () {
       this.fileName = ''
@@ -131,6 +134,7 @@ export default {
     },
     subDays
   },
+
   computed: {
     fileName: {
       get () {
@@ -188,6 +192,6 @@ export default {
         this.$store.dispatch('files/load')
       }
     }
-  }
-}
+  },
+});
 </script>

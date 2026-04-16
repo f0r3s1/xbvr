@@ -8,10 +8,10 @@ COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile --ignore-scripts
 COPY ui/ ui/
-RUN cd ui && node ../node_modules/@vue/cli-service/bin/vue-cli-service.js build
+RUN cd ui && bunx vite build
 
 # ── Go build stage ──────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 ARG VERSION=CURRENT
 ARG COMMIT=HEAD
@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=1 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o xbvr
 
 # ── Runtime stage ───────────────────────────────────────────────────
-FROM alpine:3.21
+FROM alpine:3.22
 
 RUN apk add --no-cache \
     ca-certificates \

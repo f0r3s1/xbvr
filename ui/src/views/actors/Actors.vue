@@ -20,12 +20,15 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import Filters from './Filters'
 import List from './List'
 
-export default {
-  name: 'Actors',  
+export default defineComponent({
+  name: 'Actors',
   components: { Filters, List},
+
   mounted () {
     const toTop = document.getElementById('toTop')
     addEventListener('scroll', function () {
@@ -45,26 +48,28 @@ export default {
       }
     }
   },
-  beforeRouteEnter (to, from, next) {
-    next(vm => {
+
+  beforeRouteEnter (to) {
+    return vm => {
       if (to.query !== undefined) {
         vm.$store.commit('actorList/stateFromQuery', to.query)
       }
       vm.$store.dispatch('optionsWeb/load')
       vm.$store.dispatch('actorList/load', { offset: 0 })
       vm.$store.dispatch('optionsAdvanced/load')
-    })
+    }
   },
-  beforeRouteUpdate (to, from, next) {
+
+  beforeRouteUpdate (to) {
     if (to.query !== undefined) {
       this.$store.commit('actorList/stateFromQuery', to.query)
     }
     this.$store.dispatch('actorList/load', { offset: 0 })
-    next()
   },
+
   computed: {
-  }
-}
+  },
+});
 </script>
 
 <style scoped>
@@ -73,6 +78,7 @@ export default {
     position: fixed;
     bottom: 20px;
     left: 30px;
+    z-index: 100;
     background-color: #f0f0f0;
     color: #4a4a4a;
     padding: 15px;

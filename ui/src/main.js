@@ -1,4 +1,4 @@
-import Vue from 'vue'
+import { createApp, h } from 'vue'
 import App from './App.vue'
 import router from './router'
 import store from './store'
@@ -6,25 +6,21 @@ import i18n from './i18n'
 
 import vueDebounce from 'vue-debounce'
 
-import Buefy from 'buefy'
-import 'buefy/dist/buefy.css'
+import Buefy from '@ntohq/buefy-next'
+import '@ntohq/buefy-next/dist/buefy.css'
 
 import 'video.js/dist/video-js.css'
 import 'videojs-vr/dist/videojs-vr.css'
 import '@mdi/font/css/materialdesignicons.css'
 
-Vue.config.productionTip = false
-Vue.config.keyCodes = {
-  arrowLeft: 37,
-  arrowRight: 39,
-  questionMark: 63
-}
-Vue.use(Buefy)
-Vue.use(vueDebounce)
+const app = createApp({
+  render: () => h(App)
+})
 
-new Vue({
-  router,
-  store,
-  i18n,
-  render: h => h(App)
-}).$mount('#app')
+app.use(router)
+app.use(store)
+app.use(i18n)
+app.use(Buefy)
+app.use(vueDebounce)
+
+app.mount('#app')

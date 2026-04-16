@@ -24,21 +24,25 @@
 </template>
 
 <script>
-import GlobalEvents from 'vue-global-events'
+import { defineComponent, defineAsyncComponent } from 'vue';
+
+import { GlobalEvents } from 'vue-global-events'
 
 import Navbar from './Navbar.vue'
 import Socket from './Socket.vue'
 import QuickFind from './QuickFind'
-import Details from './views/scenes/Details'
-import EditScene from './views/scenes/EditScene'
-import ActorDetails from './views/actors/ActorDetails'
-import EditActor from './views/actors/EditActor'
-import SearchStashdbScenes from './views/scenes/SearchStashdbScenes'
-import SearchStashdbActors from './views/actors/SearchStashdbActors'
 import MigrationOverlay from './components/MigrationOverlay'
 
-export default {
+const Details = defineAsyncComponent(() => import('./views/scenes/Details.vue'))
+const EditScene = defineAsyncComponent(() => import('./views/scenes/EditScene.vue'))
+const ActorDetails = defineAsyncComponent(() => import('./views/actors/ActorDetails.vue'))
+const EditActor = defineAsyncComponent(() => import('./views/actors/EditActor.vue'))
+const SearchStashdbScenes = defineAsyncComponent(() => import('./views/scenes/SearchStashdbScenes.vue'))
+const SearchStashdbActors = defineAsyncComponent(() => import('./views/actors/SearchStashdbActors.vue'))
+
+export default defineComponent({
   components: { Navbar, Socket, QuickFind, GlobalEvents, Details, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
+
   mounted () {
     // Apply saved theme immediately from localStorage to avoid flash on load
     const saved = localStorage.getItem('xbvr-theme') || 'auto'
@@ -56,14 +60,17 @@ export default {
     // Load from server — watch will apply if different from localStorage
     this.$store.dispatch('optionsWeb/load')
   },
-  beforeDestroy () {
+
+  beforeUnmount () {
     if (this._darkMQ) this._darkMQ.removeEventListener('change', this._darkMQHandler)
   },
+
   watch: {
     '$store.state.optionsWeb.web.theme' (theme) {
       this.applyTheme(theme || 'auto')
     }
   },
+
   methods: {
     applyTheme (theme) {
       const html = document.documentElement
@@ -76,6 +83,7 @@ export default {
       }
     }
   },
+
   computed: {
     showOverlay () {
       return this.$store.state.overlay.details.show
@@ -95,8 +103,8 @@ export default {
     showSearchStashdbActors() {
       return this.$store.state.overlay.searchStashDbActors.show
     },
-  }
-}
+  },
+});
 </script>
 
 <style>
@@ -587,6 +595,33 @@ export default {
     /* Reduce top padding */
     .navbar-pad {
       margin-top: 0.5rem !important;
+    }
+  }
+
+  /* ── Properties checkbox-buttons: icon + label always centred ── */
+  /* This applies everywhere (scenes & actors filters) without per-component duplication */
+  .b-checkbox.button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.35em;
+    width: 100%;
+  }
+  .b-checkbox.button .icon {
+    margin: 0 !important;
+    height: 1em !important;
+    width: 1em !important;
+    line-height: 1 !important;
+  }
+  .b-checkbox.button .icon .mdi::before {
+    line-height: 1 !important;
+    vertical-align: middle !important;
+  }
+
+  /* ── Consistent bottom scroll padding on mobile ── */
+  @media screen and (max-width: 768px) {
+    .navbar-pad {
+      padding-bottom: 1.5rem !important;
     }
   }
 

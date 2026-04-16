@@ -20,8 +20,8 @@
             <b-field grouped group-multiline style="margin-bottom: 2em;">
               <b-field :label="$t('Nationality')" label-position="on-border" class="field-extra">
                 <b-taginput v-model="countries" autocomplete :data="filteredCountries" @typing="getFilteredCountries" maxtags="1" :open-on-focus=true :has-counter="false">
-                  <template slot-scope="props">{{ props.option }}</template>
-                  <template slot="empty">{{ $t('No matching country') }}</template>
+                  <template v-slot="props">{{ props.option }}</template>
+                  <template #empty>{{ $t('No matching country') }}</template>
                   <template #selected="props">
                       <b-tag v-for="(tag, index) in props.tags"                
                         :key="tag+index" :tabstop="false" closable @close="countries=countries.filter(e => e !== tag)" >
@@ -119,13 +119,16 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 import ListEditor from '../../components/ListEditor'
 
-export default {
+export default defineComponent({
   name: 'EditActor',
   components: { ListEditor, GlobalEvents },
+
   data () {
     const actor = Object.assign({}, this.$store.state.overlay.actoredit.actor)
     let images;
@@ -182,6 +185,7 @@ export default {
       extrefsSource: '',
     }
   },
+
   computed: {
     birthdate: {
       get () {        
@@ -204,6 +208,7 @@ export default {
       return this.$store.state.optionsAdvanced.advanced.useImperialEntry
     },
   },
+
   mounted () {
     ky.get('/api/actor/countrylist')
     .json()
@@ -224,6 +229,7 @@ export default {
       this.extrefsChangesMade=false
     })
   },
+
   methods: {
     close () {
       if (this.changesMade || this.extrefsChangesMade) {
@@ -368,7 +374,7 @@ export default {
       }      
     },
   },
-}
+});
 </script>
 
 <style scoped>

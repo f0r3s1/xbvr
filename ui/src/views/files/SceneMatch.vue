@@ -53,9 +53,9 @@
           <b-table :data="data" ref="table" paginated :current-page.sync="currentPage" per-page="5">
             <b-table-column field="cover_url" :label="$t('Image')" width="120" v-slot="props">
               <vue-load-image>
-                <img slot="image" :src="getImageURL(props.row.cover_url)"/>
-                <img slot="preloader" src="/ui/images/blank.png"/>
-                <img slot="error" src="/ui/images/blank.png"/>
+                <template #image><img :src="getImageURL(props.row.cover_url)"/></template>
+                <template #preloader><img src="/ui/images/blank.png"/></template>
+                <template #error><img src="/ui/images/blank.png"/></template>
               </vue-load-image>
             </b-table-column>
             <b-table-column field="site" :label="$t('Site')" sortable v-slot="props">
@@ -113,7 +113,7 @@ import ky from 'ky'
 import { format, parseISO } from 'date-fns'
 import prettyBytes from 'pretty-bytes'
 import VueLoadImage from 'vue-load-image'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 
 export default {
   name: 'SceneMatch',

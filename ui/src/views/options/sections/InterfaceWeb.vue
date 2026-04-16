@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading" />
+    <b-loading :is-full-page="false" v-model="isLoading" />
     <div class="content">
       <h3>{{ $t('Web UI') }}</h3>
       <hr />
@@ -234,22 +234,27 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 import { format, parseISO } from 'date-fns'
 
 let saveTimer = null
 
-export default {
+export default defineComponent({
   name: 'InterfaceWeb',
+
   data () {
     return {
       sampleScene: null
     }
   },
+
   async mounted () {
     this.$store.dispatch('optionsWeb/load')
     this.loadSampleScene()
   },
+
   methods: {
     debouncedSave () {
       if (saveTimer) clearTimeout(saveTimer)
@@ -271,6 +276,7 @@ export default {
       }
     }
   },
+
   watch: {
     '$store.state.optionsWeb.web': {
       handler () {
@@ -281,6 +287,7 @@ export default {
       deep: true
     }
   },
+
   computed: {
     previewTitle () {
       return this.sampleScene ? this.sampleScene.title : 'Amazing VR Experience Vol. 3'
@@ -427,8 +434,8 @@ export default {
     isLoading: function () {
       return this.$store.state.optionsWeb.loading
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

@@ -30,6 +30,9 @@ func (i HealthResource) WebService() *restful.WebService {
 	ws.Route(ws.POST("/fix").To(i.fix).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.POST("/image-error").To(i.reportImageError).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	return ws
 }
 
@@ -66,6 +69,10 @@ type FixRequest struct {
 	Action string `json:"action"`
 }
 
+type ImageErrorRequest struct {
+	SceneID uint `json:"scene_id"`
+}
+
 func (i HealthResource) fix(req *restful.Request, resp *restful.Response) {
 	var r FixRequest
 	if err := req.ReadEntity(&r); err != nil {
@@ -79,4 +86,16 @@ func (i HealthResource) fix(req *restful.Request, resp *restful.Response) {
 	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, map[string]string{"status": "started"})
+}
+
+func (i HealthResource) reportImageError(req *restful.Request, resp *restful.Response) {
+	var r ImageErrorRequest
+	if err := req.ReadEntity(&r); err != nil {
+		resp.WriteHeaderAndEntity(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if r.SceneID > 0 {
+		tasks.ReportImageError(r.SceneID)
+	}
+	resp.WriteHeaderAndEntity(http.StatusOK, map[string]string{"status": "ok"})
 }

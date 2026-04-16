@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
     <div class="content">
       <h3>{{$t("Previews")}}</h3>
       <hr/>
@@ -85,11 +85,14 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 import prettyBytes from 'pretty-bytes'
 
-export default {
+export default defineComponent({
   name: 'Previews',
+
   data () {
     return {
       isLoading: true,
@@ -100,9 +103,11 @@ export default {
       extraSnippet: false
     }
   },
+
   async mounted () {
     await this.loadState()
   },
+
   computed: {
     generatingPreview () {
       return this.$store.state.optionsPreviews.generatingPreview
@@ -114,6 +119,7 @@ export default {
       return this.$store.state.optionsPreviews.previewFn
     }
   },
+
   methods: {
     async loadState () {
       this.isLoading = true
@@ -160,8 +166,8 @@ export default {
       await ky.get('/api/task/preview/generate')
     },
     prettyBytes
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

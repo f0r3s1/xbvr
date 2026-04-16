@@ -17,18 +17,18 @@
       <div class="modal-card-body">
                 <div >
           <b-field label="Find scene...">
-            <b-input v-model="queryString" placeholder="Find scene..." @input="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
+            <b-input v-model="queryString" placeholder="Find scene..." @update:modelValue="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
           </b-field>
     
         <b-table :data="searchResults" >
           <b-table-column field="ImageUrl" >
-            <template slot-scope="props">
+            <template v-slot="props">
               <div class="media">
                 <div class="media-left">
                     <vue-load-image>
-                        <img slot="image" :src="getImageURL(props.row.ImageUrl)" width="150" @mouseover="showTooltipImage(props.row.ImageUrl)" @mouseout="showTooltipImage('')" />
-                        <img slot="preloader" src="/ui/images/blank.png" height="150"/>
-                        <img slot="error" src="/ui/images/blank.png" height="150"/>
+                        <template #image><img :src="getImageURL(props.row.ImageUrl)" width="150" @mouseover="showTooltipImage(props.row.ImageUrl)" @mouseout="showTooltipImage('')"/></template>
+                        <template #preloader><img src="/ui/images/blank.png" height="150"/></template>
+                        <template #error><img src="/ui/images/blank.png" height="150"/></template>
                     </vue-load-image>
                     <div v-if="tooltipImage!='' && tooltipImage==props.row.ImageUrl" class="tooltipimg">
                       <img :src="tooltipImage" alt="Tooltip Image" width="400px" />
@@ -64,7 +64,9 @@
 </template>
 
 <script>
-import GlobalEvents from 'vue-global-events'
+import { defineComponent, nextTick } from 'vue';
+
+import { GlobalEvents } from 'vue-global-events'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 import { format, parseISO } from 'date-fns'
@@ -78,9 +80,10 @@ function debounce(func, wait) {
   };
 }
 
-export default {
+export default defineComponent({
   name: 'SearchStashdbScenes',
   components: {  GlobalEvents, VueLoadImage },
+
   data () {
     return {
         isModalActive: true,
@@ -92,14 +95,17 @@ export default {
         scene: "",
         }        
   },
+
   created() {
     this.debouncedSearch = debounce(this.searchStashdb, 750); // 750ms delay
   },
+
   mounted () {
     const item = Object.assign({}, this.$store.state.overlay.searchStashDbScenes.scene)    
     this.scene = item
     this.openDialog(item)    
   },
+
   methods: {
     format,
     parseISO,
@@ -118,7 +124,7 @@ export default {
     },
     selectScene(option) {
         this.stashdbUrl=option.Url.replace("https://stashdb.org/scenes/","")
-        this.$nextTick(() => {
+        nextTick(() => {
             if (this.$refs.autocompleteInput) {
                 this.$refs.autocompleteInput.focus();
             }
@@ -143,7 +149,7 @@ export default {
         this.isModalActive = true
         this.searchStashdb()
         this.$store.commit('overlay/changeDetailsTab', { tab: 3 })
-        this.$nextTick(() => {
+        nextTick(() => {
             if (this.$refs.autocompleteInput) {
                 this.$refs.autocompleteInput.focus();
             }
@@ -161,10 +167,11 @@ export default {
       this.tooltipImage=val
     },
   },
+
   computed: {
 
-}
-}
+},
+});
 </script>
 
 <style scoped>

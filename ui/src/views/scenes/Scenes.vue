@@ -24,17 +24,21 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import Filters from './Filters'
 import List from './List'
 
-export default {
+export default defineComponent({
   name: 'Scenes',
   components: { Filters, List },
+
   data() {
     return {
       infiniteScrollEnabled: true
     }
   },
+
   methods: {
     toggleInfiniteScroll() {
       this.infiniteScrollEnabled = !this.infiniteScrollEnabled
@@ -50,31 +54,34 @@ export default {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   },
+
   mounted () {
     this._scrollHandler = this.handleScroll.bind(this)
     window.addEventListener('scroll', this._scrollHandler, { passive: true })
   },
-  beforeDestroy () {
+
+  beforeUnmount () {
     window.removeEventListener('scroll', this._scrollHandler)
   },
-  beforeRouteEnter (to, from, next) {
-    next(vm => {
+
+  beforeRouteEnter (to) {
+    return vm => {
       if (to.query !== undefined) {
         vm.$store.commit('sceneList/stateFromQuery', to.query)
       }
       vm.$store.dispatch('optionsWeb/load')
       vm.$store.dispatch('sceneList/load', { offset: 0 })
       vm.$store.dispatch('optionsAdvanced/load')
-    })
+    }
   },
-  beforeRouteUpdate (to, from, next) {
+
+  beforeRouteUpdate (to) {
     if (to.query !== undefined) {
       this.$store.commit('sceneList/stateFromQuery', to.query)
     }
     this.$store.dispatch('sceneList/load', { offset: 0 })
-    next()
   },
-}
+});
 </script>
 
 <style scoped>

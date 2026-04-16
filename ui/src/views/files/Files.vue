@@ -17,15 +17,18 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import Filters from './Filters'
 import List from './List'
 import Player from './Player'
 import SceneMatch from './SceneMatch'
 import CreateScene from './CreateScene'
 
-export default {
+export default defineComponent({
   name: 'Files',
   components: { Filters, List, Player, SceneMatch, CreateScene },
+
   computed: {
     showPlayerOverlay () {
       return this.$store.state.overlay.player.show
@@ -36,6 +39,6 @@ export default {
     showCreateOverlay () {
       return this.$store.state.overlay.createScene.show
     }
-  }
-}
+  },
+});
 </script>

@@ -20,7 +20,7 @@
             Step {{ progress.step_num }} of {{ progress.total_steps }}
           </span>
         </div>
-        <b-progress :value="progress.percent" type="is-primary" size="is-medium" show-value>
+        <b-progress :modelValue="progress.percent" type="is-primary" size="is-medium" show-value>
           {{ Math.round(progress.percent) }}%
         </b-progress>
         <b-button type="is-danger" outlined size="is-small" @click="cancelScan" style="margin-top: 0.5rem;">
@@ -100,10 +100,11 @@
 
 <script>
 import ky from 'ky'
-import Vue from 'vue'
+import { defineComponent } from 'vue';
 
-export default {
+export default defineComponent({
   name: 'LibraryHealth',
+
   data () {
     return {
       report: null,
@@ -111,6 +112,7 @@ export default {
       expanded: {}
     }
   },
+
   computed: {
     progress () {
       return this.$store.state.health.progress
@@ -137,6 +139,7 @@ export default {
       }
     }
   },
+
   watch: {
     // When progress says done, fetch the report
     'progress.running' (val, oldVal) {
@@ -145,12 +148,15 @@ export default {
       }
     }
   },
+
   async mounted () {
     await this.fetchReport()
   },
-  beforeDestroy () {
+
+  beforeUnmount () {
     if (this._pollTimer) clearInterval(this._pollTimer)
   },
+
   methods: {
     async fetchReport () {
       try {
@@ -202,7 +208,7 @@ export default {
       }
     },
     toggle (id) {
-      Vue.set(this.expanded, id, !this.expanded[id])
+      this.expanded[id] = !this.expanded[id]
     },
     confirmFix (issue) {
       const count = issue.affected_items ? issue.affected_items.length : 0
@@ -241,8 +247,8 @@ export default {
         default: return 'is-info'
       }
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>

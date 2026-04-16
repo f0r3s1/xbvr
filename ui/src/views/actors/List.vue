@@ -7,54 +7,28 @@
       @keydown.o="prevpage"
       @keydown.p="nextpage"
     />
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
 
-    <div class="columns is-multiline is-full">
-      <div class="column">
-        <strong>{{total}} results</strong>
+    <div class="list-toolbar">
+      <strong class="toolbar-total">{{total}} results</strong>
+      <div class="simple-pagination">
+        <button class="button is-small" :disabled="current <= 1" @click="prevpage">&#8249;</button>
+        <input type="number" class="pg-input" v-model.number="current" :min="1" :max="totalPages" @change="pageChanged" />
+        <span class="pg-of">/ {{ totalPages }}</span>
+        <button class="button is-small" :disabled="current >= totalPages" @click="nextpage">&#8250;</button>
       </div>
-      <div class="column">
-        <b-tooltip :label="$t('Press o/left arrow to page back, p/right arrow to page forward')" :delay="500" position="is-top">
-          <b-pagination
-              :total="total"
-              v-model="current"
-              range-before=1
-              range-after=3    
-              size="is-small"                                           
-              :per-page="limit"
-              aria-next-label="Next page"
-              aria-previous-label="Previous page"
-              aria-page-label="Page"
-              aria-current-label="Current page"
-              :page-input=true
-              @change="pageChanged"
-              debounce-page-input="250"
-              >
-          </b-pagination>
-        </b-tooltip>
-        <span v-show="show_actor_id==='never show, just need the computed show_actor_id to trigger '">{{show_actor_id}}</span>
-      </div>
-      <div class="column">
-        <div class="is-pulled-right">
-          <b-field>
-            <span class="list-header-label">{{$t('Card size')}}</span>
-            <b-radio-button v-model="cardSize" native-value="1" size="is-small">
-              XS
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="2" size="is-small">
-              S
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="3" size="is-small">
-              M
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="4" size="is-small">
-              L
-            </b-radio-button>
-          </b-field>
-        </div>
+      <div class="toolbar-size">
+        <b-field>
+          <span class="list-header-label">{{$t('Card size')}}</span>
+          <b-radio-button v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
+        </b-field>
       </div>
     </div>
-        <div class="columns is-gapless is-centered" v-if="hideLetters">
+    <span v-show="show_actor_id==='never show, just need the computed show_actor_id to trigger '">{{show_actor_id}}</span>
+        <div class="letter-jump" v-if="hideLetters">
           <b-radio-button v-model="jumpTo" native-value="" size="is-small"></b-radio-button>
           <b-radio-button v-model="jumpTo" native-value="A" size="is-small">A</b-radio-button>
           <b-radio-button v-model="jumpTo" native-value="B" size="is-small">B</b-radio-button>
@@ -82,12 +56,12 @@
     <div class="is-clearfix"></div>
 
     <div class="columns is-multiline">
-      <div :class="['column', 'is-multiline', cardSizeClass]"
+      <div :class="['column', 'is-multiline', cardSizeClass, 'actor-col']"
            v-for="actor in actors" :key="actor.id">
         <ActorCard :actor="actor"/>
       </div>
     </div>
-      <div class="columns is-gapless is-centered" v-if="hideLetters">
+      <div class="letter-jump" v-if="hideLetters">
         <b-radio-button v-model="jumpTo" native-value="" size="is-small"></b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="A" size="is-small">A</b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="B" size="is-small">B</b-radio-button>
@@ -105,48 +79,40 @@
         <b-radio-button v-model="jumpTo" native-value="N" size="is-small">N</b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="O" size="is-small">O</b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="P" size="is-small">P</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="Q" size="is-small">Q/R</b-radio-button>        
+        <b-radio-button v-model="jumpTo" native-value="Q" size="is-small">Q/R</b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="S" size="is-small">S</b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="T" size="is-small">T</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="U" size="is-small">U/V</b-radio-button>        
+        <b-radio-button v-model="jumpTo" native-value="U" size="is-small">U/V</b-radio-button>
         <b-radio-button v-model="jumpTo" native-value="W" size="is-small">W/X/Y/Z</b-radio-button>
       </div>
-      <div class="columns is-gapless is-centered">          
-        <b-tooltip :label="$t('Press k to page back, l to page forward')" :delay="500" position="is-top">
-          <b-pagination
-            :total="total"
-            v-model="current"
-            range-before=2
-            range-after=3 
-            size="is-small"                                              
-            :per-page="limit"
-            aria-next-label="Next page"
-            aria-previous-label="Previous page"
-            aria-page-label="Page"
-            aria-current-label="Current page"
-            :page-input=true
-            @change="pageChanged"
-            debounce-page-input="250"
-            >
-        </b-pagination>
-      </b-tooltip>
+      <div class="pagination-bottom">
+        <div class="simple-pagination">
+          <button class="button is-small" :disabled="current <= 1" @click="prevpage">&#8249;</button>
+          <input type="number" class="pg-input" v-model.number="current" :min="1" :max="totalPages" @change="pageChanged" />
+          <span class="pg-of">/ {{ totalPages }}</span>
+          <button class="button is-small" :disabled="current >= totalPages" @click="nextpage">&#8250;</button>
+        </div>
       </div>
   </div>
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ActorCard from './ActorCard'
 import ky from 'ky'
-import GlobalEvents from 'vue-global-events'
+import { GlobalEvents } from 'vue-global-events'
 
-export default {
+export default defineComponent({
   name: 'List',
   components: { ActorCard, GlobalEvents },
+
   data () {
     return {      
       current: 1,      
     }
   },
+
   computed: {
     cardSize: {
       get () {
@@ -225,7 +191,7 @@ export default {
       return this.$store.state.actorList.show_actor_id
     },
     hideLetters: {
-      get () {        
+      get () {
         switch (this.$store.state.actorList.filters.sort) {
           case "":
             return true
@@ -237,7 +203,11 @@ export default {
         return false
         },
     },
+    totalPages () {
+      return Math.max(1, Math.ceil(this.total / this.limit))
+    },
   },
+
   methods: {
     reloadList () {
       this.$router.push({
@@ -280,6 +250,7 @@ export default {
       this.pageChanged()
     },
   },
+
   watch: {
     '$store.state.actorList.show_actor_id' (id) {
       if (id && id !== '') {
@@ -291,12 +262,90 @@ export default {
         this.$store.state.actorList.show_actor_id = ''
       }
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>
+  /* Toolbar row: results — pagination — card size */
+  .list-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.4rem 0 0;
+    margin-bottom: 0.75rem;
+  }
+  /* Bulma .columns has margin-top: -0.75rem by default, which eats the toolbar's margin-bottom */
+  .columns.is-multiline {
+    margin-top: 0 !important;
+  }
+  .toolbar-total {
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+  .toolbar-size {
+    flex: 0 0 auto;
+  }
+  /* Remove buefy field's default bottom margin inside toolbar so it doesn't add double space */
+  .toolbar-size :deep(.field) {
+    margin-bottom: 0 !important;
+  }
+
+  /* Compact custom pagination */
+  .simple-pagination {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 0 0 auto;
+  }
+  .pg-input {
+    width: 2.5rem;
+    height: 1.75rem;
+    text-align: center;
+    border: 1px solid #dbdbdb;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    padding: 0 0.2rem;
+    color: inherit;
+    background: transparent;
+    -moz-appearance: textfield;
+  }
+  html[data-theme="dark"] .pg-input {
+    border-color: #4a4a5a;
+  }
+  .pg-input::-webkit-inner-spin-button,
+  .pg-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .pg-of {
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0.7;
+  }
+
+  /* Bottom pagination centred */
+  .pagination-bottom {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0 0.75rem;
+  }
+
+  /* Letter jump bar */
+  .letter-jump {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px;
+    margin: 0.25rem 0 0.5rem;
+    padding: 0 0.25rem;
+  }
+
+  /* Card columns */
+  .actor-col {
+    overflow: hidden;
+    min-width: 0;
+  }
+
   .list-header-label {
-    padding-right: 1em;
+    padding-right: 0.5em;
   }
 </style>

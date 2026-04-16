@@ -114,8 +114,8 @@
     <div v-if="Object.keys(filters).length !== 0">
       <b-field label="Cast" label-position="on-border" class="field-extra">
         <b-taginput v-model="cast" autocomplete :data="filteredCast" @typing="getFilteredCast">
-          <template slot-scope="props">{{ props.option }}</template>
-          <template slot="empty">No matching cast</template>
+          <template v-slot="props">{{ props.option }}</template>
+          <template #empty>No matching cast</template>
           <template #selected="props">
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -133,8 +133,8 @@
 
       <b-field label="Site" label-position="on-border" class="field-extra">
         <b-taginput v-model="sites" autocomplete :data="filteredSites" @typing="getFilteredSites">
-          <template slot-scope="props">{{ props.option }}</template>
-          <template slot="empty">No matching sites</template>
+          <template v-slot="props">{{ props.option }}</template>
+          <template #empty>No matching sites</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -151,8 +151,8 @@
 
       <b-field label="Tags" label-position="on-border" class="field-extra">
         <b-taginput v-model="tags" autocomplete :data="filteredTags" @typing="getFilteredTags">
-          <template slot-scope="props">{{ props.option }}</template>
-          <template slot="empty">No matching tags</template>
+          <template v-slot="props">{{ props.option }}</template>
+          <template #empty>No matching tags</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -170,8 +170,8 @@
 
       <b-field label="Cuepoint" label-position="on-border" class="field-extra">
         <b-taginput v-model="cuepoint" autocomplete :data="filteredCuepoints" @typing="getFilteredCuepoints">
-          <template slot-scope="props">{{ props.option }}</template>
-          <template slot="empty">No matching cuepoints</template>
+          <template v-slot="props">{{ props.option }}</template>
+          <template #empty>No matching cuepoints</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -190,8 +190,8 @@
       <b-tooltip position="is-top" label="Allows searching a variety of attributes such as: scenes in Watchlists, Favourites, Has Video, Scripts or HSP Files, Subscriptions, Ratings, Cuepoint Types, Number of Cast, FOV, Projection, Resolution, Frame Rate and Codecs" multilined :delay="1000" style="width:100%">
         <b-field label="Attributes" label-position="on-border" class="field-extra">        
           <b-taginput v-model="attributes" autocomplete :data="filteredAttributes" @typing="getFilteredAttributes">
-            <template slot-scope="props">{{ props.option }}</template>
-            <template slot="empty">No matching attributes</template>
+            <template v-slot="props">{{ props.option }}</template>
+            <template #empty>No matching attributes</template>
             <template #selected="props">
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -262,7 +262,7 @@
         </button>
       </b-tooltip>
 
-    <b-modal :active.sync="isGroupTagNameModalActive"
+    <b-modal v-model="isGroupTagNameModalActive"
              has-modal-card
              trap-focus
              aria-role="dialog"
@@ -293,15 +293,19 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import SavedSearch from './SavedSearch'
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   name: 'Filters',
   components: { SavedSearch },
+
   mounted () {
     this.$store.dispatch('sceneList/filters')
   },
+
   data () {
     return {
       filteredCast: [],
@@ -315,9 +319,11 @@ export default {
       _reloadTimeout: null,
     }
   },
-  beforeDestroy () {
+
+  beforeUnmount () {
     if (this._reloadTimeout) clearTimeout(this._reloadTimeout)
   },
+
   methods: {
     reloadList () {
       if (this._reloadTimeout) clearTimeout(this._reloadTimeout)
@@ -584,6 +590,7 @@ export default {
       return txt
     },
   },
+
   computed: {
     filters () {
       return this.$store.state.sceneList.filterOpts
@@ -811,8 +818,8 @@ export default {
       return tagGroupCnt == 1 ? false : true
 
     },
-}
-}
+},
+});
 </script>
 
 <style lang="scss" scoped>

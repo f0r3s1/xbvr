@@ -207,9 +207,9 @@
         </b-tooltip>
         <b-field v-if="isImport && !fileBundleSource">
           <b-input type="url" v-model="bundleUrl" placeholder="eg https://localhost:9999/myfiles/xbvr-content-bundle.json"
-            @input="validateUrl" :class="{ 'is-danger': urlError }">
+            @update:modelValue="validateUrl" :class="{ 'is-danger': urlError }">
           </b-input>
-          <b-help :text="urlError" v-if="urlError"></b-help>
+          <p class="help is-danger" v-if="urlError">{{ urlError }}</p>
           <b-button type="is-primary" @click="restoreContent" :disabled="urlError!='' || bundleUrl==''">Import</b-button>
         </b-field>
 
@@ -240,12 +240,16 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
-export default {
+export default defineComponent({
   name: 'OptionsSceneDataImportExport',
+
   mounted () {
     this.$store.dispatch('sceneList/filters')
   },
+
   data () {
     return {
       includeScenes: true,
@@ -279,6 +283,7 @@ export default {
       activeSubTab: 0
     }
   },
+
   computed: {
     route () {
       return this.$route
@@ -290,6 +295,7 @@ export default {
       return this.activeTab == 1
     },
   },
+
   watch: {
     // when a file is selected, then this will fire the upload process
     file: function (o, n) {
@@ -336,6 +342,7 @@ export default {
       }
     }
   },
+
   methods: {
     restoreContent () {
       if (this.uploadData !== '' || this.bundleUrl!='') {
@@ -398,9 +405,8 @@ export default {
   this.urlError = 'Please enter a valid URL.';
 }
     },
-  }
-}
-
+  },
+});
 </script>
 
 <style>

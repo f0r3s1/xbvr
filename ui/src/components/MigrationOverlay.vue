@@ -38,10 +38,13 @@
 </template>
 
 <script>
+import { defineComponent } from 'vue';
+
 import ky from 'ky'
 
-export default {
+export default defineComponent({
   name: 'MigrationOverlay',
+
   data() {
     return {
       isMigrating: false,
@@ -59,6 +62,7 @@ export default {
       lastUpdateTime: null
     }
   },
+
   computed: {
     progressPercent() {
       if (this.migrationState.total === 0) return 0
@@ -104,6 +108,7 @@ export default {
       return this.formatTime(smoothedSeconds)
     }
   },
+
   async mounted() {
     try {
       await this.checkMigrationStatus()
@@ -116,9 +121,11 @@ export default {
       // Don't block the UI if migration check fails
     }
   },
-  beforeDestroy() {
+
+  beforeUnmount() {
     this.stopPolling()
   },
+
   methods: {
     async checkMigrationStatus() {
       try {
@@ -186,8 +193,8 @@ export default {
         this.pollInterval = null
       }
     }
-  }
-}
+  },
+});
 </script>
 
 <style scoped>
