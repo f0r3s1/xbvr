@@ -2154,7 +2154,7 @@ func Migrate(migrateTo string) {
 				newCustomScrapeRules = models.ActorScraperConfig{}
 				newCustomScrapeRules.GenericActorScrapingConfig = oldCustomScrapeRules.GenericActorScrapingConfig
 				newCustomScrapeRules.StashSceneMatching = map[string][]models.StashSiteConfig{}
-				for key, _ := range oldCustomScrapeRules.StashSceneMatching {
+				for key := range oldCustomScrapeRules.StashSceneMatching {
 					newScraperCofig := oldCustomScrapeRules.StashSceneMatching[key]
 					newCustomScrapeRules.StashSceneMatching[key] = []models.StashSiteConfig{}
 					newCustomScrapeRules.StashSceneMatching[key] = append(newCustomScrapeRules.StashSceneMatching[key], newScraperCofig)
@@ -2444,7 +2444,7 @@ func Migrate(migrateTo string) {
 			Migrate: func(tx *gorm.DB) error {
 				// Update status before running migration
 				msg := fmt.Sprintf("Running migration %s", migrations[currentIndex].ID)
-				tlog.Infof(msg)
+				tlog.Info(msg)
 				config.UpdateMigrationStatus(migrations[currentIndex].ID, currentIndex+1, totalMigrations, msg)
 
 				// Run the actual migration

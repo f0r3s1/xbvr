@@ -73,7 +73,7 @@ func UpCloseVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out c
 				}
 
 				// iterate over each hit result
-				for i, _ := range gjson.Get(jsonString, "results.0.hits").Array() {
+				for i := range gjson.Get(jsonString, "results.0.hits").Array() {
 					queryStr := `results.0.hits.` + strconv.Itoa(i)
 
 					// Check to make sure we don't update scenes we have already collected

@@ -128,29 +128,37 @@ release:
 lint: lint-go lint-js ## Run all linters (Go + JS)
 
 .PHONY: lint-go
-lint-go: ## Run Go linters (gofmt + go vet + golangci-lint)
-	@echo "→ gofmt"
-	@out=$$(gofmt -l . | grep -v '^vendor/' || true); \
-		if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
-	@echo "→ go vet"
-	@go vet ./...
-	@echo "→ golangci-lint"
-	@golangci-lint run
+lint-go: ## Run Go linters in a self-deleting docker container (no local tools needed)
+	@mkdir -p ui/dist && touch ui/dist/embed_placeholder
+	@docker run --rm \
+		-v "$$PWD":/app -w /app \
+		-v xbvr-go-mod:/go/pkg/mod \
+		-v xbvr-go-build:/root/.cache/go-build \
+		golang:1.25-bookworm sh -c '\
+			set -e; \
+			apt-get update -qq >/dev/null; \
+			apt-get install -y -qq pkg-config libayatana-appindicator3-dev libgtk-3-dev >/dev/null; \
+			echo "→ gofmt"; \
+			out=$$(gofmt -l . | grep -v "^vendor/" || true); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi; \
+			echo "→ go vet"; go vet ./...; \
+			echo "→ golangci-lint"; \
+			go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest; \
+			$$(go env GOPATH)/bin/golangci-lint run'
 
 .PHONY: lint-js
-lint-js: ## Run JS/Vue linter
-	@echo "→ eslint"
-	@cd ui && bunx eslint src/
+lint-js: ## Run JS/Vue linter in a self-deleting docker container
+	@docker run --rm \
+		-v "$$PWD":/app -w /app/ui \
+		-v xbvr-bun-cache:/root/.bun/install/cache \
+		oven/bun:latest sh -c 'bun install --frozen-lockfile --ignore-scripts && bunx eslint src/'
 
 .PHONY: lint-fix
-lint-fix: ## Auto-fix lint issues where possible
-	@gofmt -w .
-	@cd ui && bunx eslint src/ --fix
+lint-fix: ## Auto-fix lint issues where possible (docker, self-deleting)
+	@docker run --rm -v "$$PWD":/app -w /app golang:1.25-bookworm gofmt -s -w .
+	@docker run --rm -v "$$PWD":/app -w /app/ui oven/bun:latest sh -c 'bun install --frozen-lockfile --ignore-scripts && bunx eslint src/ --fix'
 
 .PHONY: fmt
-fmt: ## Format Go + JS code
-	@gofmt -w .
-	@cd ui && bunx eslint src/ --fix
+fmt: lint-fix ## Alias of lint-fix
 
 .PHONY: test
 test: ## Run Go tests
