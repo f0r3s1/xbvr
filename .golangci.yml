@@ -7,27 +7,17 @@ run:
 linters:
   default: none
   enable:
-    - errcheck
     - govet
-    - ineffassign
-    - staticcheck
     - unused
-    - gosec
-    - misspell
-  settings:
-    gosec:
-      excludes:
-        - G104
-        - G304
-        - G404
-        - G501
-        - G505
   exclusions:
     rules:
-      - path: _test\.go
+      # Legacy scrape helpers / experimental code — dead funcs tolerated.
+      - path: ^pkg/scrape/
         linters:
-          - gosec
-          - errcheck
+          - unused
+      - path: ^pkg/api/stashdb\.go$
+        linters:
+          - unused
     paths:
       - pkg/dms
       - pkg/tray

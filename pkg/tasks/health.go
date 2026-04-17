@@ -49,7 +49,6 @@ type HealthProgress struct {
 }
 
 var (
-	healthMu       sync.Mutex
 	healthRunning  int32
 	healthCancel   int32
 	lastReport     *HealthReport
