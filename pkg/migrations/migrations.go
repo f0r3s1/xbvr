@@ -2382,21 +2382,35 @@ func Migrate(migrateTo string) {
 		{
 			ID: "0087-add-site-use-flaresolverr",
 			Migrate: func(tx *gorm.DB) error {
-				// Add use_flare_solverr column to sites table
 				return tx.AutoMigrate(&models.Site{}).Error
 			},
 		},
 		{
 			ID: "0088-add-site-use-proxy",
 			Migrate: func(tx *gorm.DB) error {
-				// Add use_proxy column to sites table
 				return tx.AutoMigrate(&models.Site{}).Error
+			},
+		},
+		{
+			ID: "0089-rename-imageproxy-to-proxy",
+			Migrate: func(tx *gorm.DB) error {
+				var obj models.KV
+				err := tx.Where(&models.KV{Key: "config"}).First(&obj).Error
+				if err != nil {
+					return nil
+				}
+				configStr := obj.Value
+				configStr = strings.ReplaceAll(configStr, `"imageProxyUrl"`, `"proxyAddress"`)
+				configStr = strings.ReplaceAll(configStr, `"imageProxyApiKeyName"`, `"proxyApiKeyName"`)
+				configStr = strings.ReplaceAll(configStr, `"imageProxyApiKeyValue"`, `"proxyApiKeyValue"`)
+				obj.Value = configStr
+				obj.Save()
+				return nil
 			},
 		},
 		{
 			ID: "0090-add-scene-filter-indexes",
 			Migrate: func(tx *gorm.DB) error {
-				// Add indexes on columns heavily used in WHERE clauses for scene filtering
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_hidden", "is_hidden")
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_available", "is_available")
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_accessible", "is_accessible")
@@ -2404,31 +2418,14 @@ func Migrate(migrateTo string) {
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_watchlist", "watchlist")
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_is_watched", "is_watched")
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_release_date", "release_date")
-				// Composite index for the most common filter combination
 				tx.Model(&models.Scene{}).AddIndex("idx_scene_avail_access_hidden", "is_available", "is_accessible", "is_hidden")
 				return nil
 			},
 		},
 		{
-			ID: "0089-rename-imageproxy-to-proxy",
+			ID: "0091-add-scraper-id-index",
 			Migrate: func(tx *gorm.DB) error {
-				// Migrate old imageProxy config fields to new proxy fields
-				var obj models.KV
-				err := tx.Where(&models.KV{Key: "config"}).First(&obj).Error
-				if err != nil {
-					return nil // No config found, nothing to migrate
-				}
-
-				// Parse the old config and migrate fields
-				configStr := obj.Value
-				// Replace old field names with new ones
-				configStr = strings.ReplaceAll(configStr, `"imageProxyUrl"`, `"proxyAddress"`)
-				configStr = strings.ReplaceAll(configStr, `"imageProxyApiKeyName"`, `"proxyApiKeyName"`)
-				configStr = strings.ReplaceAll(configStr, `"imageProxyApiKeyValue"`, `"proxyApiKeyValue"`)
-
-				obj.Value = configStr
-				obj.Save()
-				return nil
+				return tx.Table("scenes").AddIndex("idx_scenes_scraper_id", "scraper_id").Error
 			},
 		},
 	}

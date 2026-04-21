@@ -464,14 +464,12 @@ func (i ConfigResource) listSitesWithDB(req *restful.Request, resp *restful.Resp
 		db.Order("name COLLATE NOCASE asc").Find(&sites)
 	}
 
-	// Build scraper lookup set for O(1) matching
 	scrapers := models.GetScrapers()
 	scraperSet := make(map[string]bool, len(scrapers))
 	for _, scraper := range scrapers {
 		scraperSet[scraper.ID] = true
 	}
 
-	// Get all scene counts in a single query instead of N individual queries
 	type scraperCount struct {
 		ScraperID string
 		Count     int
