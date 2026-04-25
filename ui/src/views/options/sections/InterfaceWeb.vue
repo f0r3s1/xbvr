@@ -118,6 +118,11 @@
                   Accent color tags
                 </b-switch>
               </div>
+              <div class="setting-item">
+                <b-switch v-model="updateCheck" type="is-dark" size="is-small">
+                  Check for updates
+                </b-switch>
+              </div>
             </div>
           </div>
         </div>

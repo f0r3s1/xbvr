@@ -84,7 +84,7 @@ export default defineComponent({
           actionText: this.$t('Download now'),
           indefinite: true,
           onAction: () => {
-            window.location = 'https://github.com/xbapps/xbvr/releases'
+            window.location = 'https://github.com/f0r3s1/xbvr/releases'
           }
         })
       }
