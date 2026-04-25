@@ -9,6 +9,7 @@ import (
 
 // all: prefix is required so files prefixed with '_' (e.g. Vite's
 // _plugin-vue_export-helper-*.js) are not silently excluded.
+//
 //go:embed all:dist
 var Assets embed.FS
 
