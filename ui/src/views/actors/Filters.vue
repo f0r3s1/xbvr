@@ -237,12 +237,12 @@ export default defineComponent({
     },
     deleteAkaGroup () {
       this.$store.state.actorList.isLoading = true
-      ky.post('/api/aka/delete', {json: {name: this.cast[0]}}).json().then(data => {
+      ky.post('/api/aka/delete', {json: {name: this.cast[0]}}).json().then(() => {
         this.cast = []
         this.$store.dispatch('actorList/filters')
         this.reloadList()
         this.$store.state.actorList.isLoading = false
-      })       
+      })
     },
     addToAkaGroup () {
       this.$store.state.actorList.isLoading = true

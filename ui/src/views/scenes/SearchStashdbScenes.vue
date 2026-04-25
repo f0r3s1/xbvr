@@ -66,7 +66,6 @@
 <script>
 import { defineComponent, nextTick } from 'vue';
 
-import { GlobalEvents } from 'vue-global-events'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 import { format, parseISO } from 'date-fns'
@@ -82,7 +81,7 @@ function debounce(func, wait) {
 
 export default defineComponent({
   name: 'SearchStashdbScenes',
-  components: {  GlobalEvents, VueLoadImage },
+  components: { VueLoadImage },
 
   data () {
     return {

@@ -298,9 +298,9 @@ export default defineComponent({
     hasDuplicates (array) {
       return (new Set(array)).size !== array.length
     },
-    addVideoField(type) {      
-      let dbfield=''
-      let field=this.selectedVideoField            
+    addVideoField(type) {
+      let dbfield
+      let field=this.selectedVideoField
       if (type=='script') {
         field=this.selectedScriptField
       } else if (type=='subtitle') {

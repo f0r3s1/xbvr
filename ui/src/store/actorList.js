@@ -1,12 +1,5 @@
 import ky from '@/api'
 
-function defaultValue (v, d) {
-  if (v === undefined) {
-    return d
-  }
-  return v
-}
-
 const defaultFilterState = {
   dlState: 'available',
   cardSize: localStorage.getItem('actorCardSize') || '2',  // 1 is now XS and 2 is now S
@@ -57,7 +50,7 @@ const getters = {
 
     return btoa(unescape(encodeURIComponent(JSON.stringify(st))))
   },
-  getQueryParamsFromObject: (state) => (payload) => {
+  getQueryParamsFromObject: () => (payload) => {
     const st = Object.assign({}, JSON.parse(payload))
     delete st.cardSize
 
@@ -123,8 +116,7 @@ const mutations = {
       for (const [k, v] of Object.entries(obj)) {
         state.filters[k] = v
       }
-    } catch (err) {
-    }
+    } catch { /* ignore malformed JSON from persisted state */ }
   },
   stateFromQuery (state, payload) {
     try {
@@ -133,8 +125,7 @@ const mutations = {
       for (const [k, v] of Object.entries(obj)) {
         state.filters[k] = v
       }
-    } catch (err) {
-    }
+    } catch { /* ignore malformed query string */ }
   }
 }
 
@@ -147,7 +138,7 @@ const actions = {
       console.error('Failed to load actor filters:', e)
     }
   },
-  async load ({ state, getters, commit }, params) {
+  async load ({ state, commit }, params) {
     const iOffset = params.offset || 0
 
     state.isLoading = true

@@ -60,8 +60,6 @@
 <script>
 import { defineComponent } from 'vue';
 
-import ky from "ky";
-
 export default defineComponent({
   name: "Funscripts",
 

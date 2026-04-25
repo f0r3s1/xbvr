@@ -14,7 +14,7 @@
       @keydown.e="$store.commit('overlay/editDetails', {scene: item})"
       @keydown.s="$store.commit('overlay/showSearchStashdbScenes', {scene: item})"
       @keydown.g="toggleGallery"
-      @keydown.48="setRating(0)"
+      @keydown="onZeroKey"
     />
 
     <div class="modal-background" @click="close"></div>
@@ -119,7 +119,7 @@
                 <div class="detail-rating" v-if="!displayingAlternateSource">
                   <star-rating :key="item.id" v-model="item.star_rating" :rating="item.star_rating" @rating-selected="setRating"
                                :increment="0.5" :star-size="18" :show-rating="false" />
-                  <b-icon pack="mdi" icon="autorenew" size="is-small" @click.native="setRating(0)" class="rating-reset" data-tooltip="Reset rating"/>
+                  <b-icon pack="mdi" icon="autorenew" size="is-small" @click="setRating(0)" class="rating-reset" data-tooltip="Reset rating"/>
                 </div>
                 <div v-if="displayingAlternateSource" class="detail-rating">
                   <strong>Linked scene, Not an XBVR Scene</strong>
@@ -182,7 +182,7 @@
                    @click='showTagScenes([tag.name])' class="tag is-info is-small tag-pill">
                   <span>{{ tag.name }} ({{ tag.count }})</span>
                   <b-icon v-if="showOpenInNewWindow" pack="mdi" icon="open-in-new" size="is-small"
-                    class="tag-external" @click.native.stop="openTagInNewWindow(tag.name)"/>
+                    class="tag-external" @click.stop="openTagInNewWindow(tag.name)"/>
                 </a>
               </div>
             </div>
@@ -341,7 +341,7 @@
                           <b-table-column field="rating" v-slot="props" width="7em"  >
                             <b-field v-if="props.row.track!=null">
                               <star-rating :key="props.row.id" v-model="props.row.rating" :rating="props.row.rating" @rating-selected="setCuepointRating(props.row)" :increment="0.5" :star-size="10" />
-                              <b-icon v-if="props.row.rating>0" pack="mdi" icon="autorenew" size="is-small" @click.native="clearCuepointRating(props.row)" style="padding-left: .25em;padding-top: .5em;"/>
+                              <b-icon v-if="props.row.rating>0" pack="mdi" icon="autorenew" size="is-small" @click="clearCuepointRating(props.row)" style="padding-left: .25em;padding-top: .5em;"/>
                             </b-field>
                           </b-table-column>
                           <b-table-column v-slot="props" width="1em" >
@@ -461,7 +461,7 @@ import TrailerlistButton from '../../components/TrailerlistButton'
 import HiddenButton from '../../components/HiddenButton'
 
 export default {
-  name: 'Details',
+  name: 'SceneDetails',
   components: { VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
   data () {
     return {
@@ -551,8 +551,7 @@ export default {
         for (let i = 0; i < this.item.cuepoints.length; i++) {
           this.item.cuepoints[i].is_hsp = this.item.cuepoints[i].track == null ? 0 : 1
         }
-        let x=this.item.cuepoints.slice().sort((a, b) => (a.time_start > b.time_start) ? 1 : -1 || (a.is_hsp >b.is_hsp) ? 1 : -1 )
-        x=this.item.cuepoints.slice().sort((a,b) => {
+        const x = this.item.cuepoints.slice().sort((a, b) => {
           let compare = (a.is_hsp<b.is_hsp) ? -1 : (a.is_hsp>b.is_hsp) ? 1 : 0
           if (compare!=0) {
             return compare
@@ -580,7 +579,7 @@ export default {
     },
     filesByType () {
       if (this.item.file !== null) {
-        return this.item.file.slice().sort((a, b) => (a.type === 'video') ? -1 : 1)
+        return this.item.file.slice().sort((a) => (a.type === 'video') ? -1 : 1)
       }
       return []
     },
@@ -637,8 +636,8 @@ export default {
           }
         });
         return this.alternateSources.length;
-      } catch (error) {        
-        return 0; // Return 0 or handle error as needed
+      } catch {
+        return 0;
       }
     },
     changeDetailsTab() {      
@@ -692,7 +691,7 @@ export default {
       })    
 },
 watch:{
-  quickFindOverlayState(newVal, oldVal){
+  quickFindOverlayState(newVal){
     if (newVal == true) {
       return
     }
@@ -712,14 +711,14 @@ watch:{
       }
     }
   },
-  changeDetailsTab(newVal, oldVal){
+  changeDetailsTab(newVal){
     if (newVal == -1 ) {
       return
     }
     this.activeTab = newVal
     this.$store.commit('overlay/changeDetailsTab', { tab: -1 })
   },
-  activeMedia(newVal, oldVal) {
+  activeMedia(newVal) {
     // Auto-load first video when Player tab is opened (without auto-playing)
     if (newVal === 1 && !this.displayingAlternateSource) {
       const videoFiles = this.filesByType.filter(f => f.type === 'video')
@@ -733,7 +732,7 @@ watch:{
     // next time the Player tab is opened it loads cleanly for the new scene.
     if (!newVal || oldVal === undefined || newVal === oldVal) return
     if (this.player && typeof this.player.dispose === 'function') {
-      try { this.player.dispose() } catch (e) { /* already disposed */ }
+      try { this.player.dispose() } catch { /* already disposed */ }
     }
     this.player = {}
     this.vrPlugin = null
@@ -1034,17 +1033,17 @@ watch:{
             key: function (event) {
               return event.which === 27
             },
-            handler: (player, options, event) => {
+            handler: () => {
               this.close()
             }
           },
           zoomIn: {
-            handler: (player, options, event) => {
+            handler: () => {
               this.zoomHandler(true)
             }
           },
           zoomOut: {
-            handler: (player, options, event) => {
+            handler: () => {
               this.zoomHandler(false)
             }
           }
@@ -1231,8 +1230,7 @@ watch:{
             return '/img/' + size + '/' + encodeURI(u)
           } else {
             return '/img/' + size + '/' + encodeURI(decodeURI(u))
-          } 
-          return u
+          }
         }
       } catch {
         return u
@@ -1435,6 +1433,9 @@ watch:{
       updatedScene.star_rating = val
       this.item.star_rating = val
       this.$store.commit('sceneList/updateScene', updatedScene)
+    },
+    onZeroKey (e) {
+      if (e.key === '0') this.setRating(0)
     },
     async nextScene () {
       if (this.displayingAlternateSource) return
@@ -1667,7 +1668,6 @@ watch:{
       }
     },
     flagExtRefDeleted() {
-      let confirmed = false
       this.$buefy.dialog.confirm({
         title: 'Continue?',
         message: `This will unlink the scene and prevent it from relinking to any scene. This cannot be undone`,

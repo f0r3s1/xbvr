@@ -271,9 +271,7 @@ export default defineComponent({
         if (data.scenes && data.scenes.length > 0) {
           this.sampleScene = data.scenes[0]
         }
-      } catch (e) {
-        // no scenes available
-      }
+      } catch { /* no scenes available */ }
     }
   },
 

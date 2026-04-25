@@ -59,7 +59,6 @@ import ActorWatchlistButton from '../../components/ActorWatchlistButton'
 import ActorEditButton from '../../components/ActorEditButton'
 import LinkStashdbButton from '../../components/LinkStashdbButton'
 import VueLoadImage from 'vue-load-image'
-import { tr } from 'date-fns/locale'
 
 export default defineComponent({
   name: 'ActorCard',

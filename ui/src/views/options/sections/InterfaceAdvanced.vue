@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <b-loading :is-full-page="false" :active.sync="isLoading" />
+    <b-loading :is-full-page="false" v-model:active="isLoading" />
     <div class="content">
       <h3>{{ $t('Advanced') }}</h3>
       <hr />
@@ -367,7 +367,7 @@
             </b-table>
 
             <b-field v-if="showConfigField" >
-              <p><b>Cookies</b><b-button style="margin-left: 1em;"@click="addCookieRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>              
+              <p><b>Cookies</b><b-button style="margin-left: 1em;" @click="addCookieRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>
             </b-field>
             <b-table v-if="showConfigField" :data="cookies" >
               <b-table-column field="name" :label="$t('Key')" width="200" v-slot="props">
@@ -430,7 +430,7 @@ export default {
   },
   watch: {
     // when a file is selected, then this will fire the upload process
-    file: function (o, n) {
+    file: function () {
       try {
         if (this.file != null) {
           const reader = new FileReader()
@@ -565,10 +565,10 @@ export default {
     async restoreCollectorConfig () {
       if (this.uploadData !== '') {
         try {
-          const response = await ky.post('/api/options/save-collector-config', {
+          await ky.post('/api/options/save-collector-config', {
             json: JSON.parse(this.uploadData)
           })
-        } catch (error) {
+        } catch {
           this.$buefy.toast.open({message: `Error:  Failed to import file`, type: 'is-danger', duration: 30000})
           return
         }
@@ -577,7 +577,7 @@ export default {
       }
     },
     async deleteCollectorConfig() {
-      const response = await ky.delete('/api/options/delete-collector-config', {
+      await ky.delete('/api/options/delete-collector-config', {
         json: {
           domain_key: this.kvName,
         }

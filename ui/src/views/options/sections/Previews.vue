@@ -146,7 +146,7 @@ export default defineComponent({
         }
       })
         .json()
-        .then(data => {
+        .then(() => {
           this.isLoading = false
         })
     },

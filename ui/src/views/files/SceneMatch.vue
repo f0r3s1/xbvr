@@ -50,7 +50,7 @@
             </div>
           </b-field>
           
-          <b-table :data="data" ref="table" paginated :current-page.sync="currentPage" per-page="5">
+          <b-table :data="data" ref="table" paginated v-model:current-page="currentPage" per-page="5">
             <b-table-column field="cover_url" :label="$t('Image')" width="120" v-slot="props">
               <vue-load-image>
                 <template #image><img :src="getImageURL(props.row.cover_url)"/></template>

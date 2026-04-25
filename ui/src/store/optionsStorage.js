@@ -14,7 +14,7 @@ const mutations = {
 }
 
 const actions = {
-  async load ({ state }, params) {
+  async load ({ state }) {
     await ky.get('/api/options/storage').json()
     .then(data => {
       state.items = data.volumes
@@ -24,9 +24,9 @@ const actions = {
       state.options.default_video_ext = data.default_video_ext
     })
   },
-  async save ({ state }, enabled) { 
-    ky.put('/api/options/storage', { json: { ...state.options } })      
-  },  
+  async save ({ state }) {
+    ky.put('/api/options/storage', { json: { ...state.options } })
+  },
 }
 
 export default {

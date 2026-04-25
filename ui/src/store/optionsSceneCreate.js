@@ -1,5 +1,3 @@
-import ky from '@/api'
-
 const state = {
   scrapeScene: '',
   showSceneCreate: false,

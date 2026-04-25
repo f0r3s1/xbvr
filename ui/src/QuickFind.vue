@@ -76,7 +76,6 @@ import { defineComponent, nextTick } from 'vue';
 
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
-import { GlobalEvents } from 'vue-global-events'
 import { format, parseISO } from 'date-fns'
 import StarRating from 'vue-star-rating'
 
@@ -88,7 +87,7 @@ export default defineComponent({
     sceneId: String
   },
 
-  components: { VueLoadImage, GlobalEvents, StarRating },
+  components: { VueLoadImage, StarRating },
 
   computed: {
     isActive: {

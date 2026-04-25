@@ -113,9 +113,8 @@ export default defineComponent({
   },
 
   watch: {
-    showSceneCreate(newValue, oldValue) {
-      // dummy watch to trigger the computed function
-    },
+    // Accessing showSceneCreate here forces re-evaluation of the computed when the store changes.
+    showSceneCreate() {},
   },
 });
 </script>

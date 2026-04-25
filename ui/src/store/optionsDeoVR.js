@@ -34,7 +34,7 @@ const state = {
 const mutations = {}
 
 const actions = {
-  async load ({ state }, params) {
+  async load ({ state }) {
     state.loading = true
     ky.get('/api/options/state')
       .json()
@@ -63,11 +63,11 @@ const actions = {
         state.loading = false        
       })
   },
-  async save ({ state }, enabled) {
+  async save ({ state }) {
     state.loading = true
     ky.put('/api/options/interface/deovr', { json: { ...state.deovr, ...state.heresphere, ...state.players } })
       .json()
-      .then(data => {
+      .then(() => {
         state.loading = false
       })
   }

@@ -11,7 +11,7 @@ const state = {
 const mutations = {}
 
 const actions = {
-  async load({ state }, params) {
+  async load({ state }) {
     ky.get('/api/options/funscripts/count')
       .json()
       .then(data => {

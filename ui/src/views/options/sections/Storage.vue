@@ -174,7 +174,7 @@ export default {
       try {
         await this.$store.dispatch('optionsStorage/save');
         await ky.get('/api/task/rescan');
-      } catch (e) {
+      } catch {
         this.$buefy.dialog.alert({
           title: 'Error',
           message: 'Failed to save options. Rescan was not started.',
