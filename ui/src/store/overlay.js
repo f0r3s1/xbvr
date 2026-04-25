@@ -59,7 +59,7 @@ const mutations = {
     state.details.query_for_altsrc = payload.query_for_altsrc
     state.details.show = true
   },
-  hideDetails (state, payload) {
+  hideDetails (state) {
     if (state.details.altsrc != null) {
       // if we are display scene data from another source, go back to the real scene
       state.details.show = false
@@ -85,7 +85,7 @@ const mutations = {
     state.actordetails.actor = payload.actor
     state.actordetails.show = true    
   },
-  hideActorDetails (state, payload) {
+  hideActorDetails (state) {
     state.actordetails.actor = null
     state.actordetails.show = false
   },
@@ -101,7 +101,7 @@ const mutations = {
     state.player.file = payload.file
     state.player.show = true
   },
-  hidePlayer (state, payload) {
+  hidePlayer (state) {
     state.player.file = null
     state.player.show = false
   },
@@ -109,7 +109,7 @@ const mutations = {
     state.match.file = payload.file
     state.match.show = true
   },
-  hideMatch (state, payload) {
+  hideMatch (state) {
     state.match.file = null
     state.match.show = false
   },
@@ -117,7 +117,7 @@ const mutations = {
     state.createScene.file = payload.file
     state.createScene.show = true
   },
-  hideCreateCustomScene (state, payload) {
+  hideCreateCustomScene (state) {
     state.createScene.file = null
     state.createScene.show = false    
   },
@@ -134,14 +134,14 @@ const mutations = {
     }    
     state.quickFind.show = true
   },
-  hideQuickFind (state, payload) {
+  hideQuickFind (state) {
     state.quickFind.show = false
   },
   showSceneMatchParams (state, payload) {
     state.sceneMatchParams.site = payload.site
     state.sceneMatchParams.show = true    
   },
-  hideSceneMatchParams (state, payload) {
+  hideSceneMatchParams (state) {
     state.sceneMatchParams.show = false
   },
   showSearchStashdbScenes (state, payload) {

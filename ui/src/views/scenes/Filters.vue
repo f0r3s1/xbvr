@@ -316,18 +316,18 @@ export default defineComponent({
       isGroupTagNameModalActive: false,
       tagGroupName: '',
       groupNameDialogAction: 'create',
-      _reloadTimeout: null,
+      reloadTimeout: null,
     }
   },
 
   beforeUnmount () {
-    if (this._reloadTimeout) clearTimeout(this._reloadTimeout)
+    if (this.reloadTimeout) clearTimeout(this.reloadTimeout)
   },
 
   methods: {
     reloadList () {
-      if (this._reloadTimeout) clearTimeout(this._reloadTimeout)
-      this._reloadTimeout = setTimeout(() => {
+      if (this.reloadTimeout) clearTimeout(this.reloadTimeout)
+      this.reloadTimeout = setTimeout(() => {
         this.$router.push({
           name: 'scenes',
           query: {
@@ -389,12 +389,12 @@ export default defineComponent({
     },
     deleteAkaGroup () {
       this.$store.state.sceneList.isLoading = true
-      ky.post('/api/aka/delete', {json: {name: this.cast[0]}}).json().then(data => {
+      ky.post('/api/aka/delete', {json: {name: this.cast[0]}}).json().then(() => {
         this.cast = []
         this.$store.dispatch('sceneList/filters')
         this.reloadList()
         this.$store.state.sceneList.isLoading = false
-      })       
+      })
     },
     addToAkaGroup () {
       this.$store.state.sceneList.isLoading = true
@@ -454,12 +454,12 @@ export default defineComponent({
     },
     deleteTagGroup () {
       this.$store.state.sceneList.isLoading = true
-      ky.post('/api/tag_group/delete', {json: {name: this.tags[0]}}).json().then(data => {
+      ky.post('/api/tag_group/delete', {json: {name: this.tags[0]}}).json().then(() => {
         this.tags = []
         this.$store.dispatch('sceneList/filters')
         this.reloadList()
         this.$store.state.sceneList.isLoading = false
-      })       
+      })
     },
     addToTagGroup () {      
       this.$store.state.sceneList.isLoading = true

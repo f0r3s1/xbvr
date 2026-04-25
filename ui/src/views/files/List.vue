@@ -2,7 +2,7 @@
   <div style="position: relative; min-height: 200px;">
     <div class="columns">
       <div class="column">
-        <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+        <b-loading :is-full-page="false" v-model:active="isLoading"></b-loading>
         <div v-if="items.length > 0 && !isLoading">
           <b-table :data="items" ref="table" backend-sorting :default-sort="[sortField, sortOrder]" @sort="onSort"
                    :paginated="true">
@@ -126,7 +126,7 @@ export default {
         json: {
           file_id: file.id
         }
-      }).then(data => {
+      }).then(() => {
             this.$store.dispatch('files/load')
       })
     },
@@ -143,7 +143,7 @@ export default {
         type: 'is-danger',
         hasIcon: true,
         onConfirm: () => {
-          ky.delete(`/api/files/file/${file.id}`).json().then(data => {
+          ky.delete(`/api/files/file/${file.id}`).json().then(() => {
             this.$store.dispatch('files/load')
           })
         }

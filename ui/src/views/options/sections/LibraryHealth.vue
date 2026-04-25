@@ -167,9 +167,7 @@ export default defineComponent({
         if (data.running) {
           this.$store.commit('health/setProgress', { ...this.progress, running: true })
         }
-      } catch (e) {
-        // silent
-      }
+      } catch { /* silent */ }
     },
     async startScan () {
       this.expanded = {}
@@ -178,7 +176,7 @@ export default defineComponent({
         await ky.post('/api/health/scan', { json: {}, timeout: 10000 }).json()
         // Poll as fallback in case WebSocket progress doesn't arrive
         this.pollForCompletion()
-      } catch (e) {
+      } catch {
         this.$buefy.toast.open({ message: 'Failed to start health check', type: 'is-danger' })
       }
     },
@@ -197,15 +195,13 @@ export default defineComponent({
             this.$store.commit('health/setProgress', { running: false, step: 'done', step_num: 15, total_steps: 15, percent: 100 })
             clearInterval(this._pollTimer)
           }
-        } catch (e) { /* silent */ }
+        } catch { /* silent */ }
       }, 2000)
     },
     async cancelScan () {
       try {
         await ky.post('/api/health/cancel', { json: {}, timeout: 10000 }).json()
-      } catch (e) {
-        // silent
-      }
+      } catch { /* silent */ }
     },
     toggle (id) {
       this.expanded[id] = !this.expanded[id]
@@ -226,7 +222,7 @@ export default defineComponent({
       try {
         await ky.post('/api/health/fix', { json: { action: issue.fix_action }, timeout: 10000 }).json()
         this.$buefy.toast.open({ message: `${issue.fix_label} started — rescan when complete`, type: 'is-success' })
-      } catch (e) {
+      } catch {
         this.$buefy.toast.open({ message: 'Fix failed', type: 'is-danger' })
       }
       this.fixingAction = null

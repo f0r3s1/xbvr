@@ -289,9 +289,7 @@ export default defineComponent({
             }
             return { ...altsrc, title }
           })
-      } catch (error) {
-        // Silent error handling
-      }
+      } catch { /* silent */ }
     },
     startPreview () {
       if (this.item.has_preview) {
@@ -337,11 +335,11 @@ export default defineComponent({
         return this.item.file !== null && this.item.file.filter(a => a.type === 'script' && a.has_heatmap);
       } else {
         if (this.item.file !== null) {
-          let script;
-          if (script = this.item.file.find((a) => a.type === 'script' && a.has_heatmap && a.is_selected_script)) {
+          let script
+          if ((script = this.item.file.find((a) => a.type === 'script' && a.has_heatmap && a.is_selected_script))) {
             return [script]
           }
-          if (script = this.item.file.find((a) => a.type === 'script' && a.has_heatmap)) {
+          if ((script = this.item.file.find((a) => a.type === 'script' && a.has_heatmap))) {
             return [script]
           }
         }

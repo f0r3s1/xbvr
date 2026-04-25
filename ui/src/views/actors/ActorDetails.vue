@@ -12,7 +12,7 @@
       @keydown.e="$store.commit('overlay/editActorDetails', {actor: actor})"
       @keydown.s="$store.commit('overlay/showSearchStashdbActors', {actor: item})"
       @keydown.g="toggleGallery"
-      @keydown.48="setRating(0)"
+      @keydown="onZeroKey"
     />
 
     <div class="modal-background" @click="close"></div>
@@ -306,7 +306,7 @@
 import { defineComponent, nextTick } from 'vue';
 
 import ky from 'ky'
-import videojs from 'video.js'
+import 'video.js'
 import 'videojs-vr'
 import { format, parseISO } from 'date-fns'
 import VueLoadImage from 'vue-load-image'
@@ -391,9 +391,6 @@ export default defineComponent({
   },
 
   watch: {
-    // when a file is selected, then this will fire the upload process
-    activeTab: function (newval, oldval) {      
-    },
     images: {
       handler () {
         // Reset loaded state when images change
@@ -699,8 +696,11 @@ export default defineComponent({
     ky.post(`/api/actor/rate/${this.actor.id}`, { json: { rating: val } })
     const updatedActor = Object.assign({}, this.actor)
     updatedActor.star_rating = val
-    this.actor.star_rating = val      
+    this.actor.star_rating = val
     this.$store.commit('actorList/updateActor', updatedActor)
+  },
+  onZeroKey (e) {
+    if (e.key === '0') this.setRating(0)
   },
   async nextActor () {      
     const data = this.$store.getters['actorList/nextActor'](this.actor)
@@ -811,7 +811,7 @@ export default defineComponent({
     const arr = JSON.parse(jsonArr);
     return  arr.join(", ");       
   },
-  setActorImage (val) {
+  setActorImage () {
     ky.post('/api/actor/setimage', {
     json: {
       actor_id: this.actor.id,
@@ -822,7 +822,7 @@ export default defineComponent({
       this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
     })    
   },
-  deleteActorImage (val) {
+  deleteActorImage () {
     ky.delete('/api/actor/delimage', {
     json: {
       actor_id: this.actor.id,
@@ -883,9 +883,9 @@ export default defineComponent({
   },
   deleteAkaGroup () {
     this.$store.state.actorList.isLoading = true
-    ky.post('/api/aka/delete', {json: {name: this.actor.name}}).json().then(data => {
+    ky.post('/api/aka/delete', {json: {name: this.actor.name}}).json().then(() => {
       this.$store.state.actorList.isLoading = false
-    }).then(data => {
+    }).then(() => {
       this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
       this.close()
     }
@@ -956,8 +956,8 @@ export default defineComponent({
     if (url.includes('stashdb')) {
       this.$store.state.actorList.isLoading = true
       const lastSlashIndex = url.lastIndexOf('/');
-      ky.get('/api/extref/stashdb/refresh_performer/'+url.substring(lastSlashIndex + 1)).then(data => {
-        ky.get('/api/actor/'+this.actor.id).json().then(data => {          
+      ky.get('/api/extref/stashdb/refresh_performer/'+url.substring(lastSlashIndex + 1)).then(() => {
+        ky.get('/api/actor/'+this.actor.id).json().then(data => {
           if (data.id != 0){
             this.$store.state.overlay.actordetails.actor = data
             this.$store.state.actorList.isLoading = false
@@ -968,7 +968,7 @@ export default defineComponent({
     } else {
       this.$store.state.actorList.isLoading = true
       ky.post('/api/extref/generic/scrape_single', { json: {id: this.actor.id,url: url}})
-        .then(data => {
+        .then(() => {
           ky.get('/api/actor/'+this.actor.id).json().then(data => {
             if (data.id != 0){
               this.$store.state.overlay.actordetails.actor = data

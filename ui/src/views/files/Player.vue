@@ -21,7 +21,7 @@ import 'videojs-vr'
 import 'videojs-hotkeys'
 
 export default defineComponent({
-  name: 'Details',
+  name: 'FilePlayer',
 
   data () {
     return {
@@ -55,7 +55,7 @@ export default defineComponent({
           key: function (event) {
             return event.which === 27
           },
-          handler: (player, options, event) => {
+          handler: () => {
             this.player.dispose()
             this.$store.commit('overlay/hidePlayer')
           }

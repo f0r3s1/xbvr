@@ -2,14 +2,14 @@
   <div>
     <GlobalEvents
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
-      @keypress.prevent.questionMark="$store.commit('overlay/showQuickFind')"
+      @keypress="onGlobalKeypress"
     />
     <Navbar/>
     <div class="navbar-pad">
       <router-view/>
     </div>
 
-    <Details v-if="showOverlay"/>
+    <SceneDetails v-if="showOverlay"/>
     <EditScene v-if="showEdit" />
     <ActorDetails v-if="showActorDetails"/>
     <EditActor v-if="showActorEdit" />
@@ -33,7 +33,7 @@ import Socket from './Socket.vue'
 import QuickFind from './QuickFind'
 import MigrationOverlay from './components/MigrationOverlay'
 
-const Details = defineAsyncComponent(() => import('./views/scenes/Details.vue'))
+const SceneDetails = defineAsyncComponent(() => import('./views/scenes/Details.vue'))
 const EditScene = defineAsyncComponent(() => import('./views/scenes/EditScene.vue'))
 const ActorDetails = defineAsyncComponent(() => import('./views/actors/ActorDetails.vue'))
 const EditActor = defineAsyncComponent(() => import('./views/actors/EditActor.vue'))
@@ -41,7 +41,7 @@ const SearchStashdbScenes = defineAsyncComponent(() => import('./views/scenes/Se
 const SearchStashdbActors = defineAsyncComponent(() => import('./views/actors/SearchStashdbActors.vue'))
 
 export default defineComponent({
-  components: { Navbar, Socket, QuickFind, GlobalEvents, Details, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
+  components: { Navbar, Socket, QuickFind, GlobalEvents, SceneDetails, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
 
   mounted () {
     // Apply saved theme immediately from localStorage to avoid flash on load
@@ -72,6 +72,12 @@ export default defineComponent({
   },
 
   methods: {
+    onGlobalKeypress (e) {
+      if (e.key === '?') {
+        e.preventDefault()
+        this.$store.commit('overlay/showQuickFind')
+      }
+    },
     applyTheme (theme) {
       const html = document.documentElement
       if (theme === 'dark') {

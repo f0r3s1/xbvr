@@ -1,9 +1,11 @@
 <template>
   <section>
-    <b-field class="row" position="is-centered" v-for="(item, i) in list" :key="`item-${i}`">      
-      <b-input v-if = "columnCount > 1" v-for="fieldidx in columnCount" :key="fieldidx" :class="`list-editor-input list-editor-input-${type}-${i}`" :modelValue="item[fieldidx-1]" @blur="blur(i)" 
-        :placeholder=getPlaceholder(fieldidx-1) :style="getColumnStyle(fieldidx-1)" />
-      <b-input v-if = "columnCount == undefined || columnCount == 1" :class="`list-editor-input list-editor-input-${type}-${i}`" :modelValue="item" @blur="blur(i)" :placeholder=getPlaceholder(1) />      
+    <b-field class="row" position="is-centered" v-for="(item, i) in list" :key="`item-${i}`">
+      <template v-if="columnCount > 1">
+        <b-input v-for="fieldidx in columnCount" :key="fieldidx" :class="`list-editor-input list-editor-input-${type}-${i}`" :modelValue="item[fieldidx-1]" @blur="blur(i)"
+          :placeholder=getPlaceholder(fieldidx-1) :style="getColumnStyle(fieldidx-1)" />
+      </template>
+      <b-input v-if="columnCount == undefined || columnCount == 1" :class="`list-editor-input list-editor-input-${type}-${i}`" :modelValue="item" @blur="blur(i)" :placeholder=getPlaceholder(1) />
       <p class="control">
         <!--<b-button type="is-danger" @click="deleteRow(i)">Delete</b-button>-->
         <b-button type="is-light" @click="deleteRow(i)" icon-right="delete" />

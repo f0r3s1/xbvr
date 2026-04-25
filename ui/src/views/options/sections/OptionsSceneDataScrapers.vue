@@ -1,6 +1,6 @@
 <template>
   <div class="scraper-page">
-    <b-loading :is-full-page="false" :active.sync="isLoading"></b-loading>
+    <b-loading :is-full-page="false" v-model:active="isLoading"></b-loading>
     <!-- Header -->
     <div class="scraper-header">
       <h3>{{$t('Scrape scenes from studios')}}</h3>
@@ -185,7 +185,7 @@
       </b-button>
     </div>
 
-    <b-modal :active.sync="isSingleScrapeModalActive"
+    <b-modal v-model:active="isSingleScrapeModalActive"
              has-modal-card
              trap-focus
              aria-role="dialog"
@@ -277,6 +277,7 @@ export default {
           break
         case 'tonightsgirlfriend':
           this.scraperwarning2 = "Warning " + scraper + " also includes 2d scenes, only select scenes from their VR section"
+          break
         case 'naughtyamericavr':
           this.scraperwarning2 = "Warning The NaughtyAmerica site also includes 2d scenes, only select scenes from their VR section"
           break
@@ -293,30 +294,30 @@ export default {
       }
 
       this.isSingleScrapeModalActive = false      
-      var fieldCheckMsg = ""
+      let fieldCheckMsg = ""
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('fuckpassvr.com')) {
-        var fieldCheckMsg="Note: Video Previews are not available when scraping single scenes from FuckpassVR"
+        fieldCheckMsg = "Note: Video Previews are not available when scraping single scenes from FuckpassVR"
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('lethalhardcorevr.com')) {
-        var fieldCheckMsg=`Please check the Site if the scene was for WhorecraftVR. Please check the Release Date`
+        fieldCheckMsg = `Please check the Site if the scene was for WhorecraftVR. Please check the Release Date`
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('littlecaprice-dreams.com')) {
-        var fieldCheckMsg=`Please specify a URL for the cover image`
+        fieldCheckMsg = `Please specify a URL for the cover image`
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('sexbabesvr.com')) {
-        var fieldCheckMsg="Please check the Release Date"
+        fieldCheckMsg = "Please check the Release Date"
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('stasyqvr.com')) {
-        var fieldCheckMsg=`Please specify a Duration if required`
+        fieldCheckMsg = `Please specify a Duration if required`
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('tonightsgirlfriend.com')) {
-        var fieldCheckMsg="Please check the Release Date"
+        fieldCheckMsg = "Please check the Release Date"
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('virtualporn.com')) {
-        var fieldCheckMsg=`Please check the Release Date and specify a Duration if required`
+        fieldCheckMsg = `Please check the Release Date and specify a Duration if required`
       }
-      if (this.additionalInfo[0].fieldValue.toLowerCase().includes('wetvr.com')) {        
-        var fieldCheckMsg="Please check the Release Date"
+      if (this.additionalInfo[0].fieldValue.toLowerCase().includes('wetvr.com')) {
+        fieldCheckMsg = "Please check the Release Date"
       }
 
       if (this.additionalInfoIdx == 0) {

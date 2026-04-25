@@ -40,7 +40,7 @@ const getters = {
 }
 
 const actions = {
-  async load ({ state }, params) {
+  async load ({ state }) {
     state.isLoading = true
     try {
       const data = await ky.post('/api/files/list', { json: state.filters, timeout: 30000 }).json()

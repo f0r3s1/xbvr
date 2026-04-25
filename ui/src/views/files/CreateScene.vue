@@ -88,14 +88,14 @@ export default defineComponent({
       ky.post('/api/scene/create', { json: { title: this.title, id: this.sceneId, filename: this.file.filename } })
         .json()
         .then(scene => {          
-          ky.post('/api/files/match', { json: {file_id: this.file.id, scene_id: scene.scene_id}})          
-          .then(data => {
+          ky.post('/api/files/match', { json: {file_id: this.file.id, scene_id: scene.scene_id}})
+          .then(() => {
             this.$store.dispatch('files/load')
             this.close()
             if (showEdit) {
               this.$store.commit('overlay/editDetails', { scene: scene })
             }
-          })          
+          })
         })
     },
     prettyBytes

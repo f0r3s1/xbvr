@@ -298,7 +298,7 @@ export default defineComponent({
 
   watch: {
     // when a file is selected, then this will fire the upload process
-    file: function (o, n) {
+    file: function () {
       try {
         if (this.file != null) {
           const reader = new FileReader()
@@ -316,8 +316,8 @@ export default defineComponent({
         this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
       }
     },
-    testfile: function (o, n) {
-      try {        
+    testfile: function () {
+      try {
         this.$buefy.toast.open({message: `Loading: ` + this.testfile.name, type: 'is-primary', duration: 30000})
         if (this.testfile != null) {
           this.progressMsg = "Uploading " + this.testfile.name
@@ -366,9 +366,9 @@ export default defineComponent({
     },
     backupContent () {      
       ky.get('/api/task/bundle/backup', { timeout: false, searchParams: { allSites: this.allSites == "true", onlyIncludeOfficalSites: this.onlyIncludeOfficalSites, inclScenes: this.includeScenes, inclHistory: this.includeHistory,
-           inclLinks: this.includeFileLinks, inclCuepoints: this.includeCuepoints, inclActions: this.includeActions, inclPlaylists: this.includePlaylists, inclActorAkas: this.includeActorAkas, inclTagGroups: this.includeTagGroups, 
+           inclLinks: this.includeFileLinks, inclCuepoints: this.includeCuepoints, inclActions: this.includeActions, inclPlaylists: this.includePlaylists, inclActorAkas: this.includeActorAkas, inclTagGroups: this.includeTagGroups,
            inclVolumes: this.includeVolumes, inclExtRefs: this.includeExternalReferences, inclSites: this.includeSites, inclActors: this.includeActors,inclActorActions: this.inclActorActions,
-           inclConfig: this.includeConfig, extRefSubset: this.extRefSubset, playlistId: this.currentPlaylist, download: true } }).json().then(data => {      
+           inclConfig: this.includeConfig, extRefSubset: this.extRefSubset, playlistId: this.currentPlaylist, download: true } }).json().then(() => {
         const link = document.createElement('a')
         link.href = this.myUrl
         link.click()
@@ -398,12 +398,12 @@ export default defineComponent({
       // Simple URL validation regex
 
       try {
-  const decodedUrl = decodeURIComponent(this.bundleUrl);
-  const url = new URL(decodedUrl);
-  this.urlError = '';
-} catch (error) {
-  this.urlError = 'Please enter a valid URL.';
-}
+        const decodedUrl = decodeURIComponent(this.bundleUrl);
+        new URL(decodedUrl);
+        this.urlError = '';
+      } catch {
+        this.urlError = 'Please enter a valid URL.';
+      }
     },
   },
 });

@@ -152,7 +152,7 @@ export default defineComponent({
       this.$emit('update:list', this.internalList)
       this.blurFn()
     },
-    onDragEnd (evt) {
+    onDragEnd () {
       // 'draggable' updates the list automatically, so we just need to emit the update
       this.updateList()
     },

@@ -264,7 +264,7 @@ export default defineComponent({
         hasIcon: true,
         id: 'heh',
         onConfirm: () => {
-          ky.post(`/api/scene/delete`, {json:{scene_id: this.scene.id}}).json().then(data => {
+          ky.post(`/api/scene/delete`, {json:{scene_id: this.scene.id}}).json().then(() => {
             this.$store.dispatch('sceneList/load', { offset: 0 })
             this.$store.commit('overlay/hideEditDetails')
             this.$store.commit('overlay/hideDetails')

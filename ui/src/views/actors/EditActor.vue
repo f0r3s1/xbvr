@@ -307,7 +307,7 @@ export default defineComponent({
         hasIcon: true,
         id: 'heh',
         onConfirm: () => {
-          ky.delete(`/api/actor/delete/${this.actor.id}`).json().then(data => {
+          ky.delete(`/api/actor/delete/${this.actor.id}`).json().then(() => {
             this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
             this.$store.commit('overlay/hideActorEditDetails')
             this.$store.commit('overlay/hideActorDetails')
@@ -358,7 +358,7 @@ export default defineComponent({
       if (text==0) {
         return ""
       }
-      return year
+      return text
     },
     convertCountryCodeToName() {      
       if (this.countryList != undefined && this.actor != undefined && this.actor.nationality.length == 2) {

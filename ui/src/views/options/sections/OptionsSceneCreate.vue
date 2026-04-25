@@ -200,29 +200,28 @@ export default defineComponent({
         return
       }    
       
+      let fieldCheckMsg = ""
       switch (site) {
             case "wetvr":
             case "sexbabesvr":
             case "tonightsgirlfriend":
-              var fieldCheckMsg="Please check the Release Date"
+              fieldCheckMsg = "Please check the Release Date"
               break
             case "fuckpassvr-native":
-              var fieldCheckMsg="Note: Video Previews are not available when scraping single scenes from FuckpassVR"
+              fieldCheckMsg = "Note: Video Previews are not available when scraping single scenes from FuckpassVR"
               break
             case "lethalhardcorevr":
-              var fieldCheckMsg=`Please check the Site if the scene was for WhorecraftVR. Please check the Release Date`
+              fieldCheckMsg = `Please check the Site if the scene was for WhorecraftVR. Please check the Release Date`
               break
             case "littlecaprice":
-              var fieldCheckMsg=`Please specify a URL for the cover image`
-              break            
+              fieldCheckMsg = `Please specify a URL for the cover image`
+              break
             case "stasyqvr":
-              var fieldCheckMsg=`Please specify a Duration if required`
+              fieldCheckMsg = `Please specify a Duration if required`
               break
             case "bvr ":
-              var fieldCheckMsg=`Please check the Release Date and specify a Duration if required`
+              fieldCheckMsg = `Please check the Release Date and specify a Duration if required`
               break
-            default:
-                var fieldCheckMsg=""                
           }
 
       if (fieldCheckMsg != "") {
