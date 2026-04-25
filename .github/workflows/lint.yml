@@ -2,40 +2,40 @@ name: lint
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
 
-    - name: Install Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: stable
-        check-latest: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
 
-    - name: Install Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
+      - name: Install systray C deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libayatana-appindicator3-dev libgtk-3-dev pkg-config
 
-    - name: Checkout code
-      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Create ui/dist placeholder for embed directive
+        run: mkdir -p ui/dist && touch ui/dist/embed_placeholder
 
-    - name: Install systray C deps
-      run: sudo apt-get update && sudo apt-get install -y libayatana-appindicator3-dev libgtk-3-dev
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "$out"
+            exit 1
+          fi
 
-    - name: Create ui/dist placeholder for embed directive
-      run: mkdir -p ui/dist && touch ui/dist/embed_placeholder
-
-    - name: Check code formatting using gofmt
-      uses: Jerome1337/gofmt-action@d5eabd189843f1d568286a54578159978b7c0fb1 # v1.0.5
-
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v7
-      with:
-        version: latest
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
