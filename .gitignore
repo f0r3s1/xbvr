@@ -20,3 +20,5 @@ dev-assets/
 # Local-only screenshots and browser tooling artefacts — never commit
 /*.png
 .playwright-mcp/
+
+xbvr.exe
