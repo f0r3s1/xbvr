@@ -204,5 +204,5 @@ func SinsVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan
 }
 
 func init() {
-	registerScraper("sinsvr", "SinsVR", "https://assets.xsinsvr.com/logo.black.svg", "xsinsvr.com", SinsVR)
+	registerScraper("sinsvr", "SinsVR", "https://sinsvr.com/favicon.ico", "xsinsvr.com", SinsVR)
 }

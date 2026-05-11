@@ -193,6 +193,16 @@ func fetchFromExternalProxy(ctx context.Context, externalURL string) (*http.Resp
 }
 
 func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Extract the original URL from the request path
+	originalURL := extractOriginalURL(r.URL.Path)
+
+	// SVGs are vector and can't be raster-resized by willnorris/imageproxy, so it
+	// rejects them. Redirect the browser to fetch the original directly.
+	if originalURL != "" && strings.HasSuffix(strings.ToLower(strings.SplitN(originalURL, "?", 2)[0]), ".svg") {
+		http.Redirect(w, r, originalURL, http.StatusFound)
+		return
+	}
+
 	// Check if external proxy is configured
 	if config.Config.Advanced.ProxyAddress == "" {
 		// No fallback configured, just use the original proxy
@@ -200,8 +210,6 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Extract the original URL from the request path
-	originalURL := extractOriginalURL(r.URL.Path)
 	if originalURL == "" {
 		h.ImageProxy.ServeHTTP(w, r)
 		return
