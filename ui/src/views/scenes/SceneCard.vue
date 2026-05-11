@@ -116,7 +116,11 @@
       </div>
       <div class="meta-row">
         <span class="site-link">
-          <img v-if="siteIconUrl && showSiteLogo" :src="siteIconUrl" class="site-icon" alt=""/>
+          <vue-load-image v-if="siteIconUrl && showSiteLogo">
+            <template #image><img :src="siteIconUrl" class="site-icon" alt=""/></template>
+            <template #preloader><span class="site-icon site-icon-placeholder"></span></template>
+            <template #error><span class="site-icon site-icon-placeholder"></span></template>
+          </vue-load-image>
           <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop>
             <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
           </a>

@@ -312,6 +312,9 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 		tlog := log.WithField("task", "scrape")
 		tlog.Infof("Scraping started at %s", t0.Format("Mon Jan _2 15:04:05 2006"))
 
+		// Refresh site metadata from scraper defs every scrape (incl. limit_scraping) so dead logo URLs get healed.
+		models.InitSites()
+
 		// Get all known scenes
 		var scenes []models.Scene
 		var extrefs []models.ExternalReference
