@@ -152,6 +152,13 @@ lint-js: ## Run JS/Vue linter in a self-deleting docker container
 		-v xbvr-bun-cache:/root/.bun/install/cache \
 		oven/bun:latest sh -c 'bun install --frozen-lockfile --ignore-scripts && bunx eslint src/'
 
+.PHONY: ui-build
+ui-build: ## Build the Vue/Vite UI bundle in a self-deleting docker container (no host tools needed)
+	@docker run --rm \
+		-v "$$PWD":/app -w /app \
+		-v xbvr-bun-cache:/root/.bun/install/cache \
+		oven/bun:latest sh -c 'bun install --frozen-lockfile --ignore-scripts && bun run build'
+
 .PHONY: lint-fix
 lint-fix: ## Auto-fix lint issues where possible (docker, self-deleting)
 	@docker run --rm -v "$$PWD":/app -w /app golang:1.25-bookworm gofmt -s -w .
