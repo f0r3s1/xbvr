@@ -21,6 +21,7 @@ linters:
     paths:
       - pkg/dms
       - pkg/tray
+      - node_modules
 
 formatters:
   enable:
