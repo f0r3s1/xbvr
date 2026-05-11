@@ -117,5 +117,5 @@ func VRSexygirlz(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 }
 
 func init() {
-	registerScraper("vrsexygirlz", "VRSexyGirlz", "https://www.vrsexygirlz.com/wp-content/uploads/2017/03/FV.png", "vrsexygirlz.com", VRSexygirlz)
+	registerScraper("vrsexygirlz", "VRSexyGirlz", "https://cdn-vr.sexlikereal.com/images/studio_creatives/logotypes/1/109/logo_original.png", "vrsexygirlz.com", VRSexygirlz)
 }

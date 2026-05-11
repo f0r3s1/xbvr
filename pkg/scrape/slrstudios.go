@@ -834,7 +834,7 @@ func addSLRScraper(id string, name string, company string, avatarURL string, cus
 	}
 
 	if avatarURL == "" {
-		avatarURL = "https://www.sexlikereal.com/s/refactor/images/favicons/android-icon-192x192.png"
+		avatarURL = "https://www.sexlikereal.com/slr-seo-logo.png"
 	}
 
 	if masterSiteId == "" {
