@@ -114,13 +114,6 @@ export default defineComponent({
 </script>
 
 <style>
-  html.has-navbar-fixed-top,
-  body.has-navbar-fixed-top {
-    padding-top: 0 !important;
-  }
-  html {
-    padding-top: 3.25rem !important;
-  }
   .navbar-pad {
     margin-top: 1rem;
   }
