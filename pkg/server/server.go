@@ -100,6 +100,7 @@ func StartServer(version, commit, branch, date string) {
 	restful.Add(api.TagGroupResource{}.WebService())
 	restful.Add(api.ExternalReference{}.WebService())
 	restful.Add(api.HealthResource{}.WebService())
+	restful.Add(api.InconsistenciesResource{}.WebService())
 
 	restConfig := restfulspec.Config{
 		WebServices: restful.RegisteredWebServices(),
