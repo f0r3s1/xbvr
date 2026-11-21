@@ -1,25 +1,24 @@
-[![Build Status](https://cloud.drone.io/api/badges/xbapps/xbvr/status.svg)](https://cloud.drone.io/xbapps/xbvr) ![GitHub release](https://img.shields.io/github/release/xbapps/xbvr.svg)
+[![lint](https://github.com/f0r3s1/xbvr/actions/workflows/lint.yml/badge.svg)](https://github.com/f0r3s1/xbvr/actions/workflows/lint.yml) [![GitHub release](https://img.shields.io/github/release/f0r3s1/xbvr.svg)](https://github.com/f0r3s1/xbvr/releases)
 <br>
-<sup><sub><em>Windows • macOS • Linux • Raspberry Pi</em></sub></sup>
+<sup><sub><em>Docker • amd64 • arm64 • Raspberry Pi</em></sub></sup>
 
 <h1 align="center">
     <img src="https://i.imgur.com/T2UvcHc.png" width="250"/>
 </h1>
 
 <h3 align="center">
-    The ultimate tool for managing your VR porn library.
+    The ultimate tool for managing your VR video library.
 </h3>
 
 <p align="center">
     <strong>
-        <a href="https://github.com/xbapps/xbvr/issues">Suggestions</a>
-        •
-        <a href="https://discord.gg/wdCHXAG">Discord</a>
+        <a href="https://github.com/f0r3s1/xbvr/issues">Suggestions &amp; issues</a>
     </strong>
 </p>
 
-<p align="center" stlye="text-shadow: 2px 2px">
-    <kbd><img src="https://i.imgur.com/Q3UdJhV.jpg" width="500"/></kbd>
+<p align="center">
+    <img src=".github/assets/screenshot-light.png" width="49%" alt="XBVR scene library, light theme (demo data)"/>
+    <img src=".github/assets/screenshot-dark.png" width="49%" alt="XBVR scene library, dark theme (demo data)"/>
     <br>
 </p>
 
@@ -32,42 +31,42 @@
 - Built-in DLNA streaming server compatible with popular VR players (Pigasus, Skybox, Mobile Station VR)
 - Sleek and simple web UI
 - Browse your content by cast, site, tags, and release date
-- Available for Windows, macOS, Linux (including ARM builds for RaspberryPi)
+- Runs anywhere Docker does: amd64 and arm64 (including Raspberry Pi)
 
 ## Download
 
-The latest version is always available on the [releases page](https://github.com/xbapps/xbvr/releases).
+The latest version is always available on the [releases page](https://github.com/f0r3s1/xbvr/releases). Versions follow upstream XBVR plus a fork build number: `<upstream version>.<build>`.
 
-App is also available in form of Docker image, which makes it possible to run in more specialized environments such as QNAP NAS - downloads at [GitHub Container Registry](https://github.com/xbapps/xbvr/pkgs/container/xbvr).
+XBVR ships as a Docker image, so it also runs on more specialized environments such as a QNAP NAS. Images are published to the [GitHub Container Registry](https://github.com/f0r3s1/xbvr/pkgs/container/xbvr).
 
-To run this container in docker:
+To run the container:
 
 ```
 docker run -t --name=xbvr --net=host --restart=always \
    --mount type=bind,source=/path/to/your/videos,target=/videos \
    --mount source=xbvr-config,target=/root/.config/ \
-   ghcr.io/xbapps/xbvr:latest
+   ghcr.io/f0r3s1/xbvr:latest
 ```
 
-Adding `-d` to the docker command will run the container in the background.
+Add `-d` to run the container in the background.
 
-In docker, your videos will be mounted at /videos and you should add this path in Options -> Folders.
+Your videos are mounted at `/videos`; add this path in Options -> Storage.
 
-Please note that during the first run XBVR automatically installs `ffprobe` and `ffmpeg` codecs from [ffbinaries site](https://ffbinaries.com/downloads).
+On first run, XBVR automatically downloads `ffprobe` and `ffmpeg` from [ffbinaries](https://ffbinaries.com/downloads).
 
 ## Quick Start
 
-Once launched, web UI is available at `http://127.0.0.1:9999`.
+Once launched, the web UI is available at `http://127.0.0.1:9999`.
 
-Before anything else, you must allow the app to scan sites and populate its scene metadata library. Click through to Options -> Scene Data and "Run scraper". This can take several minutes to complete. Wait for it to finish, and then go to Options -> Folders and add the folders where your video files are stored.
+Before anything else, you must allow the app to scan sites and populate its scene metadata library. Click through to Options -> Scrapers and run the scrapers for the sites you use. This can take several minutes to complete. Wait for it to finish, and then go to Options -> Storage and add the folders where your video files are stored.
 
-When it's all done, you should see your media not only in web UI, but also through DLNA server in your favourite VR player.
+When that is done, your library is available in the web UI and through the DLNA server in your favourite VR player.
 
 Enjoy!
 
 ## Questions & Suggestions
 
-Ask your questions and suggest features on [Discord](https://discord.gg/wdCHXAG).
+Ask your questions, report bugs and suggest features in the [issues](https://github.com/f0r3s1/xbvr/issues).
 
 ## Development
 

@@ -70,9 +70,20 @@ const synopsisBits = [
   'Includes a short behind-the-scenes segment at the end.',
   'Captured with a stabilized rig to keep motion comfortable in a headset.'
 ]
-const img = (seed, w, h) => `https://picsum.photos/seed/${seed}/${w}/${h}`
+// Unique stock photos: picsum's seed URLs collide (different seeds, same photo),
+// so pull the catalogue once and hand out distinct ids. Order is shuffled with
+// the deterministic PRNG so runs stay reproducible.
+const photoIds = []
+for (let page = 1; page <= 6; page++) {
+  const res = await fetch(`https://picsum.photos/v2/list?page=${page}&limit=100`)
+  if (!res.ok) throw new Error(`picsum catalogue: HTTP ${res.status}`)
+  photoIds.push(...(await res.json()).map(p => p.id))
+}
+const photos = pickN(photoIds, photoIds.length)
+const img = (n, w, h) => `https://picsum.photos/id/${photos[n % photos.length]}/${w}/${h}`
+const PERSON_PHOTOS = 0 // ids 0..47 people, 48.. scene covers, galleries reuse the rest
 const pad = n => String(n).padStart(4, '0')
-const peopleDetails = Object.fromEntries(people.map((p, i) => [p, { ImageUrl: img(`person-${i}`, 400, 600), ProfileUrl: '', Source: 'seed' }]))
+const peopleDetails = Object.fromEntries(people.map((p, i) => [p, { ImageUrl: img(PERSON_PHOTOS + i, 400, 600), ProfileUrl: '', Source: 'seed' }]))
 
 const start = Date.UTC(2021, 0, 1)
 const span = Date.UTC(2026, 10, 1) - start
@@ -92,8 +103,8 @@ const scenes = Array.from({ length: sceneCount }, (_, i) => {
     title,
     studio: studio.name,
     site: studio.name,
-    covers: [img(id, 1200, 675)],
-    gallery: Array.from({ length: 4 + Math.floor(rand() * 5) }, (_, g) => img(`${id}-g${g}`, 1200, 800)),
+    covers: [img(people.length + i, 1200, 675)],
+    gallery: Array.from({ length: 4 + Math.floor(rand() * 5) }, () => img(Math.floor(rand() * photos.length), 1200, 800)),
     tags: [...pickN(tags, 2 + Math.floor(rand() * 4)), pick(['180°', '360°']), res],
     cast,
     filename: [`${studio.name.replace(/\s+/g, '')}_${slug}_${pad(i + 1)}_${res}_180x180_3dh.mp4`],
