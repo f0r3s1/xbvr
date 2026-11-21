@@ -16,9 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: true
@@ -28,6 +28,7 @@ jobs:
 
       - name: Run govulncheck (skipping pkg/tray to avoid GTK install)
         run: |
+          # shellcheck disable=SC2046 # one argument per package is intended
           go run golang.org/x/vuln/cmd/govulncheck@latest \
             $(go list -e ./... | grep -v '/pkg/tray$')
 
@@ -35,6 +36,6 @@ jobs:
     runs-on: ubuntu-latest
     container: oven/bun:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun audit

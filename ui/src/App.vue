@@ -68,6 +68,10 @@ export default defineComponent({
   watch: {
     '$store.state.optionsWeb.web.theme' (theme) {
       this.applyTheme(theme || 'auto')
+    },
+    // Overlays are global; leaving the page they were opened from closes them.
+    '$route.path' () {
+      this.$store.commit('overlay/hideAll')
     }
   },
 
@@ -114,6 +118,16 @@ export default defineComponent({
 </script>
 
 <style>
+  /* Loading overlays only appear when a load is actually slow (>300ms); fast
+     loads no longer flash a spinner over content that is about to render. */
+  .loading-overlay.is-active {
+    animation: xbvr-delayed-fade-in 150ms ease-out 300ms both;
+  }
+  @keyframes xbvr-delayed-fade-in {
+    from { opacity: 0; visibility: hidden; }
+    to { opacity: 1; visibility: visible; }
+  }
+
   .navbar-pad {
     margin-top: 1rem;
   }

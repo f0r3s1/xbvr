@@ -1,8 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── UI build stage ──────────────────────────────────────────────────
-FROM node:22-alpine AS ui-builder
-RUN npm i -g bun
+FROM oven/bun:1-alpine AS ui-builder
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
@@ -11,7 +10,7 @@ COPY ui/ ui/
 RUN cd ui && bunx vite build
 
 # ── Go build stage ──────────────────────────────────────────────────
-FROM golang:1.25-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 ARG VERSION=CURRENT
 ARG COMMIT=HEAD
@@ -34,7 +33,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=1 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o xbvr
 
 # ── Runtime stage ───────────────────────────────────────────────────
-FROM alpine:3.22
+FROM alpine:3.24
 
 RUN apk add --no-cache \
     ca-certificates \

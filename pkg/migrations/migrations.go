@@ -2428,6 +2428,18 @@ func Migrate(migrateTo string) {
 				return tx.Table("scenes").AddIndex("idx_scenes_scraper_id", "scraper_id").Error
 			},
 		},
+		{
+			// This fork defaults scene cards to 16:9 with scale-to-fit off. Switch
+			// existing installs over exactly once; settings picked afterwards are
+			// kept because the migration never runs again.
+			ID: "0092-scene-card-defaults",
+			Migrate: func(tx *gorm.DB) error {
+				config.Config.Web.SceneCardAspectRatio = "16:9"
+				config.Config.Web.SceneCardScaleToFit = false
+				config.SaveConfig()
+				return nil
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

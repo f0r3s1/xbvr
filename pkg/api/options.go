@@ -15,11 +15,9 @@ import (
 
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
-	"github.com/go-resty/resty/v2"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/putdotio/go-putio"
-	"github.com/tidwall/gjson"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 
@@ -366,18 +364,10 @@ func (i ConfigResource) versionCheck(req *restful.Request, resp *restful.Respons
 	out := VersionCheckResponse{LatestVersion: common.CurrentVersion, CurrentVersion: common.CurrentVersion, UpdateNotify: false}
 
 	if config.Config.Web.UpdateCheck && versionCore(common.CurrentVersion) != "" {
-		r, err := resty.New().R().
-			SetHeader("User-Agent", "XBVR/"+common.CurrentVersion).
-			SetHeader("Accept", "application/vnd.github.v3+json").
-			Get("https://api.github.com/repos/f0r3s1/xbvr/releases/latest")
-		if err != nil || r.StatusCode() != 200 {
-			resp.WriteHeaderAndEntity(http.StatusOK, out)
-			return
+		if latest := latestReleaseTag(); latest != "" {
+			out.LatestVersion = latest
+			out.UpdateNotify = shouldNotifyUpdate(common.CurrentVersion, latest)
 		}
-
-		out.LatestVersion = gjson.Get(r.String(), "tag_name").String()
-
-		out.UpdateNotify = shouldNotifyUpdate(common.CurrentVersion, out.LatestVersion)
 	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, out)

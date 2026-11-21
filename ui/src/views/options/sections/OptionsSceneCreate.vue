@@ -97,6 +97,7 @@ import { defineComponent } from 'vue';
 
 import ky from 'ky'
 
+import { getOptionsState } from '@/api'
 export default defineComponent({
   name: 'OptionsCreateScene',
 
@@ -129,8 +130,7 @@ export default defineComponent({
   methods: {
     async loadState () {
       this.isLoading = true
-      await ky.get('/api/options/state')
-        .json()
+      await getOptionsState()
         .then(data => {
           this.javrScraper = data.config.scraper_settings.javr.javrScraper
           this.isLoading = false

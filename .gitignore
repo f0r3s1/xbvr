@@ -17,8 +17,7 @@ yarn-error.log
 .docker-creds
 dev-assets/
 
-# Local-only screenshots and browser tooling artefacts — never commit
+# Local-only screenshots — never commit
 /*.png
-.playwright-mcp/
 
 xbvr.exe

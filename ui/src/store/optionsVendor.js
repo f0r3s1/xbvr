@@ -1,5 +1,4 @@
-import ky from '@/api'
-
+import { getOptionsState } from '@/api'
 const state = {
   tpdb: {
     apiToken: '',
@@ -11,8 +10,7 @@ const mutations = {}
 
 const actions = {
   async load({ state }) {
-    ky.get('/api/options/state')
-      .json()
+    getOptionsState()
       .then(data => {
         state.tpdb.apiToken = data.config.vendor.tpdb.apiToken
         state.scrapers = data.scrapers        

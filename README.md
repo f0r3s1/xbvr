@@ -71,61 +71,31 @@ Ask your questions and suggest features on [Discord](https://discord.gg/wdCHXAG)
 
 ## Development
 
-Make sure you have following installed:
+Everything runs in Docker. Only Docker and `make` are needed on the host; run `make help` to see every target.
 
-- Go 1.25 or newer (`go.mod` requires 1.25.0, CI builds with 1.26.x)
-- Node.js 22.x
-- Bun 1.x
-- A C compiler — the SQLite driver is cgo-based. On Debian/Ubuntu `sudo apt install build-essential`, on macOS `xcode-select --install`, on Windows a MinGW-w64 toolchain.
-- air (run `go install github.com/air-verse/air@latest` outside project directory)
+| Command | What it does |
+|---|---|
+| `make dev` | Hot-reload dev environment (air + Vite HMR) on http://localhost:9999 |
+| `make local` | Build the production image, run it on http://localhost:9999 and seed it with safe-for-work dummy data |
+| `make local-seed` / `make local-reset` | Re-seed the local instance / wipe its data and media volumes |
+| `make test` | Build and run the Go tests |
+| `make lint` | gofmt, go vet, golangci-lint and eslint |
+| `make ui-build` | Build the Vue/Vite UI bundle |
+| `make vuln` | govulncheck + bun audit |
+| `make deps-update` | Upgrade all Go modules and JS packages to latest |
 
-Once all of the above is installed, running `bun run dev` from project directory launches file-watchers providing livereload for both Go and JavaScript.
-
-To build the binary by hand, cgo and the `json1` build tag are both required:
-
-```
-CGO_ENABLED=1 go build -tags=json1 -o dist/xbvr main.go
-```
-
-## Development in Gitpod
-
-This project is configured for use in Gitpod. It will provide you with a pre-built development environment with all the tools needed to compile XBVR.
-
-When the workspace loads, `bun run dev` runs and it will build and start XBVR automatically. Every time you make a change to a file, watchers will automatically compile the relevant code.
-
-Once XBVR is compiled and starts, a preview panel will open in the IDE. As you modify go files, the preview panel will reload with the latest changes. If you make changes to Vue, you'll need to reload the browser to load the updated JavaScript.
-
-Currently, it's only possible to test XBVR core and Browser applications using Gitpod. Because DLNA requires a local network, you won't be able to connect to the DLNA server running in Gitpod. For most people, this is fine.
-
-sqlite3 is included in the terminal. The XBVR database is located at /home/gitpod/.config/xbvr/main.db
-
-sqlite-web is also included. To browse the db, you can run `sqlite_web /home/gitpod/.config/xbvr/main.db`.
-
-Gitpod has GitHub integration and, once authorized, can fork this repo into your account, push/pull changes, and create pull requests.
-
-Ready to get started?
-
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/xbapps/xbvr)
+The seeded instance (`scripts/seed-dev-data.mjs`) contains 240 fictional scenes with stock landscape photos, a few linked sample videos with funscripts, plus an unmatched video, a near-miss file name and an orphan funscript, so every file-matching state is visible in the UI.
 
 ## Tests
 
-```
-go test -tags=json1 -vet=off ./...
-```
-
-`-tags=json1` is needed for the SQLite driver. `-vet=off` is currently needed because `go test` runs `go vet` first, and several pre-existing vet findings fail the build before any test gets to run.
+`make test` runs the suite (`-tags=json1` is required by the SQLite driver).
 
 Scraper tests live in `pkg/scrape`:
 
 - `registry_test.go` runs by default and needs no network. It checks that scraper registration is intact — unique IDs, populated fields, and that every site listed in the bundled `scrapers.json` actually registers a scraper. This catches a site silently disappearing from the UI.
 - `live_test.go` makes real requests to the sites, so it is excluded unless you build with `-tags=scrapelive`. It catches what a site redesign does: selectors stop matching, the scraper emits nothing, and no error is raised anywhere.
 
-```
-export XBVR_SCRAPE_TARGETS=~/xbvr-scrape-targets.json
-go test -tags='json1 scrapelive' -vet=off ./pkg/scrape/ -run TestLiveScrape -v
-```
-
-`XBVR_SCRAPE_TARGETS` points at a JSON file kept outside the repository, listing one `{"scraper": "<id>", "url": "<scene url>"}` object per scraper you want covered. It is deliberately not checked in — the URLs are user-specific, and saved page fixtures would carry scene and performer names into the repo.
+Run them with `make test-live XBVR_SCRAPE_TARGETS=~/xbvr-scrape-targets.json`. `XBVR_SCRAPE_TARGETS` points at a JSON file kept outside the repository, listing one `{"scraper": "<id>", "url": "<scene url>"}` object per scraper you want covered. It is deliberately not checked in — the URLs are user-specific, and saved page fixtures would carry scene and performer names into the repo.
 
 If you fix a scraper after a site change, adding a target entry for it is the cheapest way to find out when that site changes again.
 

@@ -1,5 +1,4 @@
-import ky from '@/api'
-
+import ky, { getOptionsState } from '@/api'
 const state = {
   loading: false,
   advanced: {
@@ -33,8 +32,7 @@ const actions = {
       .then(data => {
         state.advanced.collectorConfigs = data
       })
-    ky.get('/api/options/state')
-      .json()
+    getOptionsState()
       .then(data => {
         state.advanced.showInternalSceneId = data.config.advanced.showInternalSceneId
         state.advanced.showHSPApiLink = data.config.advanced.showHSPApiLink

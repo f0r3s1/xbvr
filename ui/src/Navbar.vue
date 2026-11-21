@@ -88,6 +88,8 @@ export default defineComponent({
           }
         })
       }
+    }).catch(() => {
+      // The update check is best-effort; never let it blank the version label.
     })
   },
 });

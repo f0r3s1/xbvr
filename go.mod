@@ -1,30 +1,30 @@
 module github.com/xbapps/xbvr
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/ProtonMail/go-appdir v1.1.0
-	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/PuerkitoBio/goquery v1.14.0
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/anacrolix/ffprobe v1.1.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/avast/retry-go/v4 v4.7.0
-	github.com/blevesearch/bleve/v2 v2.5.7
+	github.com/blevesearch/bleve/v2 v2.6.3
 	github.com/bregydoc/gtranslate v0.0.0-20200913051839-1bd07f6c1fc5
-	github.com/creasty/defaults v1.8.0
+	github.com/creasty/defaults v1.11.0
 	github.com/darwayne/go-timecode v1.1.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/djherbis/times v1.6.0
-	github.com/dustin/go-humanize v1.0.1
-	github.com/emicklei/go-restful-openapi/v2 v2.12.0
-	github.com/emicklei/go-restful/v3 v3.13.0
-	github.com/gammazero/nexus/v3 v3.3.0
-	github.com/gen2brain/avif v0.4.4
+	github.com/dustin/go-humanize v1.1.0
+	github.com/emicklei/go-restful-openapi/v2 v2.12.1
+	github.com/emicklei/go-restful/v3 v3.14.0
+	github.com/gammazero/nexus/v3 v3.4.0
+	github.com/gen2brain/avif v0.6.0
 	github.com/getlantern/systray v1.2.2
-	github.com/go-openapi/spec v0.22.4
+	github.com/go-openapi/spec v1.0.1
 	github.com/go-resty/resty/v2 v2.17.2
-	github.com/go-test/deep v1.1.1
-	github.com/gocolly/colly/v2 v2.3.0
+	github.com/go-test/deep v1.1.2
+	github.com/gocolly/colly/v2 v2.3.1-0.20261016133422-d42a1f44c086
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.15.0
 	github.com/gowww/log v1.0.0
@@ -35,127 +35,139 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/koding/websocketproxy v0.0.0-20181220232114-7ed82d81a28c
 	github.com/lomik/go-whisper v0.0.0-20170919072952-744ab80ef70d
-	github.com/lucasb-eyer/go-colorful v1.4.0
+	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/marcsauter/single v0.0.0-20201009143647-9f8d81240be2
 	github.com/markphelps/optional v0.11.0
-	github.com/mattn/go-sqlite3 v1.14.42
+	github.com/mattn/go-sqlite3 v1.14.53
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
 	github.com/mozillazg/go-slugify v0.2.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nleeper/goment v1.4.4
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/putdotio/go-putio v1.7.2
+	github.com/putdotio/go-putio v1.7.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/cors v1.11.1
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.10.2
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/thoas/go-funk v0.9.3
-	github.com/tidwall/gjson v1.18.0
+	github.com/tidwall/gjson v1.20.5
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2
-	github.com/xo/dburl v0.24.2
-	golang.org/x/crypto v0.50.0
-	golang.org/x/net v0.53.0
-	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sys v0.43.0
-	golang.org/x/text v0.36.0
+	github.com/xo/dburl v0.58.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/net v0.63.0
+	golang.org/x/oauth2 v0.38.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/text v0.44.0
 	gopkg.in/gormigrate.v1 v1.6.0
 	willnorris.com/go/imageproxy v0.13.0
 )
 
 require (
-	github.com/RoaringBitmap/roaring/v2 v2.4.5 // indirect
-	github.com/blevesearch/go-faiss v1.0.26 // indirect
-	github.com/blevesearch/zapx/v16 v16.2.8 // indirect
-	github.com/ebitengine/purego v0.8.3 // indirect
-	github.com/erraggy/oastools v1.36.1 // indirect
-	github.com/gammazero/deque v1.2.1 // indirect
-	github.com/go-openapi/swag/conv v0.25.5 // indirect
-	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
-	github.com/go-openapi/swag/jsonutils v0.25.5 // indirect
-	github.com/go-openapi/swag/loading v0.25.5 // indirect
-	github.com/go-openapi/swag/stringutils v0.25.5 // indirect
-	github.com/go-openapi/swag/typeutils v0.25.5 // indirect
-	github.com/go-openapi/swag/yamlutils v0.25.5 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
+	github.com/RoaringBitmap/roaring/v2 v2.30.0 // indirect
+	github.com/blevesearch/go-faiss v1.1.5 // indirect
+	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
+	github.com/blevesearch/zapx/v17 v17.2.5 // indirect
+	github.com/ebitengine/purego v0.11.3 // indirect
+	github.com/erraggy/oastools v1.66.0 // indirect
+	github.com/gammazero/deque v1.2.3 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-openapi/swag/conv v0.29.2 // indirect
+	github.com/go-openapi/swag/jsonutils v0.29.2 // indirect
+	github.com/go-openapi/swag/loading v0.29.2 // indirect
+	github.com/go-openapi/swag/pools v0.29.2 // indirect
+	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
+	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
+	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nlnwa/whatwg-url v0.6.2 // indirect
+	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/robertkrimen/otto v0.5.1 // indirect
-	github.com/tetratelabs/wazero v1.9.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	go.yaml.in/yaml/v4 v4.0.0-rc.3 // indirect
+	github.com/tetratelabs/wazero v1.12.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.2 // indirect
+	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
+	go.opentelemetry.io/otel/metric v1.47.0 // indirect
+	go.opentelemetry.io/otel/trace v1.47.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.28.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.6 // indirect
+	go.yaml.in/yaml/v4 v4.0.0 // indirect
 )
 
 require (
-	github.com/andybalholm/cascadia v1.3.3 // indirect
-	github.com/antchfx/htmlquery v1.3.5 // indirect
-	github.com/antchfx/xmlquery v1.5.0 // indirect
-	github.com/antchfx/xpath v1.3.6 // indirect
+	github.com/andybalholm/cascadia v1.3.5 // indirect
+	github.com/antchfx/htmlquery v1.3.7 // indirect
+	github.com/antchfx/xmlquery v1.5.2 // indirect
+	github.com/antchfx/xpath v1.3.9 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.24.4 // indirect
-	github.com/blevesearch/bleve_index_api v1.3.10
-	github.com/blevesearch/geo v0.2.4 // indirect
+	github.com/bits-and-blooms/bitset v1.30.0 // indirect
+	github.com/blevesearch/bleve_index_api v1.4.1
+	github.com/blevesearch/geo v0.2.8 // indirect
 	github.com/blevesearch/go-porterstemmer v1.0.3 // indirect
 	github.com/blevesearch/gtreap v0.1.1 // indirect
-	github.com/blevesearch/mmap-go v1.0.4 // indirect
-	github.com/blevesearch/scorch_segment_api/v2 v2.3.13 // indirect
+	github.com/blevesearch/mmap-go v1.2.0 // indirect
+	github.com/blevesearch/scorch_segment_api/v2 v2.4.11 // indirect
 	github.com/blevesearch/segment v0.9.1 // indirect
 	github.com/blevesearch/snowballstem v0.9.0 // indirect
 	github.com/blevesearch/upsidedown_store_api v1.0.2 // indirect
-	github.com/blevesearch/vellum v1.1.0 // indirect
-	github.com/blevesearch/zapx/v11 v11.4.2 // indirect
-	github.com/blevesearch/zapx/v12 v12.4.2 // indirect
-	github.com/blevesearch/zapx/v13 v13.4.2 // indirect
-	github.com/blevesearch/zapx/v14 v14.4.2 // indirect
-	github.com/blevesearch/zapx/v15 v15.4.2 // indirect
+	github.com/blevesearch/vellum v1.2.1 // indirect
+	github.com/blevesearch/zapx/v11 v11.4.3 // indirect
+	github.com/blevesearch/zapx/v12 v12.4.3 // indirect
+	github.com/blevesearch/zapx/v13 v13.4.3 // indirect
+	github.com/blevesearch/zapx/v14 v14.4.3 // indirect
+	github.com/blevesearch/zapx/v15 v15.4.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/fcjr/aia-transport-go v1.3.0
-	github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 // indirect
-	github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7 // indirect
-	github.com/getlantern/golog v0.0.0-20190830074920-4ef2e798c2d7 // indirect
-	github.com/getlantern/hex v0.0.0-20190417191902-c6586a6fe0b7 // indirect
-	github.com/getlantern/hidden v0.0.0-20190325191715-f02dbb02be55 // indirect
-	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
-	github.com/go-openapi/jsonpointer v0.22.5 // indirect
-	github.com/go-openapi/jsonreference v0.21.5 // indirect
-	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/getlantern/context v0.0.0-20220418194847-3d5e7a086201 // indirect
+	github.com/getlantern/errors v1.0.4 // indirect
+	github.com/getlantern/golog v0.0.0-20230503153817-8e72de7e0a65 // indirect
+	github.com/getlantern/hex v0.0.0-20220104173244-ad7e4b9194dc // indirect
+	github.com/getlantern/hidden v0.0.0-20220104173330-f221c5a24770 // indirect
+	github.com/getlantern/ops v0.0.0-20261028165752-a48eabe17467 // indirect
+	github.com/go-openapi/jsonpointer v1.0.3 // indirect
+	github.com/go-openapi/jsonreference v1.0.3 // indirect
+	github.com/go-sql-driver/mysql v1.10.2 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/gobwas/glob v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/btree v1.1.2 // indirect
+	github.com/golang/snappy v1.0.0 // indirect
+	github.com/google/btree v1.1.3 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
-	github.com/mattn/go-colorable v0.1.1 // indirect
-	github.com/mattn/go-isatty v0.0.7 // indirect
-	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
+	github.com/mattn/go-colorable v0.1.16 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/mozillazg/go-unidecode v0.1.0 // indirect
+	github.com/mozillazg/go-unidecode v0.2.0 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/muesli/smartcrop v0.3.0 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
-	github.com/prometheus/client_golang v1.22.0 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
-	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/prometheus/client_golang v1.25.0 // indirect
+	github.com/prometheus/client_model v0.6.3 // indirect
+	github.com/prometheus/common v0.74.0 // indirect
+	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/shiena/ansicolor v0.0.0-20230509054315-a9deabde6e02
 	github.com/temoto/robotstxt v1.1.2 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
-	github.com/tkuchiki/go-timezone v0.2.0 // indirect
-	github.com/ugorji/go/codec v1.3.1 // indirect
-	go.etcd.io/bbolt v1.4.0 // indirect
-	golang.org/x/image v0.39.0 // indirect
-	golang.org/x/term v0.42.0 // indirect
+	github.com/tidwall/match v1.2.0 // indirect
+	github.com/tidwall/pretty v1.3.0 // indirect
+	github.com/tkuchiki/go-timezone v0.2.3 // indirect
+	github.com/ugorji/go/codec v1.3.2 // indirect
+	go.etcd.io/bbolt v1.5.0 // indirect
+	golang.org/x/image v0.48.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 	willnorris.com/go/gifresize v1.0.0 // indirect
 )

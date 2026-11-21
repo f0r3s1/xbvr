@@ -40,8 +40,8 @@
 <script>
 import { defineComponent } from 'vue';
 
-import ky from 'ky'
 
+import { getOptionsState } from '@/api'
 export default defineComponent({
   name: 'MigrationOverlay',
 
@@ -129,7 +129,7 @@ export default defineComponent({
   methods: {
     async checkMigrationStatus() {
       try {
-        const response = await ky.get('/api/options/state').json()
+        const response = await getOptionsState()
         if (response.currentState && response.currentState.migration) {
           const migration = response.currentState.migration
           this.migrationState = migration

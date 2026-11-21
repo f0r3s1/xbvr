@@ -1,5 +1,4 @@
-import ky from '@/api'
-
+import ky, { getOptionsState } from '@/api'
 const state = {
   loading: false,
   web: {
@@ -19,8 +18,8 @@ const state = {
     showScriptHeatmap: false,
     showAllHeatmaps: false,
     showOpenInNewWindow: true,
-    sceneCardAspectRatio: "1:1",
-    sceneCardScaleToFit: true,
+    sceneCardAspectRatio: "16:9",
+    sceneCardScaleToFit: false,
     actorCardAspectRatio: "1:1",
     actorCardScaleToFit: true,
     showSiteLogo: true,
@@ -36,8 +35,7 @@ const mutations = {}
 const actions = {
   async load ({ state }) {
     state.loading = true
-    return ky.get('/api/options/state')
-      .json()
+    return getOptionsState()
       .then(data => {
         state.web.tagSort = data.config.web.tagSort
         state.web.sceneHidden = data.config.web.sceneHidden

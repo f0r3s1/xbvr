@@ -1,5 +1,4 @@
-import ky from '@/api'
-
+import ky, { getOptionsState } from '@/api'
 const state = {
   countTotal: 0,
   countUpdated: 0,  
@@ -18,8 +17,7 @@ const actions = {
         state.countTotal = data.total
         state.countUpdated = data.updated
       })
-    ky.get('/api/options/state')
-      .json()
+    getOptionsState()
       .then(data => {
         state.optionsFunscripts.scrapeFunscripts = data.config.funscripts.scrapeFunscripts
       })

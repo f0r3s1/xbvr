@@ -328,6 +328,7 @@
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
+import { getOptionsState } from '@/api'
 import prettyBytes from 'pretty-bytes'
 
 export default defineComponent({
@@ -514,8 +515,7 @@ export default defineComponent({
     },
     async loadState () {
       this.isLoading = true
-      await ky.get('/api/options/state')
-        .json()
+      await getOptionsState()
         .then(data => {
           this.rescrapeEnabled = data.config.cron.rescrapeSchedule.enabled
           this.rescrapeHourInterval = data.config.cron.rescrapeSchedule.hourInterval

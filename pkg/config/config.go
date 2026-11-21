@@ -47,8 +47,8 @@ type ObjectConfig struct {
 		ShowOpenInNewWindow  bool   `default:"true" json:"showOpenInNewWindow"`
 		UpdateCheck          bool   `default:"true" json:"updateCheck"`
 		IsAvailOpacity       int    `default:"40" json:"isAvailOpacity"`
-		SceneCardAspectRatio string `default:"1:1" json:"sceneCardAspectRatio"`
-		SceneCardScaleToFit  bool   `default:"true" json:"sceneCardScaleToFit"`
+		SceneCardAspectRatio string `default:"16:9" json:"sceneCardAspectRatio"`
+		SceneCardScaleToFit  bool   `default:"false" json:"sceneCardScaleToFit"`
 		ActorCardAspectRatio string `default:"1:1" json:"actorCardAspectRatio"`
 		ActorCardScaleToFit  bool   `default:"true" json:"actorCardScaleToFit"`
 		ShowSiteLogo         bool   `default:"true" json:"showSiteLogo"`

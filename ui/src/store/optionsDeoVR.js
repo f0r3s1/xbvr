@@ -1,5 +1,4 @@
-import ky from '@/api'
-
+import ky, { getOptionsState } from '@/api'
 const state = {
   loading: false,
   deovr: {
@@ -36,8 +35,7 @@ const mutations = {}
 const actions = {
   async load ({ state }) {
     state.loading = true
-    ky.get('/api/options/state')
-      .json()
+    getOptionsState()
       .then(data => {
         state.deovr.enabled = data.config.interfaces.deovr.enabled
         state.deovr.auth_enabled = data.config.interfaces.deovr.auth_enabled

@@ -73,6 +73,17 @@ const mutations = {
       state.details.show = false
     }
   },
+  // Close every page-level overlay (used when navigating to another page).
+  hideAll (state) {
+    Object.assign(state.details, { show: false, scene: null, altsrc: null, prevscene: null, query_for_altsrc: '' })
+    Object.assign(state.edit, { show: false, scene: null })
+    Object.assign(state.actordetails, { show: false, actor: null })
+    Object.assign(state.actoredit, { show: false, actor: null })
+    Object.assign(state.player, { show: false, file: null })
+    Object.assign(state.match, { show: false, file: null })
+    state.searchStashDbScenes.show = false
+    state.searchStashDbActors.show = false
+  },
   editDetails (state, payload) {
     state.edit.scene = payload.scene
     state.edit.show = true

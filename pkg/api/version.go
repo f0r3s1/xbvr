@@ -3,9 +3,61 @@ package api
 import (
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/mcuadros/go-version"
+	"github.com/tidwall/gjson"
+
+	"github.com/xbapps/xbvr/pkg/common"
 )
+
+// latestReleaseURL is a var so tests can point it at a local server.
+var latestReleaseURL = "https://api.github.com/repos/f0r3s1/xbvr/releases/latest"
+
+const (
+	latestReleaseTimeout = 5 * time.Second
+	latestReleaseTTL     = time.Hour
+	latestReleaseRetry   = 10 * time.Minute
+)
+
+// The navbar calls version-check on every page load. Hitting GitHub each time
+// burns the 60 req/h unauthenticated limit and, without a timeout, a slow or
+// rate-limited reply stalled the request past the UI's own timeout so the
+// version label never rendered. Cache the answer and bound the lookup.
+var latestRelease struct {
+	sync.Mutex
+	tag     string
+	checked time.Time
+	ttl     time.Duration
+}
+
+// latestReleaseTag returns the newest published release tag, or "" when it
+// is unknown. At most one GitHub request is made per TTL window.
+func latestReleaseTag() string {
+	latestRelease.Lock()
+	defer latestRelease.Unlock()
+
+	if !latestRelease.checked.IsZero() && time.Since(latestRelease.checked) < latestRelease.ttl {
+		return latestRelease.tag
+	}
+
+	latestRelease.checked = time.Now()
+	latestRelease.ttl = latestReleaseRetry
+	r, err := resty.New().SetTimeout(latestReleaseTimeout).R().
+		SetHeader("User-Agent", "XBVR/"+common.CurrentVersion).
+		SetHeader("Accept", "application/vnd.github.v3+json").
+		Get(latestReleaseURL)
+	if err != nil || r.StatusCode() != 200 {
+		return latestRelease.tag // keep the last good answer, retry sooner
+	}
+	if tag := gjson.Get(r.String(), "tag_name").String(); tag != "" {
+		latestRelease.tag = tag
+		latestRelease.ttl = latestReleaseTTL
+	}
+	return latestRelease.tag
+}
 
 // versionCoreRe captures the leading numeric version, ignoring snapshot
 // suffixes such as goreleaser's "{{.Tag}}-next" and git-describe's

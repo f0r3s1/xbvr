@@ -15,3 +15,15 @@ const api = ky.extend({
 })
 
 export default api
+
+// /api/options/state is requested by every options store and several views at
+// once on page load. Share one in-flight request between concurrent callers
+// (no caching beyond that, so pollers still get fresh data).
+let optionsStateInFlight = null
+export function getOptionsState () {
+  if (!optionsStateInFlight) {
+    optionsStateInFlight = api.get('/api/options/state').json()
+      .finally(() => { optionsStateInFlight = null })
+  }
+  return optionsStateInFlight
+}

@@ -14,6 +14,8 @@
       @keydown.e="$store.commit('overlay/editDetails', {scene: item})"
       @keydown.s="$store.commit('overlay/showSearchStashdbScenes', {scene: item})"
       @keydown.g="toggleGallery"
+      @keydown.space.prevent="togglePlay"
+      @keydown.k="togglePlay"
       @keydown="onZeroKey"
     />
 
@@ -61,7 +63,8 @@
               </b-tab-item>
 
               <b-tab-item label="Player" v-if="!displayingAlternateSource && fileCount > 0">
-                <div class="player-wrapper">
+                <!-- keyed per scene: video.js dispose() removes the <video>, so each scene gets a fresh element -->
+                <div class="player-wrapper" :key="'player-' + item.scene_id">
                   <video ref="player" class="video-js vjs-default-skin" controls playsinline preload="none"/>
                 </div>
                 <div class="skip-controls">
@@ -81,6 +84,9 @@
                       </b-button>
                     </b-tooltip>
                   </div>
+                </div>
+                <div class="shortcut-legend">
+                  <span v-for="k in playerShortcuts" :key="k.keys"><kbd>{{ k.keys }}</kbd> {{ k.label }}</span>
                 </div>
              </b-tab-item>
 
@@ -468,6 +474,7 @@ export default {
       index: 1,
       activeTab: 0,
       activeMedia: 0,
+      playerRequest: null,
       player: {},
       vrPlugin: null,
       tagAct: '',
@@ -506,6 +513,20 @@ export default {
     }
   },
   computed: {
+    playerShortcuts () {
+      return [
+        { keys: 'Space / K', label: 'play / pause' },
+        { keys: '← →', label: 'skip' },
+        { keys: 'Scroll', label: 'zoom' },
+        { keys: 'O / P', label: 'prev / next scene' },
+        { keys: 'G', label: 'gallery' },
+        { keys: 'F', label: 'favourite' },
+        { keys: 'W', label: 'watchlist' },
+        { keys: '⇧W', label: 'watched' },
+        { keys: 'E', label: 'edit' },
+        { keys: 'Esc', label: 'close' }
+      ]
+    },
     item () {
       const item = this.$store.state.overlay.details.scene
       if (this.$store.state.optionsWeb.web.tagSort === 'alphabetically') {
@@ -719,26 +740,23 @@ watch:{
     this.$store.commit('overlay/changeDetailsTab', { tab: -1 })
   },
   activeMedia(newVal) {
-    // Auto-load first video when Player tab is opened (without auto-playing)
-    if (newVal === 1 && !this.displayingAlternateSource) {
-      const videoFiles = this.filesByType.filter(f => f.type === 'video')
-      if (videoFiles.length > 0) {
-        this.updatePlayer('/api/dms/file/' + videoFiles[0].id + '?dnt=true', (videoFiles[0].projection == 'flat' ? 'NONE' : '180'))
-      }
-    }
+    // Player tab opened: build the player once its <video> is rendered, then load
+    // the requested source (or the first video, without auto-playing).
+    if (newVal === 1) this.$nextTick(() => this.loadPlayer())
   },
   'item.scene_id'(newVal, oldVal) {
-    // Scene changed via prev/next nav — fully rebuild the player so the
-    // next time the Player tab is opened it loads cleanly for the new scene.
+    // Scene changed via prev/next nav. Tear down the old player; the keyed wrapper
+    // renders a fresh <video> for the new scene. Stay on the Player tab when the
+    // new scene has a video, otherwise fall back to the gallery.
     if (!newVal || oldVal === undefined || newVal === oldVal) return
-    if (this.player && typeof this.player.dispose === 'function') {
-      try { this.player.dispose() } catch { /* already disposed */ }
-    }
-    this.player = {}
-    this.vrPlugin = null
-    this.activeMedia = 0
+    this.disposePlayer()
+    this.playerRequest = null
     this.carouselSlide = 0
-    this.$nextTick(() => this.setupPlayer())
+    if (this.activeMedia === 1 && this.firstVideoFile()) {
+      this.$nextTick(() => this.loadPlayer())
+    } else {
+      this.activeMedia = 0
+    }
   },
   images: {
     handler () {
@@ -1014,8 +1032,40 @@ watch:{
         this.carouselImageKeys[index] = (this.carouselImageKeys[index] || 0) + 1
       }, delay)
     },
+    firstVideoFile () {
+      if (this.displayingAlternateSource) return null
+      return this.filesByType.find(f => f.type === 'video') || null
+    },
+    disposePlayer () {
+      if (this.player && typeof this.player.dispose === 'function') {
+        try { this.player.dispose() } catch { /* already disposed */ }
+      }
+      this.player = {}
+      this.vrPlugin = null
+    },
+    // Ask for something to play; the Player tab watcher / nextTick does the loading
+    // so the request can't race the default "first video" load.
+    openPlayer (request) {
+      this.playerRequest = request
+      if (this.activeMedia === 1) this.$nextTick(() => this.loadPlayer())
+      else this.activeMedia = 1
+    },
+    loadPlayer () {
+      if (this.activeMedia !== 1) return
+      if (!this.vrPlugin) this.setupPlayer()
+      if (!this.vrPlugin) return // Player tab not rendered (e.g. scene has no files)
+      let req = this.playerRequest
+      this.playerRequest = null
+      if (!req) {
+        const v = this.firstVideoFile()
+        if (!v) return
+        req = { src: '/api/dms/file/' + v.id + '?dnt=true', projection: v.projection == 'flat' ? 'NONE' : '180', play: false }
+      }
+      this.updatePlayer(req.src, req.projection)
+      if (req.play) this.player.play()
+    },
     setupPlayer () {
-      if (!this.$refs.player) return
+      if (!this.$refs.player || !this.$refs.player.isConnected) return
       this.player = videojs(this.$refs.player, {
         aspectRatio: '1:1',
         fluid: true,
@@ -1172,17 +1222,10 @@ watch:{
       })
     },
     playPreview () {
-      this.activeMedia = 1
-      this.updatePlayer('/api/dms/preview/' + this.item.scene_id, 'NONE')
-      this.player.play()
+      this.openPlayer({ src: '/api/dms/preview/' + this.item.scene_id, projection: 'NONE', play: true })
     },
     playFile (file) {
-      this.activeMedia = 1
-      this.$nextTick(() => {
-        if (!this.vrPlugin) this.setupPlayer()
-        this.updatePlayer('/api/dms/file/' + file.id + '?dnt=true', (file.projection == 'flat' ? 'NONE' : '180'))
-        if (this.vrPlugin) this.player.play()
-      })
+      this.openPlayer({ src: '/api/dms/file/' + file.id + '?dnt=true', projection: file.projection == 'flat' ? 'NONE' : '180', play: true })
     },
     unmatchFile (file) {
       this.$buefy.dialog.confirm({
@@ -1456,6 +1499,11 @@ watch:{
       if (data !== null && !this.displayingAlternateSource) {
         this.$store.commit('overlay/showDetails', { scene: data })
       }
+    },
+    togglePlay () {
+      if (this.activeMedia === 0 || !this.player || typeof this.player.paused !== 'function') return
+      if (this.player.paused()) this.player.play()
+      else this.player.pause()
     },
     playerStepBack (interval) {
       const wasPlaying = !this.player.paused()
@@ -1752,16 +1800,44 @@ watch:{
   margin-bottom: 8px;
 }
 
+.shortcut-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #7a7a7a);
+}
+
+.shortcut-legend kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 4px;
+  margin-right: 2px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0.85;
+}
+
 .skip-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.75em;
+  gap: 4px 0.75em;
   margin-top: 6px;
+  max-width: 100%;
 }
 
 .skip-group {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 2px;
 }

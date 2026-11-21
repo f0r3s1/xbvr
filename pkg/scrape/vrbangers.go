@@ -258,7 +258,7 @@ func init() {
 	registerScraper("vrbangers", "VRBangers", "https://vrbangers.com/favicon/apple-touch-icon-144x144.png", "vrbangers.com", VRBangers)
 	registerScraper("vrbtrans", "VRBTrans", "https://vrbtrans.com/favicon/apple-touch-icon-144x144.png", "vrbtrans.com", VRBTrans)
 	registerScraper("vrbgay", "VRBGay", "https://vrbgay.com/favicon/apple-touch-icon-144x144.png", "vrbgay.com", VRBGay)
-	registerScraper("vrconk", "VRCONK", "https://vrconk.com/favicon/apple-touch-icon-144x144.png", "vrconk.com", VRConk)
+	registerScraper("vrconk", "VRCONK", "https://vrconk.com/favicon/favicon-32x32.png", "vrconk.com", VRConk)
 	registerScraper("blowvr", "BlowVR", "https://blowvr.com/favicon/apple-touch-icon-144x144.png", "blowvr.com", BlowVR)
 	registerScraper("arporn", "ARPorn", "https://arporn.com/favicon/apple-touch-icon-144x144.png", "arporn.com", ARPorn)
 }

@@ -32,7 +32,7 @@
       </div>
 
       <div class="column">
-        <div class="options-content">
+        <div class="options-content" :class="{ settling }">
           <Storage v-show="active==='storage'"/>
           <Cache v-show="active==='cache'"/>
           <LibraryHealth v-show="active==='health'"/>
@@ -77,7 +77,10 @@ export default defineComponent({
 
   data: function () {
     return {
-      active: this.$route.query.tab || localStorage.getItem('optionsActiveTab') || 'storage'
+      active: this.$route.query.tab || localStorage.getItem('optionsActiveTab') || 'storage',
+      // While the sections fetch their settings, switch off transitions so toggles
+      // snap to their saved value instead of visibly sliding over from the default.
+      settling: true
     }
   },
 
@@ -93,6 +96,7 @@ export default defineComponent({
   },
 
   mounted () {
+    setTimeout(() => { this.settling = false }, 600)
     // Restore tab from URL query if present
     if (this.$route.query.tab) {
       this.active = this.$route.query.tab
@@ -120,6 +124,12 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.options-content.settling :deep(*),
+.options-content.settling :deep(*::before),
+.options-content.settling :deep(*::after) {
+  transition: none !important;
+}
+
 .options-content {
   padding-top: 0.5rem;
   position: relative;

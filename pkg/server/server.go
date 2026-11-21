@@ -153,6 +153,10 @@ func StartServer(version, commit, branch, date string) {
 	// Pass AVIFCache to imageproxy so cached images get converted to AVIF on schedule
 	p := imageproxy.NewProxy(NewForceCacheTransport(), imgCache)
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+	// imageproxy >= 0.13 defaults to NOT following redirects when embedded (only its CLI
+	// defaults the flag to true). Studio CDNs commonly redirect image URLs, and without
+	// this the 30x body is handed to the resizer, which fails with "image: unknown format".
+	p.FollowRedirects = true
 	// If the client request has a cache-control header (such as 'no-cache'), pass them
 	// onto the imageproxy so that this can be respected.
 	p.PassRequestHeaders = append(p.PassRequestHeaders, "Cache-Control")

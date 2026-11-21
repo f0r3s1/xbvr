@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"io/fs"
+	"slices"
 	"strings"
 
 	"github.com/xbapps/xbvr/pkg/common"
@@ -19,13 +20,21 @@ func UpdateState() {
 		return nil
 	})
 
-	config.State.DLNA.Images = make([]string, 0)
+	images := make([]string, 0, len(dlnaImages))
 	for _, v := range dlnaImages {
-		config.State.DLNA.Images = append(config.State.DLNA.Images, strings.Replace(strings.Split(v, "/")[2], ".png", "", -1))
+		images = append(images, strings.Replace(strings.Split(v, "/")[2], ".png", "", -1))
 	}
+	running := IsDMSStarted()
 
-	config.State.DLNA.Running = IsDMSStarted()
-	config.State.DLNA.RecentIP = config.RecentIPAddresses
+	// GET /api/options/state calls this on every request; only write when
+	// something actually changed instead of hitting the DB on each read.
+	dlna := &config.State.DLNA
+	if dlna.Running == running && slices.Equal(dlna.Images, images) && slices.Equal(dlna.RecentIP, config.RecentIPAddresses) {
+		return
+	}
+	dlna.Images = images
+	dlna.Running = running
+	dlna.RecentIP = slices.Clone(config.RecentIPAddresses)
 
 	config.SaveState()
 }

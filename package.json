@@ -5,44 +5,41 @@
     "serve": "cd ui && vite",
     "build": "cd ui && vite build",
     "lint": "cd ui && eslint src/",
-    "dev": "[ -f ui/dist/index.html ] || bun run build; concurrently -k 'bun run dev:ui' 'bun run dev:go'",
-    "dev:go": "air",
     "dev:ui": "cd ui && vite"
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
     "@ntohq/buefy-next": "0.2.0",
-    "date-fns": "4.1.0",
-    "ky": "2.0.1",
-    "pretty-bytes": "7.1.0",
+    "date-fns": "4.4.0",
+    "ky": "2.2.0",
+    "pretty-bytes": "7.2.0",
     "video.js": "8",
     "videojs-hotkeys": "0.2.30",
     "videojs-vr": "^2.0.0",
-    "vue": "3.5.32",
-    "vue-debounce": "5.0.1",
+    "vue": "3.5.46",
+    "vue-debounce": "6.0.0",
     "vue-global-events": "3.0.1",
-    "vue-i18n": "11.3.2",
+    "vue-i18n": "11.4.23",
     "vue-load-image": "1.1.0",
-    "vue-router": "5.0.4",
+    "vue-router": "5.5.1",
     "vue-star-rating": "2.1.0",
     "vuedraggable": "4.1.0",
     "vuex": "4.1.0",
-    "wampy": "8.0.1"
+    "wampy": "8.1.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@vitejs/plugin-vue": "6.0.6",
-    "concurrently": "9.2.1",
-    "eslint": "10.2.0",
-    "eslint-plugin-vue": "10.8.0",
-    "globals": "^17.5.0",
-    "less": "4.6.4",
-    "sass": "1.99.0",
-    "vite": "8.0.8"
+    "@eslint/js": "10.0.1",
+    "@vitejs/plugin-vue": "6.0.11",
+    "eslint": "10.15.0",
+    "eslint-plugin-vue": "10.12.1",
+    "globals": "17.14.0",
+    "less": "4.9.1",
+    "sass": "1.108.2",
+    "vite": "8.3.8"
   },
   "overrides": {
-    "@xmldom/xmldom": "^0.9.10",
-    "postcss": "^8.5.10"
+    "@xmldom/xmldom": "^0.9.12",
+    "postcss": "^8.5.23"
   },
   "browserslist": [
     "> 1%",

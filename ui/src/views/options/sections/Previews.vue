@@ -88,6 +88,7 @@
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
+import { getOptionsState } from '@/api'
 import prettyBytes from 'pretty-bytes'
 
 export default defineComponent({
@@ -123,8 +124,7 @@ export default defineComponent({
   methods: {
     async loadState () {
       this.isLoading = true
-      await ky.get('/api/options/state')
-        .json()
+      await getOptionsState()
         .then(data => {
           this.startTime = data.config.library.preview.startTime
           this.snippetLength = data.config.library.preview.snippetLength

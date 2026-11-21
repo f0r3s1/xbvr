@@ -21,6 +21,6 @@ app.use(router)
 app.use(store)
 app.use(i18n)
 app.use(Buefy)
-app.use(vueDebounce)
+app.directive('debounce', vueDebounce({ lock: true }))
 
 app.mount('#app')

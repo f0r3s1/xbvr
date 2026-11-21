@@ -1,5 +1,4 @@
-import ky from '@/api'
-
+import ky, { getOptionsState } from '@/api'
 const state = {
   loading: false,
   dlna: {
@@ -17,8 +16,7 @@ const mutations = {}
 const actions = {
   async load ({ state }) {
     state.loading = true
-    ky.get('/api/options/state')
-      .json()
+    getOptionsState()
       .then(data => {
         state.dlna.enabled = data.currentState.dlna.running
         state.dlna.availableImages = data.currentState.dlna.images
