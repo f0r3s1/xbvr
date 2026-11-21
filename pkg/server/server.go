@@ -147,10 +147,7 @@ func StartServer(version, commit, branch, date string) {
 
 	// Imageproxy
 	r := mux.NewRouter()
-	// Create AVIF cache wrapper for storage optimization - converts images to AVIF on schedule
-	imgDiskCache := diskCache(common.ImgDir)
-	imgCache := NewAVIFCache(imgDiskCache, "imageproxy")
-	// Pass AVIFCache to imageproxy so cached images get converted to AVIF on schedule
+	imgCache := diskCache(common.ImgDir)
 	p := imageproxy.NewProxy(NewForceCacheTransport(), imgCache)
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	// imageproxy >= 0.13 defaults to NOT following redirects when embedded (only its CLI
@@ -162,12 +159,9 @@ func StartServer(version, commit, branch, date string) {
 	p.PassRequestHeaders = append(p.PassRequestHeaders, "Cache-Control")
 	u, _ := url.Parse("http://127.0.0.1:" + strconv.Itoa(config.Config.Server.Port))
 	p.DefaultBaseURL = u
-	// Use the fallback handler that wraps the imageproxy (uses AVIF cache for storage)
 	imgFallback := NewImageProxyFallbackHandler(p, imgCache)
 	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
-	// Heatmap thumbnail proxy also uses AVIF cache for storage optimization
-	hmpCache := NewAVIFCache(diskCache(common.HeatmapThumbnailDir), "heatmap")
-	hmp := NewHeatmapThumbnailProxy(p, hmpCache)
+	hmp := NewHeatmapThumbnailProxy(p, diskCache(common.HeatmapThumbnailDir))
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))
 	downloadhandler := DownloadHandler{}
 	r.PathPrefix("/download/").Handler(http.StripPrefix("/download/", downloadhandler))

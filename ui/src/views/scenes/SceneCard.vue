@@ -81,7 +81,7 @@
         <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
           <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
             <vue-load-image>
-              <template #image><img :src="getImageURL(altsrc.site_icon)" class="alt-img"/></template>
+              <template #image><img :src="getImageURL(altsrc.site_icon, '64x')" class="alt-img"/></template>
               <template #error><b-icon pack="mdi" icon="link" size="is-small"/></template>
             </vue-load-image>
           </a>
@@ -150,6 +150,7 @@ import LinkStashdbButton from '../../components/LinkStashdbButton'
 import TrailerlistButton from '../../components/TrailerlistButton'
 import HiddenButton from '../../components/HiddenButton'
 import ky from 'ky'
+import { getAlternateSources } from '@/api'
 import VueLoadImage from 'vue-load-image'
 
 export default defineComponent({
@@ -218,7 +219,7 @@ export default defineComponent({
       if (!sites || !sites.length) return null
       const site = sites.find(s => s.id === this.item.scraper_id)
       if (!site || !site.avatar_url) return null
-      return this.getImageURL(site.avatar_url)
+      return this.getImageURL(site.avatar_url, '64x') // 16px icon, 64px stays sharp on retina
     },
     hasActiveStatus () {
       return this.item.is_hidden || this.item.favourite || this.item.is_watched ||
@@ -275,7 +276,7 @@ export default defineComponent({
     async loadAlternateSources () {
       this.stashLinkExists = false
       try {
-        const response = await ky.get('/api/scene/alternate_source/' + this.item.id).json()
+        const response = await getAlternateSources(this.item.id)
         if (response == null) return
 
         this.alternateSources = response
@@ -308,12 +309,12 @@ export default defineComponent({
       const stashdbSource = this.alternateSources.find(s => s.external_source === 'stashdb scene')
       return stashdbSource ? stashdbSource.url : '#'
     },
-    getImageURL (u) {
+    getImageURL (u, size = '1200x') {
       if (!u.startsWith('http')) return u
       if (u.search("%") == -1) {
-        return '/img/1200x/' + encodeURI(u)
+        return `/img/${size}/` + encodeURI(u)
       } else {
-        return '/img/1200x/' + encodeURI(decodeURI(u))
+        return `/img/${size}/` + encodeURI(decodeURI(u))
       }
     },
     showDetails (scene) {
@@ -380,7 +381,7 @@ export default defineComponent({
   z-index: 20;
   background: #000;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
 }
 
 .preview-overlay video {
@@ -402,10 +403,12 @@ export default defineComponent({
 }
 
 /* Thumbnail - aspect ratio set via inline style from settings */
+/* The wrapper must not clip: the hover-button tooltips have to be able to
+   extend past the card edge. The image and preview layers round and clip
+   themselves instead. */
 .thumbnail-wrapper {
   position: relative;
   width: 100%;
-  overflow: hidden;
   border-radius: 8px 8px 0 0;
   flex-shrink: 0;
 }
@@ -418,6 +421,7 @@ export default defineComponent({
   height: 100%;
   transition: transform 0.3s ease;
   overflow: hidden;
+  border-radius: inherit;
 }
 
 .thumbnail-img .cover-image {

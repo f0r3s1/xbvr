@@ -10,3 +10,8 @@ tmp
 .release-env
 sysroots
 *.md
+
+# local-only files: hidden folders, root screenshots, dev media
+.*
+/*.png
+dev-assets

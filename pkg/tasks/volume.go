@@ -197,6 +197,9 @@ func RescanVolumes(id int) {
 			}
 		}
 
+		// Second pass for files the exact match above could not place (fork addition).
+		matchUnmatchedFiles(db, tlog)
+
 		tlog.Infof("Generating heatmaps")
 
 		GenerateHeatmaps(tlog)

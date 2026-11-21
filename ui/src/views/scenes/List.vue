@@ -1,58 +1,54 @@
 <template>
   <div ref="scrollContainer" style="position: relative; min-height: 200px;">
-    <b-loading :is-full-page="false" v-model="isListReloading"></b-loading>
+    <!-- Reloads keep the current cards on screen (dimmed) under a thin progress
+         bar; nothing blocks the grid. A first load shows skeleton cards. -->
+    <div class="list-progress" v-if="isListReloading" role="progressbar" aria-label="Loading scenes"></div>
 
-    <div class="columns is-multiline is-full">
-      <div class="column">
-        <strong>{{total}} results</strong>
+    <div class="list-toolbar">
+      <strong class="toolbar-total">{{ isListReloading && !items.length ? $t('Loading…') : total + ' results' }}</strong>
+      <div class="toolbar-segment">
+        <b-radio-button v-model="dlState" native-value="any" size="is-small">
+          {{$t("Any")}} ({{counts.any}})
+        </b-radio-button>
+        <b-radio-button v-model="dlState" native-value="available" size="is-small">
+          {{$t("Available right now")}} ({{counts.available}})
+        </b-radio-button>
+        <b-radio-button v-model="dlState" native-value="downloaded" size="is-small">
+          {{$t("Downloaded")}} ({{counts.downloaded}})
+        </b-radio-button>
+        <b-radio-button v-model="dlState" native-value="missing" size="is-small">
+          {{$t("Not downloaded")}} ({{counts.not_downloaded}})
+        </b-radio-button>
+        <b-radio-button v-model="dlState" native-value="hidden" size="is-small">
+          {{$t("Hidden")}} ({{counts.hidden}})
+        </b-radio-button>
       </div>
-      <div class="column">
-        <div class="columns is-gapless">
-          <b-radio-button v-model="dlState" native-value="any" size="is-small">
-            {{$t("Any")}} ({{counts.any}})
-          </b-radio-button>
-          <b-radio-button v-model="dlState" native-value="available" size="is-small">
-            {{$t("Available right now")}} ({{counts.available}})
-          </b-radio-button>
-          <b-radio-button v-model="dlState" native-value="downloaded" size="is-small">
-            {{$t("Downloaded")}} ({{counts.downloaded}})
-          </b-radio-button>
-          <b-radio-button v-model="dlState" native-value="missing" size="is-small">
-            {{$t("Not downloaded")}} ({{counts.not_downloaded}})
-          </b-radio-button>
-          <b-radio-button v-model="dlState" native-value="hidden" size="is-small">
-            {{$t("Hidden")}} ({{counts.hidden}})
-          </b-radio-button>
-        </div>
-      </div>
-      <div class="column">
-        <div class="is-pulled-right">
-          <b-field>
-            <span class="list-header-label">{{$t('Card size')}}</span>
-            <b-radio-button v-model="cardSize" native-value="1" size="is-small">
-              XS
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="2" size="is-small">
-              S
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="3" size="is-small">
-              M
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="4" size="is-small">
-              L
-            </b-radio-button>
-          </b-field>
-        </div>
+      <div class="toolbar-size">
+        <b-field>
+          <span class="list-header-label">{{$t('Card size')}}</span>
+          <b-radio-button v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
+        </b-field>
       </div>
     </div>
 
-    <div class="is-clearfix"></div>
-
-    <div class="columns is-multiline">
+    <div class="columns is-multiline" :class="{ 'is-reloading': isListReloading && items.length }">
       <div :class="['column', 'is-multiline', cardSizeClass]"
            v-for="item in items" :key="item.id">
         <SceneCard :item="item"/>
       </div>
+      <template v-if="isListReloading && !items.length">
+        <div :class="['column', 'is-multiline', cardSizeClass]" v-for="n in skeletonCount" :key="'sk' + n">
+          <div class="skeleton-card" aria-hidden="true">
+            <div class="skeleton-block skeleton-thumb" :style="{ aspectRatio: skeletonAspect }"></div>
+            <div class="skeleton-block skeleton-line"></div>
+            <div class="skeleton-block skeleton-line is-short"></div>
+          </div>
+        </div>
+      </template>
     </div>
 
     <div class="column is-full loading-more" v-if="isLoadingMore">
@@ -110,6 +106,8 @@ export default defineComponent({
           return 'is-one-quarter'
         case '4':
           return 'is-one-third'
+        case '5':
+          return 'is-half'
         default:
           return 'is-one-fifth'
       }
@@ -157,6 +155,14 @@ export default defineComponent({
     },
     isListReloading () {
       return this.isLoading && !this.isLoadingMore
+    },
+    // Two rows of placeholders for the current card size.
+    skeletonCount () {
+      const perRow = { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2 }[this.$store.state.sceneList.filters.cardSize] || 5
+      return perRow * 2
+    },
+    skeletonAspect () {
+      return (this.$store.state.optionsWeb.web.sceneCardAspectRatio || '16:9').replace(':', ' / ')
     },
     items () {
       return this.$store.state.sceneList.items
@@ -235,8 +241,79 @@ export default defineComponent({
 </script>
 
 <style scoped>
+  .list-progress {
+    position: sticky;
+    top: 3.25rem;
+    z-index: 7;
+    height: 2px;
+    margin-bottom: -2px;
+    overflow: hidden;
+    background: rgba(127, 127, 127, 0.15);
+  }
+  .list-progress::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 35%;
+    background: var(--bulma-primary, #7957d5);
+    animation: list-progress-slide 1.1s ease-in-out infinite;
+  }
+  @keyframes list-progress-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(290%); }
+  }
+  .is-reloading {
+    opacity: 0.6;
+    transition: opacity 150ms ease 150ms;
+  }
+  .skeleton-card {
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .skeleton-block {
+    background: linear-gradient(90deg, rgba(127, 127, 127, 0.12) 25%, rgba(127, 127, 127, 0.22) 50%, rgba(127, 127, 127, 0.12) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+    border-radius: 4px;
+  }
+  .skeleton-thumb {
+    width: 100%;
+    border-radius: 6px 6px 0 0;
+  }
+  .skeleton-line {
+    height: 0.8em;
+    margin: 0.6em 0.6em 0;
+  }
+  .skeleton-line.is-short {
+    width: 55%;
+    margin-bottom: 0.6em;
+  }
+  @keyframes skeleton-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-block, .list-progress::after { animation: none; }
+  }
+  .toolbar-total {
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+  .toolbar-segment {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 0 1 auto;
+  }
+  .toolbar-size {
+    flex: 0 0 auto;
+  }
+  .toolbar-size :deep(.field) {
+    margin-bottom: 0 !important;
+  }
   .list-header-label {
     padding-right: 1em;
+    white-space: nowrap;
+    align-self: center;
   }
   .loading-more {
     display: flex;

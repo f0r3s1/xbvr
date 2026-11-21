@@ -163,6 +163,10 @@ func (i SceneResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(ResponseGetAlternateSources{}))
 
+	// Batch variant for scene grids: ?ids=1,2,3 -> {"1": [...], "2": [...]}
+	ws.Route(ws.GET("/alternate_sources").To(i.getScenesAlternateSources).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	return ws
 }
 
@@ -1074,6 +1078,14 @@ func (i SceneResource) getSceneAlternateSources(req *restful.Request, resp *rest
 		refs = extref.FindByInternalID("scenes", uint(id))
 	}
 
+	ressults = alternateSourcesFromRefs(refs)
+	db.Close()
+
+	resp.WriteHeaderAndEntity(http.StatusOK, ressults)
+}
+
+func alternateSourcesFromRefs(refs []models.ExternalReferenceLink) []ResponseGetAlternateSources {
+	var ressults []ResponseGetAlternateSources
 	for _, ref := range refs {
 		var altscene models.SceneAlternateSource
 		var site models.Site
@@ -1086,7 +1098,35 @@ func (i SceneResource) getSceneAlternateSources(req *restful.Request, resp *rest
 			ressults = append(ressults, ResponseGetAlternateSources{Url: ref.ExternalReference.ExternalURL, Icon: site.AvatarURL, ExternalSource: ref.ExternalReference.ExternalSource, ExternalId: ref.ExternalReference.ExternalId, ExternalData: ref.ExternalReference.ExternalData})
 		}
 	}
-	db.Close()
+	return ressults
+}
 
-	resp.WriteHeaderAndEntity(http.StatusOK, ressults)
+// getScenesAlternateSources answers many scenes in one request, so a grid of
+// scene cards no longer fires one request per card.
+func (i SceneResource) getScenesAlternateSources(req *restful.Request, resp *restful.Response) {
+	out := map[string][]ResponseGetAlternateSources{}
+	var ids []uint
+	for n, raw := range strings.Split(req.QueryParameter("ids"), ",") {
+		if n >= 500 {
+			break
+		}
+		if id, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && id > 0 {
+			ids = append(ids, uint(id))
+		}
+	}
+	if len(ids) > 0 {
+		db, _ := models.GetCommonDB()
+		var refs []models.ExternalReferenceLink
+		db.Preload("ExternalReference").Where("internal_table = ? AND internal_db_id IN (?)", "scenes", ids).Find(&refs)
+		byScene := map[uint][]models.ExternalReferenceLink{}
+		for _, r := range refs {
+			byScene[r.InternalDbId] = append(byScene[r.InternalDbId], r)
+		}
+		for id, rs := range byScene {
+			if res := alternateSourcesFromRefs(rs); len(res) > 0 {
+				out[strconv.Itoa(int(id))] = res
+			}
+		}
+	}
+	resp.WriteHeaderAndEntity(http.StatusOK, out)
 }

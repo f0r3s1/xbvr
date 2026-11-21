@@ -255,10 +255,10 @@ func ARPorn(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan
 }
 
 func init() {
-	registerScraper("vrbangers", "VRBangers", "https://vrbangers.com/favicon/apple-touch-icon-144x144.png", "vrbangers.com", VRBangers)
-	registerScraper("vrbtrans", "VRBTrans", "https://vrbtrans.com/favicon/apple-touch-icon-144x144.png", "vrbtrans.com", VRBTrans)
-	registerScraper("vrbgay", "VRBGay", "https://vrbgay.com/favicon/apple-touch-icon-144x144.png", "vrbgay.com", VRBGay)
+	registerScraper("vrbangers", "VRBangers", "https://vrbangers.com/favicon/favicon-32x32.png", "vrbangers.com", VRBangers)
+	registerScraper("vrbtrans", "VRBTrans", "https://vrbtrans.com/favicon/favicon-32x32.png", "vrbtrans.com", VRBTrans)
+	registerScraper("vrbgay", "VRBGay", "https://vrbgay.com/favicon/favicon-32x32.png", "vrbgay.com", VRBGay)
 	registerScraper("vrconk", "VRCONK", "https://vrconk.com/favicon/favicon-32x32.png", "vrconk.com", VRConk)
-	registerScraper("blowvr", "BlowVR", "https://blowvr.com/favicon/apple-touch-icon-144x144.png", "blowvr.com", BlowVR)
-	registerScraper("arporn", "ARPorn", "https://arporn.com/favicon/apple-touch-icon-144x144.png", "arporn.com", ARPorn)
+	registerScraper("blowvr", "BlowVR", "https://blowvr.com/favicon/favicon-32x32.png", "blowvr.com", BlowVR)
+	registerScraper("arporn", "ARPorn", "https://arporn.com/favicon/favicon-32x32.png", "arporn.com", ARPorn)
 }

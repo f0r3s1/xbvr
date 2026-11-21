@@ -19,7 +19,6 @@ require (
 	github.com/emicklei/go-restful-openapi/v2 v2.12.1
 	github.com/emicklei/go-restful/v3 v3.14.0
 	github.com/gammazero/nexus/v3 v3.4.0
-	github.com/gen2brain/avif v0.6.0
 	github.com/getlantern/systray v1.2.2
 	github.com/go-openapi/spec v1.0.1
 	github.com/go-resty/resty/v2 v2.17.2
@@ -69,7 +68,6 @@ require (
 	github.com/blevesearch/go-faiss v1.1.5 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
 	github.com/blevesearch/zapx/v17 v17.2.5 // indirect
-	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/erraggy/oastools v1.66.0 // indirect
 	github.com/gammazero/deque v1.2.3 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
@@ -85,7 +83,6 @@ require (
 	github.com/nlnwa/whatwg-url v0.6.2 // indirect
 	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/robertkrimen/otto v0.5.1 // indirect
-	github.com/tetratelabs/wazero v1.12.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.2 // indirect
 	go.opentelemetry.io/otel v1.47.0 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect

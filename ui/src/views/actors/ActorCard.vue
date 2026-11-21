@@ -36,7 +36,7 @@
       </b-tooltip>
 
       <span class="is-pulled-right" style="font-size:11px;text-align:right;">                
-          <span v-if="actor.birth_date != '0001-01-01T00:00:00Z'">{{format(parseISO(actor.birth_date), "yyyy-MM-dd")}}</span>
+          <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ age }} yrs</span>
           <vue-load-image style="display:inline-block">
             <template #image><img :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" style="height:10px;border: 1px solid black;margin-left:0.5em"/></template>
           </vue-load-image>
@@ -74,6 +74,16 @@ export default defineComponent({
   },
 
   computed: {
+    age () {
+      const b = this.actor.birth_date
+      if (!b || b.startsWith('0001')) return null
+      // birth dates are stored as UTC midnight; compare calendar dates, not local times
+      const [y, m, day] = b.slice(0, 10).split('-').map(Number)
+      const now = new Date()
+      let a = now.getFullYear() - y
+      if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < day)) a--
+      return a > 0 && a < 120 ? a : null
+    },
     isAvailOpacity () {      
       if (this.$store.state.optionsWeb.web.isAvailOpacity == undefined) {
         return .4
@@ -137,6 +147,11 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.actor-age {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  margin-right: 0.35em;
+}
   .button {
     margin-right: 3px;
   }

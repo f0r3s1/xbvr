@@ -1,12 +1,9 @@
 <template>
   <div class="modal is-active">
+    <GlobalEvents @keyup.esc="close"/>
     <div class="modal-background" @click="close"></div>
     <div class="modal-content">
-      <video ref="player"
-             width="640" height="640" class="video-js vjs-default-skin"
-             controls playsinline autoplay>
-        <source :src="sourceUrl" type="video/mp4">
-      </video>
+      <VrPlayer ref="player" aspect-ratio="1 / 1" :loop="false"/>
     </div>
     <button class="modal-close is-large" aria-label="close"
             @click="close()"></button>
@@ -15,62 +12,22 @@
 
 <script>
 import { defineComponent } from 'vue';
-
-import videojs from 'video.js'
-import 'videojs-vr'
-import 'videojs-hotkeys'
+import { GlobalEvents } from 'vue-global-events'
+import VrPlayer from '../../components/VrPlayer.vue'
 
 export default defineComponent({
   name: 'FilePlayer',
-
-  data () {
-    return {
-      player: {}
-    }
-  },
-
-  computed: {
-    sourceUrl () {
-      if (this.$store.state.overlay.player.file) {
-        return '/api/dms/file/' + this.$store.state.overlay.player.file.id + '?dnt=true'
-      }
-      return ''
-    }
-  },
+  components: { VrPlayer, GlobalEvents },
 
   mounted () {
-    this.player = videojs(this.$refs.player)
-    const vr = this.player.vr({
-      projection: this.$store.state.overlay.player.file.projection == 'flat' ? 'NONE' : '180',
-      forceCardboard: false
-    })
-
-    this.player.hotkeys({
-      alwaysCaptureHotkeys: true,
-      volumeStep: 0.1,
-      seekStep: 5,
-      enableModifiersForNumbers: false,
-      customKeys: {
-        closeModal: {
-          key: function (event) {
-            return event.which === 27
-          },
-          handler: () => {
-            this.player.dispose()
-            this.$store.commit('overlay/hidePlayer')
-          }
-        }
-      }
-    })
-
-    this.player.on('loadedmetadata', function () {
-      if (vr && vr.camera) vr.camera.position.set(-1, 0, -1)
-    })
+    const file = this.$store.state.overlay.player.file
+    if (!file) return
+    this.$refs.player.load('/api/dms/file/' + file.id + '?dnt=true', file.projection)
+    this.$refs.player.play()
   },
 
   methods: {
     close () {
-      this.player.dispose()
       this.$store.commit('overlay/hidePlayer')
     }
   },
@@ -83,8 +40,7 @@ export default defineComponent({
     justify-content: center;
     align-items: center;
   }
-  .video-js {
-    display: block;
-    margin: 0 auto;
+  .modal-content :deep(.xbvr-skin) {
+    width: min(640px, 90vw);
   }
 </style>

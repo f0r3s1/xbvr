@@ -167,7 +167,7 @@ func (p *HeatmapThumbnailProxy) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if loadFromCache {
 		cachedContent, ok := p.Cache.Get(cacheKey)
 		if ok {
-			// Detect content type from cached data (may be AVIF if converted)
+			// Detect content type from cached data
 			contentType := http.DetectContentType(cachedContent)
 			w.Header().Add("Content-Type", contentType)
 			w.Header().Add("Content-Length", fmt.Sprint(len(cachedContent)))
@@ -224,7 +224,7 @@ func (p *HeatmapThumbnailProxy) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if err == nil {
 			originalData := output.Bytes()
 			p.Cache.Set(cacheKey, originalData)
-			// Serve the original JPEG data to client (cache may convert to AVIF for storage)
+			// Serve the original JPEG data to the client
 			w.Header().Add("Content-Type", "image/jpeg")
 			w.Header().Add("Content-Length", fmt.Sprint(len(originalData)))
 			if _, err := io.Copy(w, bytes.NewReader(originalData)); err != nil {

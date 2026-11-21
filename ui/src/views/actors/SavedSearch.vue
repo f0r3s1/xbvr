@@ -107,8 +107,8 @@ export default defineComponent({
           q: this.$store.getters['actorList/getQueryParamsFromObject'](obj.search_params)
         }
       })
-
-      this.$store.dispatch('actorList/load', { offset: 0 })
+      // No load here: the route change applies the saved filters and loads. Loading
+      // now would query with the *old* filters and could overwrite the new result.
     },
     async savePlaylist (action) {
       const payload = {

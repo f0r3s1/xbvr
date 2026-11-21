@@ -129,6 +129,8 @@ const mutations = {
   }
 }
 
+let loadSeq = 0
+
 const actions = {
   async filters ({ state }) {
     try {
@@ -140,6 +142,8 @@ const actions = {
   },
   async load ({ state, commit }, params) {
     const iOffset = params.offset || 0
+    // Only the latest request may update the list (see sceneList.js).
+    const seq = ++loadSeq
 
     state.isLoading = true
 
@@ -151,6 +155,7 @@ const actions = {
       const data = await ky
         .post('/api/actor/list', { json: q, timeout: 30000 })
         .json()
+      if (seq !== loadSeq) return
 
       state.filters.jumpTo = ''
 
@@ -164,7 +169,7 @@ const actions = {
     } catch (e) {
       console.error('Failed to load actors:', e)
     } finally {
-      state.isLoading = false
+      if (seq === loadSeq) state.isLoading = false
     }
   }
 }

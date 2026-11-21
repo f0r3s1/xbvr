@@ -21,6 +21,13 @@ const (
 	maxBodyReadSize      = 50 * 1024 * 1024 // 50MB max image size
 )
 
+// ImageCache is the cache used by the fallback and heatmap proxies (a diskcache).
+type ImageCache interface {
+	Get(key string) ([]byte, bool)
+	Set(key string, data []byte)
+	Delete(key string)
+}
+
 // ImageProxyFallbackHandler wraps the imageproxy and provides fallback to external proxy
 // when the original request fails or returns a non-image response.
 type ImageProxyFallbackHandler struct {

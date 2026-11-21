@@ -144,15 +144,22 @@ export default {
         '3840x1920', '4k', '5k', '5400x2700', '60fps', '6k', '7k', '7680x3840',
         '8k', 'fb360', 'fisheye190', 'funscript', 'cmscript', 'h264', 'h265', 'hevc', 'hq', 'hsp', 'lq', 'lr',
         'mkv', 'mkx200', 'mkx220', 'mono', 'mp4', 'oculus', 'oculus5k',
-        'oculusrift', 'original', 'rf52', 'smartphone', 'srt', 'ssa', 'tb', 'uhq', 'vrca220', 'vp9'
+        'oculusrift', 'original', 'rf52', 'smartphone', 'srt', 'ssa', 'tb', 'uhq', 'vrca220', 'vp9',
+        // script variants and other encode tags that only add noise to the search
+        'ai', '2d', 'ow', 'sbs', 'ou', 'av1', 'avc', 'hdr', 'sdr', 'x264', 'x265', 'ass', 'script'
       ]
-      const isNotCommonWord = word => !commonWords.includes(word.toLowerCase()) && !/^[0-9]+p$/.test(word)
+      // resolutions (1080p, 8k, 3840x1920), frame rates (60fps) and codecs (h265)
+      const noisePattern = /^([0-9]+p|[0-9]+k|[0-9]+x[0-9]+|[0-9]+fps|h26[45])$/i
+      const isNotCommonWord = word => !commonWords.includes(word.toLowerCase()) && !noisePattern.test(word)
+      // "Golden_Golden_Coast" -> "Golden Coast": repeated words skew the search score
+      const dropRepeats = (word, i, words) => words.findIndex(w => w.toLowerCase() === word.toLowerCase()) === i
 
       this.data = []
       this.queryString = (
         this.file.filename
-          .replace(/[._+'’`-]/g, ' ').replace(/\s+/g, ' ').trim()
-          .split(' ').filter(isNotCommonWord).join(' '))
+          .replace(/\.[a-z0-9]{2,5}$/i, '')
+          .replace(/[._+'’`()[\]-]/g, ' ').replace(/\s+/g, ' ').trim()
+          .split(' ').filter(isNotCommonWord).filter(dropRepeats).join(' '))
       this.loadData()
     },
     loadData: async function loadData () {

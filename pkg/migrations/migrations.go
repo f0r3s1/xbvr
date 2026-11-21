@@ -2440,6 +2440,42 @@ func Migrate(migrateTo string) {
 				return nil
 			},
 		},
+		{
+			// The AVIF re-encoding of cached images was removed (too CPU heavy).
+			// Drop the re-encoded entries and the pending queues; those images are
+			// fetched again from their source, at original quality, when next viewed.
+			ID: "0093-remove-avif-cache",
+			Migrate: func(tx *gorm.DB) error {
+				removed := 0
+				for _, dir := range []string{common.ImgDir, common.HeatmapThumbnailDir} {
+					filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+						if err != nil || info.IsDir() || info.Size() < 12 {
+							return nil
+						}
+						f, err := os.Open(p)
+						if err != nil {
+							return nil
+						}
+						head := make([]byte, 12)
+						_, err = f.Read(head)
+						f.Close()
+						if err == nil && string(head[4:8]) == "ftyp" && (string(head[8:12]) == "avif" || string(head[8:12]) == "avis") {
+							if os.Remove(p) == nil {
+								removed++
+							}
+						}
+						return nil
+					})
+				}
+				pending, _ := filepath.Glob(filepath.Join(common.AppDir, "avif_pending_*.json"))
+				for _, p := range pending {
+					os.Remove(p)
+				}
+				common.Log.Infof("Removed %d AVIF cache entries; they will be re-fetched on demand", removed)
+				go tasks.CalculateCacheSizes()
+				return nil
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

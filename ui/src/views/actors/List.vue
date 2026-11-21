@@ -24,6 +24,7 @@
           <b-radio-button v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
           <b-radio-button v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
           <b-radio-button v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
+          <b-radio-button v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
         </b-field>
       </div>
     </div>
@@ -173,6 +174,8 @@ export default defineComponent({
           return 'is-one-fifth'
         case '4':
           return 'is-one-quarter'
+        case '5':
+          return 'is-one-third'
         default:
           return 'is-2'
       }

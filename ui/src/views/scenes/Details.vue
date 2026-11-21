@@ -63,9 +63,9 @@
               </b-tab-item>
 
               <b-tab-item label="Player" v-if="!displayingAlternateSource && fileCount > 0">
-                <!-- keyed per scene: video.js dispose() removes the <video>, so each scene gets a fresh element -->
+                <!-- keyed per scene: each scene gets a fresh player -->
                 <div class="player-wrapper" :key="'player-' + item.scene_id">
-                  <video ref="player" class="video-js vjs-default-skin" controls playsinline preload="none"/>
+                  <VrPlayer ref="player" aspect-ratio="1 / 1"/>
                 </div>
                 <div class="skip-controls">
                   <div class="skip-group">
@@ -447,9 +447,8 @@
 
 <script>
 import ky from 'ky'
-import videojs from 'video.js'
-import 'videojs-vr'
-import 'videojs-hotkeys'
+import { getAlternateSources } from '@/api'
+import VrPlayer from '../../components/VrPlayer.vue'
 import { format, formatDistance, parseISO } from 'date-fns'
 import prettyBytes from 'pretty-bytes'
 import VueLoadImage from 'vue-load-image'
@@ -468,7 +467,7 @@ import HiddenButton from '../../components/HiddenButton'
 
 export default {
   name: 'SceneDetails',
-  components: { VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
+  components: { VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
   data () {
     return {
       index: 1,
@@ -647,7 +646,7 @@ export default {
       this.alternateSources = [];
       if (this.displayingAlternateSource) return 0
       try {
-        const response = await ky.get('/api/scene/alternate_source/' + this.item.id).json();
+        const response = await getAlternateSources(this.item.id);
         if (response==null){
           return 0
         }
@@ -1037,9 +1036,8 @@ watch:{
       return this.filesByType.find(f => f.type === 'video') || null
     },
     disposePlayer () {
-      if (this.player && typeof this.player.dispose === 'function') {
-        try { this.player.dispose() } catch { /* already disposed */ }
-      }
+      // The <VrPlayer> is keyed per scene, so Vue unmounts (and disposes) it;
+      // only drop our handle here.
       this.player = {}
       this.vrPlugin = null
     },
@@ -1059,89 +1057,21 @@ watch:{
       if (!req) {
         const v = this.firstVideoFile()
         if (!v) return
-        req = { src: '/api/dms/file/' + v.id + '?dnt=true', projection: v.projection == 'flat' ? 'NONE' : '180', play: false }
+        req = { src: '/api/dms/file/' + v.id + '?dnt=true', projection: v.projection, play: false }
       }
       this.updatePlayer(req.src, req.projection)
       if (req.play) this.player.play()
     },
     setupPlayer () {
-      if (!this.$refs.player || !this.$refs.player.isConnected) return
-      this.player = videojs(this.$refs.player, {
-        aspectRatio: '1:1',
-        fluid: true,
-        loop: true
-      })
-
-      if (typeof this.player.hotkeys === 'function') this.player.hotkeys({
-        alwaysCaptureHotkeys: true,
-        volumeStep: 0.1,
-        seekStep: 5,
-        enableModifiersForNumbers: false,
-        enableVolumeScroll: false,
-        customKeys: {
-          closeModal: {
-            key: function (event) {
-              return event.which === 27
-            },
-            handler: () => {
-              this.close()
-            }
-          },
-          zoomIn: {
-            handler: () => {
-              this.zoomHandler(true)
-            }
-          },
-          zoomOut: {
-            handler: () => {
-              this.zoomHandler(false)
-            }
-          }
-        }
-      })
-
-      const videoElement = this.player.el();
-      videoElement.addEventListener('wheel', this.zoomHandlerWeb.bind(this))
-
-      // Initialize VR once; projection is updated per-source via updatePlayer
-      this.vrPlugin = this.player.vr({ projection: '180', forceCardboard: false })
-    },
-
-    zoomHandlerWeb(event) {
-      event.preventDefault();
-      this.zoomHandler(event.deltaY < 0)
-    },
-
-    zoomHandler(isZoomingIn) {
-      const vr = this.player.vr()
-      if (!vr || !vr.camera) return
-      const minFov = 30
-      const maxFov = 130
-      let fov = vr.camera.fov + (isZoomingIn ? -1 : 1)
-
-      if (fov < minFov) {
-        fov = minFov
-      }
-
-      if (fov > maxFov) {
-        fov = maxFov
-      }
-
-      vr.camera.fov = fov;
-      vr.camera.updateProjectionMatrix()
+      const p = this.$refs.player
+      if (!p || !p.el() || !p.el().isConnected) return
+      this.player = p
+      this.vrPlugin = true // player is ready
     },
     updatePlayer (src, projection) {
-      if (!this.vrPlugin) return  // player tab not mounted yet
-      // setProjection queues the projection for the next loadedmetadata → init() cycle
-      const vr = this.player.vr()
-      if (vr) {
-        vr.setProjection(projection)
-      }
-
-      if (src) {
-        this.player.src({ src: src, type: 'video/mp4' })
-      }
-      this.player.poster(this.getImageURL(this.item.cover_url, '1200x'))
+      if (!this.vrPlugin) return // player tab not mounted yet
+      this.player.poster('') // black until playback starts
+      if (src) this.player.load(src, projection)
     },
     showCastScenes (actor) {
       this.$store.state.sceneList.filters.cast = actor
@@ -1222,10 +1152,10 @@ watch:{
       })
     },
     playPreview () {
-      this.openPlayer({ src: '/api/dms/preview/' + this.item.scene_id, projection: 'NONE', play: true })
+      this.openPlayer({ src: '/api/dms/preview/' + this.item.scene_id, projection: 'flat', play: true })
     },
     playFile (file) {
-      this.openPlayer({ src: '/api/dms/file/' + file.id + '?dnt=true', projection: file.projection == 'flat' ? 'NONE' : '180', play: true })
+      this.openPlayer({ src: '/api/dms/file/' + file.id + '?dnt=true', projection: file.projection, play: true })
     },
     unmatchFile (file) {
       this.$buefy.dialog.confirm({
@@ -1500,7 +1430,13 @@ watch:{
         this.$store.commit('overlay/showDetails', { scene: data })
       }
     },
-    togglePlay () {
+    // Keys pressed while focus is inside the player are handled by the player's
+    // own shortcuts; handling them here too would toggle/seek twice.
+    fromPlayer (e) {
+      return !!(e && e.target && e.target.closest && e.target.closest('video-player'))
+    },
+    togglePlay (e) {
+      if (this.fromPlayer(e)) return
       if (this.activeMedia === 0 || !this.player || typeof this.player.paused !== 'function') return
       if (this.player.paused()) this.player.play()
       else this.player.pause()
@@ -1557,7 +1493,8 @@ watch:{
         this.activeMedia = 0
       }
     },
-    handleLeftArrow () {
+    handleLeftArrow (e) {
+      if (this.activeMedia !== 0 && this.fromPlayer(e)) return
       if (this.fullscreenGallery) {
         this.fullscreenPrev()
       } else if (this.activeMedia === 0) {
@@ -1566,7 +1503,8 @@ watch:{
         this.playerStepBack(this.lastSkipBackInterval)
       }
     },
-    handleRightArrow () {
+    handleRightArrow (e) {
+      if (this.activeMedia !== 0 && this.fromPlayer(e)) return
       if (this.fullscreenGallery) {
         this.fullscreenNext()
       } else if (this.activeMedia === 0) {
@@ -1840,22 +1778,6 @@ watch:{
   justify-content: center;
   align-items: center;
   gap: 2px;
-}
-
-.player-wrapper .video-js {
-  width: 100%;
-}
-
-.video-js {
-  margin: 0 auto;
-}
-
-:deep(.video-js .vjs-big-play-button) {
-  top: 50% !important;
-  left: 50% !important;
-  margin-top: 0 !important;
-  margin-left: 0 !important;
-  transform: translate(-50%, -50%) !important;
 }
 
 .modal-card {

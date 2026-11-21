@@ -81,7 +81,7 @@
                     </b-tooltip>
                   </span>
                   <small v-if="actor.birth_date != '0001-01-01T00:00:00Z'" class="is-pulled-right">
-                    {{ format(parseISO(actor.birth_date), "yyyy-MM-dd") }}
+                    {{ actor.birth_date.slice(0, 10) }}
                   </small>
                 </h3>
                 <div class="columns">
@@ -111,6 +111,12 @@
                       <actor-edit-button :actor="actor"/>&nbsp;
                       <link-stashdb-button :item="actor" objectType="actor" />
                     </div>
+                  </div>
+                </div>
+                <div class="actor-stats">
+                  <div class="actor-stat" v-for="s in actorStats" :key="s.label">
+                    <span class="actor-stat-value">{{ s.value }}</span>
+                    <span class="actor-stat-label">{{ s.label }}</span>
                   </div>
                 </div>
               </div>
@@ -169,6 +175,9 @@
                   <b-message  v-if="actor.biography != ''">
                       {{ actor.biography }}
                     </b-message>
+                  <p v-if="!hasDetails" class="actor-empty-details">
+                    No profile details yet. Use Edit, or link the actor on StashDB, to fill them in.
+                  </p>
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
@@ -227,7 +236,7 @@
                     </div>
                   </div>
                 </b-tab-item>
-                <b-tab-item :label="`Links (${getActorUrls().length})`" v-show="getActorUrls().length !=0">
+                <b-tab-item :label="`Links (${getActorUrls().length})`" :visible="getActorUrls().length != 0">
                   <div v-show="activeTab == 4">
                     <div >                    
                       <b-field :label="$t('Links')" >
@@ -241,7 +250,7 @@
                     </div>
                   </div>
                 </b-tab-item>
-                <b-tab-item  :label="`Scrapers (${extrefs.length})`" v-show="extrefs.length !=0">
+                <b-tab-item  :label="`Scrapers (${extrefs.length})`" :visible="extrefs.length != 0">
                   <div v-show="activeTab == 5">
                     <div >                    
                       <b-field :label="$t('Actor Scrapers')" >
@@ -306,8 +315,6 @@
 import { defineComponent, nextTick } from 'vue';
 
 import ky from 'ky'
-import 'video.js'
-import 'videojs-vr'
 import { format, parseISO } from 'date-fns'
 import VueLoadImage from 'vue-load-image'
 import { GlobalEvents } from 'vue-global-events'
@@ -380,6 +387,31 @@ export default defineComponent({
     showOpenInNewWindow () {
       return this.$store.state.optionsWeb.web.showOpenInNewWindow
     },
+    // At-a-glance numbers from the actor's scenes (already loaded, no extra request).
+    actorStats () {
+      const scenes = this.actor.scenes || []
+      const latest = scenes.map(s => s.release_date).filter(d => d && !d.startsWith('0001')).sort().pop()
+      const rated = scenes.filter(s => s.star_rating > 0)
+      const born = this.actor.birth_date
+      const age = born && !born.startsWith('0001') ? this.calcAge(born) : null
+      return [
+        ...(age ? [{ label: 'Age', value: age }] : []),
+        { label: 'Scenes', value: scenes.length },
+        { label: 'Available', value: scenes.filter(s => s.is_available).length },
+        { label: 'Scripted', value: scenes.filter(s => s.is_scripted).length },
+        { label: 'Watched', value: scenes.filter(s => s.is_watched).length },
+        { label: 'Avg rating', value: rated.length ? (rated.reduce((a, s) => a + s.star_rating, 0) / rated.length).toFixed(1) : '–' },
+        { label: 'Latest', value: latest ? latest.slice(0, 7) : '–' }
+      ]
+    },
+    hasDetails () {
+      const a = this.actor
+      const filled = v => v && v !== '[]'
+      return a.birth_date !== '0001-01-01T00:00:00Z' || (a.start_year + a.end_year) !== 0 || filled(a.nationality) ||
+        filled(a.ethnicity) || filled(a.hair_color) || filled(a.eye_color) || a.height || a.weight ||
+        this.measurements() !== '' || filled(a.breast_type) || filled(a.aliases) || filled(a.tattoos) ||
+        filled(a.piercings) || filled(a.biography)
+    },
   },
 
   mounted () {    
@@ -391,6 +423,12 @@ export default defineComponent({
   },
 
   watch: {
+    'actor.id': {
+      handler () {
+        this.activeTab = this.hasDetails ? 0 : 1
+      },
+      immediate: true,
+    },
     images: {
       handler () {
         // Reset loaded state when images change
@@ -987,6 +1025,42 @@ export default defineComponent({
 </script>
 
 <style lang="less" scoped>
+.actor-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(127, 127, 127, 0.18);
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.actor-stat {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.actor-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.actor-stat-label {
+  font-size: 0.65rem;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.actor-empty-details {
+  padding: 0.75rem 0;
+  opacity: 0.65;
+  font-size: 0.9rem;
+}
+
 .bbox {
   flex: 1 0 calc(25%);
   display: flex;
@@ -997,8 +1071,10 @@ export default defineComponent({
   line-height: 0;
 }
 
+/* Square photo area, but never taller than the modal can show next to the
+   tabs, thumbnails and buttons (90vh modal minus roughly 380px of chrome). */
 .is-1by1 {
-  padding-top: calc(100% - 40px - 1em) !important;
+  padding-top: min(calc(100% - 40px - 1em), calc(90vh - 380px)) !important;
 }
 
 .modal-card {
@@ -1202,8 +1278,8 @@ div.scroll {
 /* Fullscreen Gallery Styles */
 .carousel-wrapper {
   position: relative;
-  /* Maintain portrait aspect ratio so the modal doesn't jump when image is absent */
-  aspect-ratio: 2 / 3;
+  /* Height comes from the capped photo area above; the old fixed 2:3 ratio made
+     the gallery column taller than the modal and forced a scrollbar. */
   min-height: 180px;
   overflow: hidden;
 }

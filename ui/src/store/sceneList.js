@@ -135,6 +135,8 @@ const mutations = {
   }
 }
 
+let loadSeq = 0
+
 const actions = {
   async filters ({ state }) {
     state.playlists = await ky.get('/api/playlist').json()
@@ -146,6 +148,9 @@ const actions = {
   },
   async load ({ state, commit }, params) {
     const iOffset = params.offset || 0
+    // Only the latest request may update the list: an older, slower response
+    // (e.g. the previous filters) must not overwrite a newer one.
+    const seq = ++loadSeq
 
     state.isLoading = true
 
@@ -155,6 +160,7 @@ const actions = {
       q.limit = state.limit
 
       const data = await ky.post('/api/scene/list', { json: q }).json()
+      if (seq !== loadSeq) return
 
       if (iOffset === 0) {
         commit('setItems', data.scenes || [])
@@ -170,7 +176,7 @@ const actions = {
       state.counts.not_downloaded = data.count_not_downloaded
       state.counts.hidden = data.count_hidden
     } finally {
-      state.isLoading = false
+      if (seq === loadSeq) state.isLoading = false
     }
   }
 }

@@ -18,7 +18,6 @@ var previewTask cron.EntryID
 var actorScrapeTask cron.EntryID
 var stashdbScrapeTask cron.EntryID
 var linkScenesTask cron.EntryID
-var avifConversionTask cron.EntryID
 
 func SetupCron() {
 	cronInstance = cron.New()
@@ -49,10 +48,6 @@ func SetupCron() {
 		log.Println(fmt.Sprintf("Setup Link Scenes Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.LinkScenesSchedule))))
 		linkScenesTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.LinkScenesSchedule)), linkScenesCron)
 	}
-	if config.Config.Cron.AVIFConversionSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup AVIF Conversion Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.AVIFConversionSchedule))))
-		avifConversionTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.AVIFConversionSchedule)), avifConversionCron)
-	}
 	cronInstance.Start()
 
 	go tasks.CalculateCacheSizes()
@@ -75,9 +70,6 @@ func SetupCron() {
 	if config.Config.Cron.LinkScenesSchedule.RunAtStartDelay > 0 {
 		time.AfterFunc(time.Duration(config.Config.Cron.LinkScenesSchedule.RunAtStartDelay)*time.Minute, linkScenesCron)
 	}
-	if config.Config.Cron.AVIFConversionSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.AVIFConversionSchedule.RunAtStartDelay)*time.Minute, avifConversionCron)
-	}
 
 	if config.Config.Cron.RescrapeSchedule.Enabled {
 		log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
@@ -96,9 +88,6 @@ func SetupCron() {
 	}
 	if config.Config.Cron.LinkScenesSchedule.Enabled {
 		log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(linkScenesTask).Next))
-	}
-	if config.Config.Cron.AVIFConversionSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next AVIF Conversion Task at %v", cronInstance.Entry(avifConversionTask).Next))
 	}
 }
 
@@ -195,24 +184,4 @@ func calcEndTime(startHour int, endHour int, minuteStart int) time.Time {
 	} else {
 		return time.Date(dt.Year(), dt.Month(), dt.Day(), endHour, minuteStart, 0, 0, dt.Location())
 	}
-}
-
-var avifConversionInProgress = false
-
-func avifConversionCron() {
-	if !session.HasActiveSession() && !avifConversionInProgress {
-		avifConversionInProgress = true
-		defer func() {
-			avifConversionInProgress = false
-		}()
-
-		var endTime *time.Time
-		if config.Config.Cron.AVIFConversionSchedule.UseRange {
-			et := calcEndTime(config.Config.Cron.AVIFConversionSchedule.HourStart, config.Config.Cron.AVIFConversionSchedule.HourEnd, config.Config.Cron.AVIFConversionSchedule.MinuteStart)
-			endTime = &et
-			log.Infof("AVIF Conversion will stop at %v", endTime)
-		}
-		ProcessAllAVIFConversions(endTime)
-	}
-	log.Println(fmt.Sprintf("Next AVIF Conversion Task at %v", cronInstance.Entry(avifConversionTask).Next))
 }

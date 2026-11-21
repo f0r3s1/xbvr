@@ -9,8 +9,6 @@ import vueDebounce from 'vue-debounce'
 import Buefy from '@ntohq/buefy-next'
 import '@ntohq/buefy-next/dist/buefy.css'
 
-import 'video.js/dist/video-js.css'
-import 'videojs-vr/dist/videojs-vr.css'
 import '@mdi/font/css/materialdesignicons.css'
 
 const app = createApp({

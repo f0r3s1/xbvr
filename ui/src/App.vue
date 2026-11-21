@@ -48,6 +48,10 @@ export default defineComponent({
     const saved = localStorage.getItem('xbvr-theme') || 'auto'
     this.applyTheme(saved)
 
+    // Scene cards look up site logos in this list; it used to be loaded only by
+    // Options -> Scrapers, so logos stayed blank until that page was visited.
+    if (!this.$store.state.optionsSites.items.length) this.$store.dispatch('optionsSites/load')
+
     // Listen for OS preference changes (for auto mode)
     this._darkMQ = window.matchMedia('(prefers-color-scheme: dark)')
     this._darkMQHandler = () => {
@@ -130,6 +134,25 @@ export default defineComponent({
 
   .navbar-pad {
     margin-top: 1rem;
+  }
+
+  /* Scene and actor list toolbars stay reachable while scrolling. */
+  .list-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    position: sticky;
+    top: 3.25rem;
+    z-index: 6;
+    padding: 0.5rem 0;
+    margin-bottom: 0.75rem;
+    background: #fff;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.15);
+    font-variant-numeric: tabular-nums;
+  }
+  html[data-theme="dark"] .list-toolbar {
+    background: #121218;
   }
   .modal-background {
     background-color: rgba(0, 0, 0, .40) !important;
