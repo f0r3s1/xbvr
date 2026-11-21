@@ -1,9 +1,10 @@
 <template>
   <video-player ref="player" class="xbvr-player">
-    <video-skin ref="skin" class="xbvr-skin" :style="{ aspectRatio }">
+    <video-skin ref="skin" class="xbvr-skin" :class="{ 'is-vr': vrActive }" :style="{ aspectRatio }">
       <video ref="video" playsinline preload="none" :loop="loop" disableremoteplayback x-webkit-airplay="deny" :style="{ opacity: vrActive || !started ? 0 : 1 }"
              @playing="started = true" @emptied="started = false"></video>
       <canvas v-show="vrActive && started" ref="canvas" class="vr-canvas"></canvas>
+      <ScriptOverlay :url="script" :scripts="scripts" :video="video" @select="id => $emit('select-script', id)"/>
     </video-skin>
   </video-player>
 </template>
@@ -19,6 +20,7 @@
 // The public methods mirror the bits of the Video.js 8 player API the views used
 // (play, pause, paused, currentTime, duration, poster, dispose) so callers stay simple.
 import { defineComponent } from 'vue'
+import ScriptOverlay from './ScriptOverlay.vue'
 import '@videojs/html/video/player'
 import '@videojs/html/video/skin'
 
@@ -51,13 +53,18 @@ export function vrMode (projection) {
 
 export default defineComponent({
   name: 'VrPlayer',
+  components: { ScriptOverlay },
 
   props: {
     aspectRatio: { type: String, default: '1 / 1' },
-    loop: { type: Boolean, default: true }
+    loop: { type: Boolean, default: true },
+    // funscript URL for the optional stroke overlay ('' = no overlay button)
+    script: { type: String, default: '' },
+    // [{ id, name, selected }] when the scene has several scripts
+    scripts: { type: Array, default: () => [] }
   },
 
-  emits: ['ready'],
+  emits: ['ready', 'select-script'],
 
   data () {
     return {
@@ -90,7 +97,7 @@ export default defineComponent({
       const dx = e.clientX - this.drag.x
       const dy = e.clientY - this.drag.y
       if (Math.abs(dx) + Math.abs(dy) > 4) this.drag.moved = true
-      const k = this.fov / (skin.clientHeight || 500)
+      const k = this.fov / (this.$refs.canvas.clientHeight || skin.clientHeight || 500)
       this.lon = this.drag.lon - dx * k
       this.lat = Math.max(-85, Math.min(85, this.drag.lat + dy * k))
       if (this.mode && this.mode.sphere === 180) this.lon = Math.max(-90, Math.min(90, this.lon))
@@ -115,6 +122,7 @@ export default defineComponent({
     this.styleSkin()
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(skin)
+    this.resizeObserver.observe(this.$refs.canvas)
     this.$emit('ready', this)
   },
 
@@ -203,6 +211,9 @@ export default defineComponent({
         sheet.replaceSync(`
           media-cast-button, media-airplay-button { display: none !important; }
           media-container:focus, media-container:focus-visible { outline: none !important; box-shadow: none !important; }
+          media-container, media-poster { border-radius: var(--xbvr-player-radius, 8px) !important; }
+          /* Picture-in-picture only shows the raw side-by-side frame for VR files */
+          :host(.is-vr) media-pip-button { display: none !important; }
         `)
         root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet]
         return true
@@ -293,10 +304,14 @@ export default defineComponent({
       return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide }))
     },
 
+    // Size from the canvas's own box, not the skin: in fullscreen Video.js puts its
+    // inner container in the top layer, so the canvas fills the screen while the
+    // <video-skin> element keeps its page size (that mismatch stretched the view).
     resize () {
-      if (!this.three || !this.$refs.skin) return
-      const w = this.$refs.skin.clientWidth
-      const h = this.$refs.skin.clientHeight
+      const cv = this.$refs.canvas
+      if (!this.three || !cv) return
+      const w = cv.clientWidth
+      const h = cv.clientHeight
       if (!w || !h) return
       this.three.renderer.setSize(w, h, false)
       this.three.camera.aspect = w / h
@@ -325,6 +340,13 @@ export default defineComponent({
   display: block;
   width: 100%;
   background: #000;
+  /* one radius for the skin, its inner container and the VR canvas, so no square
+     black corners show behind the rounded controls */
+  border-radius: var(--xbvr-player-radius, 8px);
+  overflow: hidden;
+}
+.xbvr-skin:fullscreen {
+  border-radius: 0;
 }
 .xbvr-skin video {
   width: 100%;

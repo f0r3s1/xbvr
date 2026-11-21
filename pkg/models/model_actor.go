@@ -389,6 +389,16 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 	if r.MaxSceneRating.OrElse(5) < 5 {
 		tx = tx.Where("(select AVG(s.star_rating) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0 and is_hidden=0) <= ?", r.MaxSceneRating.OrElse(50))
 	}
+
+	// Letter filter: only actors whose name starts with that letter ("#" = digit,
+	// symbol or any non A-Z start).
+	if letter := strings.ToUpper(strings.TrimSpace(r.JumpTo.OrElse(""))); letter != "" {
+		if letter == "#" {
+			tx = tx.Where("upper(substr(actors.name, 1, 1)) NOT BETWEEN 'A' AND 'Z'")
+		} else {
+			tx = tx.Where("upper(substr(actors.name, 1, 1)) = ?", letter[:1])
+		}
+	}
 	var sites []string
 	var mustHaveSites []string
 	var excludedSites []string
@@ -477,22 +487,15 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 		Count(&out.Results)
 
 	tx = tx.Preload("Scenes", func(db *gorm.DB) *gorm.DB {
-		return db.Order("release_date DESC").Where("is_hidden = 0")
+		db = db.Order("release_date DESC").Where("is_hidden = 0")
+		if !enablePreload {
+			// list view: only what the cards and stats use, not every scene column
+			// (scene_cast.actor_id is needed to map scenes back to their actor)
+			db = db.Select("scenes.id, scenes.is_available, scenes.is_scripted, scenes.is_watched, scenes.star_rating, scenes.release_date, scene_cast.actor_id")
+		}
+		return db
 	})
 
-	if r.JumpTo.OrElse("") != "" {
-		// if we want to jump to actors starting with a specific letter, then we need to work out the offset to them
-		cnt := 0
-		txList := tx.Select(`distinct actors.name`)
-		txList.Find(&out.Actors)
-		for idx, actor := range out.Actors {
-			if strings.ToLower(actor.Name) >= strings.ToLower(r.JumpTo.OrElse("")) {
-				break
-			}
-			cnt = idx
-		}
-		offset = (cnt / limit) * limit
-	}
 	out.Offset = offset
 
 	tx = tx.Select(`distinct actors.*, 

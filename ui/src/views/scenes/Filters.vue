@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="filter-panel">
     <div class="is-divider" data-content="Saved searches" style="margin-top:0.8em;"></div>
 
     <SavedSearch/>
@@ -77,7 +77,7 @@
       </div>
     </b-field>
 
-    <b-field label="Release month" label-for="filter-release-month" label-position="on-border" :addons="true" class="field-extra">
+    <b-field label="Released" label-for="filter-release-month" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
           <select id="filter-release-month" v-model="releaseMonth">
@@ -120,12 +120,11 @@
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
                 :key="tag+index" :tabstop="false" closable  @close="cast=cast.filter(e => e !== tag)" @click="toggle3way(tag,index,'cast')">              
-                <b-tooltip position="is-right" :delay="200"
-                  :label="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+                <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   {{removeConditionPrefix(tag)}}
-                </b-tooltip>
+                </span>
               </b-tag>
           </template>
         </b-taginput>
@@ -139,11 +138,10 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="sites=sites.filter(e => e !== tag)" @click="toggle2Way(tag,index,'sites')">
-                <b-tooltip position="is-right" :delay="200"
-                  :label="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+                <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   {{removeConditionPrefix(tag)}}
-                </b-tooltip>
+                </span>
             </b-tag>
           </template>
         </b-taginput>
@@ -157,12 +155,11 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="tags=tags.filter(e => e !== tag)" @click="toggle3way(tag,index,'tags')"> 
-              <b-tooltip position="is-right" :delay="200"
-                  :label="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+              <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 {{removeConditionPrefix(tag)}}
-              </b-tooltip>
+              </span>
             </b-tag>
           </template>
         </b-taginput>
@@ -176,12 +173,11 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="cuepoint=cuepoint.filter(e => e !== tag)" @click="toggle3way(tag,index,'cuepoints')"> 
-              <b-tooltip position="is-right" :delay="200"
-                  :label="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+              <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 {{removeConditionPrefix(tag)}}
-              </b-tooltip>
+              </span>
             </b-tag>
           </template>
         </b-taginput>
@@ -206,7 +202,7 @@
       </b-tooltip>
     </div>
     <div class="is-divider" data-content="Actor Also Known As groups"></div>
-    <b-field>
+    <b-field class="group-actions">
       <b-tooltip position="is-right" label="New Aka Group. Select 2 or more actors in the Cast filter" multilined :delay="200">
         <button class="button is-small is-outlined" @click="createAkaGroup" :disabled="disableNewAkaGroup">
           <b-icon pack="mdi" icon="account-multiple-plus-outline"></b-icon>
@@ -230,7 +226,7 @@
 
     </b-field>
     <div class="is-divider" data-content="Tag Groups"></div>
-    <b-field>
+    <b-field class="group-actions">
       <b-tooltip position="is-right" label="New Tag Group. Select 2 or more tags in the Tag filter" multilined :delay="200">
         <button class="button is-small is-outlined" @click="showGroupTagNameDialog('create')" :disabled="disableNewTagGroup">
           <b-icon pack="mdi" icon="tag-multiple-outline"></b-icon>

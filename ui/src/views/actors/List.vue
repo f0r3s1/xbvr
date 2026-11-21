@@ -1,22 +1,11 @@
 <template>
   <div style="position: relative; min-height: 200px;">
-    <GlobalEvents
-      :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
-      @keydown.left="prevpage"
-      @keydown.right="nextpage"
-      @keydown.o="prevpage"
-      @keydown.p="nextpage"
-    />
-    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
+    <!-- Same behaviour as the scene list: reloads keep cards on screen as they are
+         under a thin progress bar, more cards load as you scroll. -->
+    <div class="list-progress" v-if="isListReloading" role="progressbar" aria-label="Loading actors"></div>
 
     <div class="list-toolbar">
-      <strong class="toolbar-total">{{total}} results</strong>
-      <div class="simple-pagination">
-        <button class="button is-small" :disabled="current <= 1" @click="prevpage">&#8249;</button>
-        <input type="number" class="pg-input" v-model.number="current" :min="1" :max="totalPages" @change="pageChanged" />
-        <span class="pg-of">/ {{ totalPages }}</span>
-        <button class="button is-small" :disabled="current >= totalPages" @click="nextpage">&#8250;</button>
-      </div>
+      <strong class="toolbar-total">{{ isListReloading && !actors.length ? $t('Loading…') : total + ' results' }}</strong>
       <div class="toolbar-size">
         <b-field>
           <span class="list-header-label">{{$t('Card size')}}</span>
@@ -27,73 +16,28 @@
           <b-radio-button v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
         </b-field>
       </div>
+      <nav class="letter-filter" aria-label="Filter by first letter">
+        <button v-for="l in letters" :key="l.value" type="button" class="letter"
+                :class="{ 'is-active': jumpTo === l.value, 'is-all': l.value === '' }"
+                :aria-pressed="jumpTo === l.value" @click="jumpTo = l.value">{{ l.label }}</button>
+      </nav>
     </div>
     <span v-show="show_actor_id==='never show, just need the computed show_actor_id to trigger '">{{show_actor_id}}</span>
-        <div class="letter-jump" v-if="hideLetters">
-          <b-radio-button v-model="jumpTo" native-value="" size="is-small"></b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="A" size="is-small">A</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="B" size="is-small">B</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="C" size="is-small">C</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="D" size="is-small">D</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="E" size="is-small">E</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="F" size="is-small">F</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="G" size="is-small">G</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="H" size="is-small">H</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="I" size="is-small">I</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="J" size="is-small">J</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="K" size="is-small">K</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="L" size="is-small">L</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="M" size="is-small">M</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="N" size="is-small">N</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="O" size="is-small">O</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="P" size="is-small">P</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="Q" size="is-small">Q/R</b-radio-button>          
-          <b-radio-button v-model="jumpTo" native-value="S" size="is-small">S</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="T" size="is-small">T</b-radio-button>
-          <b-radio-button v-model="jumpTo" native-value="U" size="is-small">U/V</b-radio-button>          
-          <b-radio-button v-model="jumpTo" native-value="W" size="is-small">W/X/Y/Z</b-radio-button>
-        </div>
-
-    <div class="is-clearfix"></div>
 
     <div class="columns is-multiline">
       <div :class="['column', 'is-multiline', cardSizeClass, 'actor-col']"
            v-for="actor in actors" :key="actor.id">
         <ActorCard :actor="actor"/>
       </div>
+      <div class="column is-full empty-state" v-if="!isLoading && !actors.length">
+        {{ jumpTo ? `No actors starting with ${jumpTo}` : 'No actors match these filters' }}
+      </div>
     </div>
-      <div class="letter-jump" v-if="hideLetters">
-        <b-radio-button v-model="jumpTo" native-value="" size="is-small"></b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="A" size="is-small">A</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="B" size="is-small">B</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="C" size="is-small">C</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="D" size="is-small">D</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="E" size="is-small">E</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="F" size="is-small">F</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="G" size="is-small">G</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="H" size="is-small">H</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="I" size="is-small">I</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="J" size="is-small">J</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="K" size="is-small">K</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="L" size="is-small">L</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="M" size="is-small">M</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="N" size="is-small">N</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="O" size="is-small">O</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="P" size="is-small">P</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="Q" size="is-small">Q/R</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="S" size="is-small">S</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="T" size="is-small">T</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="U" size="is-small">U/V</b-radio-button>
-        <b-radio-button v-model="jumpTo" native-value="W" size="is-small">W/X/Y/Z</b-radio-button>
-      </div>
-      <div class="pagination-bottom">
-        <div class="simple-pagination">
-          <button class="button is-small" :disabled="current <= 1" @click="prevpage">&#8249;</button>
-          <input type="number" class="pg-input" v-model.number="current" :min="1" :max="totalPages" @change="pageChanged" />
-          <span class="pg-of">/ {{ totalPages }}</span>
-          <button class="button is-small" :disabled="current >= totalPages" @click="nextpage">&#8250;</button>
-        </div>
-      </div>
+
+    <div class="loading-more" v-if="isLoadingMore">
+      <b-icon pack="mdi" icon="loading" custom-class="mdi-spin" size="is-medium"></b-icon>
+      <span>Loading more...</span>
+    </div>
   </div>
 </template>
 
@@ -102,15 +46,17 @@ import { defineComponent } from 'vue';
 
 import ActorCard from './ActorCard'
 import ky from 'ky'
-import { GlobalEvents } from 'vue-global-events'
 
 export default defineComponent({
   name: 'List',
-  components: { ActorCard, GlobalEvents },
+  components: { ActorCard },
 
   data () {
-    return {      
-      current: 1,      
+    return {
+      isLoadingMore: false,
+      letters: [{ value: '', label: 'All' }]
+        .concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => ({ value: l, label: l })))
+        .concat([{ value: '#', label: '#' }])
     }
   },
 
@@ -122,42 +68,13 @@ export default defineComponent({
       set (value) {
         this.$store.state.actorList.filters.cardSize = value
         localStorage.setItem('actorCardSize', value)
-        switch (value){
-          case "1":
-            this.limit=36
-            break
-          case "2":
-            this.limit=18
-            break
-          case "3":
-            this.limit=10
-            break
-          case "4":
-            this.limit=8
-            break
-            }            
-        }      
-    },
-    limit: {
-      get(){
-        return this.$store.state.actorList.limit
-      },
-      set(newLimit){
-        // find the position of the first actor
-        let currentOffset = this.$store.state.actorList.offset - this.$store.state.actorList.limit + 1
-        // what is the new page number, based on the new limit
-        this.current = Math.floor(currentOffset / newLimit) + 1
-        if (this.current<1)
-          this.current=1
-        this.$store.state.actorList.limit = newLimit
-        // what is the the first actor based on the new page size
-        this.$store.state.actorList.offset = (this.current -1) * this.$store.state.actorList.limit          
-        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset })
+        this.$nextTick(() => this.fillViewport())
       }
     },
+    // first-letter filter (kept in the URL with the other filters)
     jumpTo: {
       get () {
-        return this.$store.state.actorList.filters.jumpTo
+        return this.$store.state.actorList.filters.jumpTo || ''
       },
       set (value) {
         this.$store.state.actorList.filters.jumpTo = value
@@ -181,8 +98,10 @@ export default defineComponent({
       }
     },
     isLoading () {
-      this.current = this.$store.state.actorList.offset / this.$store.state.actorList.limit
       return this.$store.state.actorList.isLoading
+    },
+    isListReloading () {
+      return this.isLoading && !this.isLoadingMore
     },
     actors () {
       return this.$store.state.actorList.actors
@@ -192,22 +111,6 @@ export default defineComponent({
     },
     show_actor_id() {
       return this.$store.state.actorList.show_actor_id
-    },
-    hideLetters: {
-      get () {
-        switch (this.$store.state.actorList.filters.sort) {
-          case "":
-            return true
-          case "name_asc":
-            return true
-          case "name_desc":
-            return true
-        }
-        return false
-        },
-    },
-    totalPages () {
-      return Math.max(1, Math.ceil(this.total / this.limit))
     },
   },
 
@@ -220,41 +123,44 @@ export default defineComponent({
         }
       })
     },
-    async pageChanged () {      
-      this.$store.state.actorList.offset = (this.current -1) * this.$store.state.actorList.limit
-      this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset })
+    async loadMore () {
+      const list = this.$store.state.actorList
+      if (this.isLoadingMore || list.isLoading || list.actors.length >= list.total) return
+      this.isLoadingMore = true
+      await this.$store.dispatch('actorList/load', { offset: list.actors.length })
+      this.isLoadingMore = false
+      this.$nextTick(() => this.fillViewport())
     },
-    nextpage () {
-      if (this.$store.state.overlay.actordetails.show){
-        return 
-      }
-      if (this.$store.state.overlay.details.show){
-        return 
-      }
-      if (this.current * this.limit >= this.total) {
-        this.current = 1
-      } else {
-        this.current += 1
-      }      
-      this.pageChanged()
+    // load the next batch when the end of the grid comes near (or the first batch
+    // does not even fill the screen)
+    fillViewport () {
+      const nearEnd = window.scrollY + window.innerHeight + 800 >= document.documentElement.scrollHeight
+      if (nearEnd) this.loadMore()
     },
-    prevpage () {
-      if (this.$store.state.overlay.actordetails.show){
-        return
-      }
-      if (this.$store.state.overlay.details.show){
-        return
-      }
-      if (this.current > 1) {
-        this.current -= 1
-      } else {
-        this.current = Math.floor(this.total / this.limit) + 1
-      }
-      this.pageChanged()
+    handleScroll () {
+      if (this.scrollTimer) return
+      this.scrollTimer = setTimeout(() => {
+        this.scrollTimer = null
+        this.fillViewport()
+      }, 120)
     },
   },
 
+  mounted () {
+    this.scrollHandler = () => this.handleScroll()
+    window.addEventListener('scroll', this.scrollHandler, { passive: true })
+  },
+
+  beforeUnmount () {
+    window.removeEventListener('scroll', this.scrollHandler)
+    if (this.scrollTimer) clearTimeout(this.scrollTimer)
+  },
+
   watch: {
+    // after a (re)load finishes, keep filling until the screen is full
+    '$store.state.actorList.isLoading' (loading) {
+      if (!loading && !this.isLoadingMore) this.$nextTick(() => this.fillViewport())
+    },
     '$store.state.actorList.show_actor_id' (id) {
       if (id && id !== '') {
         ky.get('/api/actor/' + id).json().then(data => {
@@ -295,51 +201,87 @@ export default defineComponent({
     margin-bottom: 0 !important;
   }
 
-  /* Compact custom pagination */
-  .simple-pagination {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    flex: 0 0 auto;
-  }
-  .pg-input {
-    width: 2.5rem;
-    height: 1.75rem;
-    text-align: center;
-    border: 1px solid #dbdbdb;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    padding: 0 0.2rem;
-    color: inherit;
-    background: transparent;
-    -moz-appearance: textfield;
-  }
-  html[data-theme="dark"] .pg-input {
-    border-color: #4a4a5a;
-  }
-  .pg-input::-webkit-inner-spin-button,
-  .pg-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-  .pg-of {
-    font-size: 0.75rem;
-    white-space: nowrap;
-    opacity: 0.7;
-  }
-
-  /* Bottom pagination centred */
-  .pagination-bottom {
-    display: flex;
-    justify-content: center;
-    padding: 0.5rem 0 0.75rem;
-  }
-
-  /* Letter jump bar */
-  .letter-jump {
+  /* First-letter filter: one compact row of chips inside the sticky toolbar */
+  .letter-filter {
+    flex: 1 0 100%;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 3px;
-    margin: 0.25rem 0 0.5rem;
-    padding: 0 0.25rem;
+    gap: 2px;
+    padding-bottom: 0.4rem;
+  }
+  .letter {
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 0.3rem;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.6rem;
+    text-align: center;
+    opacity: 0.65;
+    cursor: pointer;
+    transition: background 0.12s, opacity 0.12s;
+  }
+  .letter.is-all {
+    padding: 0 0.6rem;
+  }
+  .letter:hover {
+    opacity: 1;
+    background: rgba(127, 127, 127, 0.15);
+  }
+  .letter.is-active {
+    opacity: 1;
+    background: var(--bulma-primary, #7957d5);
+    color: #fff;
+  }
+  .letter:focus-visible {
+    outline: 2px solid var(--bulma-primary, #7957d5);
+    outline-offset: 1px;
+  }
+
+  .empty-state {
+    padding: 3rem 0;
+    text-align: center;
+    opacity: 0.6;
+  }
+
+  /* Loading states shared with the scene list */
+  .list-progress {
+    position: sticky;
+    top: 3.25rem;
+    z-index: 7;
+    height: 2px;
+    margin-bottom: -2px;
+    overflow: hidden;
+    background: rgba(127, 127, 127, 0.15);
+  }
+  .list-progress::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 35%;
+    background: var(--bulma-primary, #7957d5);
+    animation: list-progress-slide 1.1s ease-in-out infinite;
+  }
+  @keyframes list-progress-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(290%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .list-progress::after { animation: none; }
+  }
+  .loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: #888;
   }
 
   /* Card columns */

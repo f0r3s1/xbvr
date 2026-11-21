@@ -33,7 +33,7 @@ const state = {
   isLoading: false,
   offset: 0,
   total: 0,
-  limit: 18,
+  limit: 36,
   show_actor_id: '',
   filterOpts: {
     cast: [],
@@ -140,8 +140,19 @@ const actions = {
       console.error('Failed to load actor filters:', e)
     }
   },
+  // Lazy list: offset 0 replaces the list, the current end appends the next batch,
+  // and any other offset (callers refreshing "the current page" after an edit)
+  // reloads everything already on screen in place.
   async load ({ state, commit }, params) {
-    const iOffset = params.offset || 0
+    let iOffset = params.offset || 0
+    let limit = state.limit
+    const append = iOffset > 0 && iOffset >= state.actors.length
+    if (append) {
+      iOffset = state.actors.length
+    } else if (iOffset > 0) {
+      limit = Math.max(state.limit, state.actors.length)
+      iOffset = 0
+    }
     // Only the latest request may update the list (see sceneList.js).
     const seq = ++loadSeq
 
@@ -150,21 +161,19 @@ const actions = {
     try {
       const q = Object.assign({}, state.filters)
       q.offset = iOffset
-      q.limit = state.limit
+      q.limit = limit
 
       const data = await ky
         .post('/api/actor/list', { json: q, timeout: 30000 })
         .json()
       if (seq !== loadSeq) return
 
-      state.filters.jumpTo = ''
-
-      if (iOffset === 0) {
-        commit('setActors', data.actors || [])
-      } else {
+      if (append) {
         commit('setActors', state.actors.concat(data.actors || []))
+      } else {
+        commit('setActors', data.actors || [])
       }
-      state.offset = data.offset + state.limit
+      state.offset = state.actors.length
       state.total = data.results
     } catch (e) {
       console.error('Failed to load actors:', e)

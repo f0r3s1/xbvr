@@ -1,6 +1,6 @@
 <template>
   <div ref="scrollContainer" style="position: relative; min-height: 200px;">
-    <!-- Reloads keep the current cards on screen (dimmed) under a thin progress
+    <!-- Reloads keep the current cards on screen as they are under a thin progress
          bar; nothing blocks the grid. A first load shows skeleton cards. -->
     <div class="list-progress" v-if="isListReloading" role="progressbar" aria-label="Loading scenes"></div>
 
@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <div class="columns is-multiline" :class="{ 'is-reloading': isListReloading && items.length }">
+    <div class="columns is-multiline">
       <div :class="['column', 'is-multiline', cardSizeClass]"
            v-for="item in items" :key="item.id">
         <SceneCard :item="item"/>
@@ -262,10 +262,6 @@ export default defineComponent({
     from { transform: translateX(-100%); }
     to { transform: translateX(290%); }
   }
-  .is-reloading {
-    opacity: 0.6;
-    transition: opacity 150ms ease 150ms;
-  }
   .skeleton-card {
     border-radius: 6px;
     overflow: hidden;
@@ -295,17 +291,22 @@ export default defineComponent({
   @media (prefers-reduced-motion: reduce) {
     .skeleton-block, .list-progress::after { animation: none; }
   }
+  /* results | filter tabs (centred) | card size: both sides grow equally so the
+     tabs sit in the middle of the toolbar */
   .toolbar-total {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     white-space: nowrap;
   }
   .toolbar-segment {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     flex: 0 1 auto;
   }
   .toolbar-size {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    display: flex;
+    justify-content: flex-end;
   }
   .toolbar-size :deep(.field) {
     margin-bottom: 0 !important;

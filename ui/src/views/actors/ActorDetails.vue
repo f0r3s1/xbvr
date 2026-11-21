@@ -24,7 +24,7 @@
           <div class="column is-half">
             <b-tabs v-model="activeMedia" position="is-centered" :animated="false">
               <b-tab-item :label="$t('Gallery')">
-                <div class="carousel-wrapper">
+                <div class="carousel-wrapper" :style="{ '--photo-ratio': activePhotoRatio }">
                   <b-carousel v-model="carouselSlide" @change="onCarouselChange" :autoplay="false" :indicator-inside="false">
                     <b-carousel-item v-for="(carousel, i) in images" :key="i">
                       <div class="image is-1by1 is-full carousel-image-container">
@@ -125,67 +125,68 @@
             <div class="block-opts block">
               <b-tabs v-model="activeTab" :animated="false">
                 <b-tab-item :label="$t('Details')">
-                  <div class="attribute-container">
-                    <b-field v-if="actor.birth_date != '0001-01-01T00:00:00Z'">
-                      <strong class="attribute-heading">{{ $t('Age') }}:</strong><span class="attribute-data">{{ calcAge(actor.birth_date) }}</span>
-                    </b-field>
-                    <b-field v-if="actor.start_year + actor.end_year  != 0">
-                      <strong class="attribute-heading">{{ $t('Active') }}:</strong><span class="attribute-data">{{ getYearsActive() }}</span>
-                    </b-field>
-                    <b-field v-if="actor.nationality">
-                      <strong class="attribute-heading">{{ $t('Nationality') }}:</strong>
-                      <b-field grouped class="attribute-data">
+                  <dl class="actor-facts">
+                    <div class="fact" v-if="actor.start_year + actor.end_year != 0">
+                      <dt>{{ $t('Active') }}</dt><dd>{{ getYearsActive() }}</dd>
+                    </div>
+                    <div class="fact" v-if="actor.nationality">
+                      <dt>{{ $t('Nationality') }}</dt>
+                      <dd class="fact-flag">
                         <vue-load-image>
-                            <template #image><img :src="getImageURL(this.getCountryFlag(actor.nationality))" style="height:15px;border: 1px solid black;margin-right:0.5em;"/></template>
+                          <template #image><img :src="getImageURL(getCountryFlag(actor.nationality))" class="fact-flag-img" alt=""/></template>
                         </vue-load-image>
-                        <small>{{ this.getCountryName(actor.nationality) }}</small>
-                      </b-field>
-                    </b-field>
-                    <b-field v-if="actor.ethnicity">
-                      <strong class="attribute-heading">{{ $t('Ethnicity') }}:</strong><small  class="attribute-data">{{ actor.ethnicity }}</small>
-                    </b-field>
-                    <b-field v-if="actor.hair_color">
-                      <strong class="attribute-heading">{{ $t('Hair Color') }}:</strong> <small class="attribute-data">{{ actor.hair_color }}</small>
-                    </b-field>
-                    <b-field v-if="actor.eye_color">
-                      <strong class="attribute-heading">{{ $t('Eye Color') }}:</strong> <small class="attribute-data">{{ actor.eye_color }}</small>
-                    </b-field>
-                    <b-field v-if="actor.height">
-                      <strong class="attribute-heading">{{ $t('Height') }}:</strong> <small class="attribute-data">{{ getHeight(actor.height) }}</small>
-                    </b-field>
-                    <b-field v-if="actor.weight">
-                      <strong class="attribute-heading">{{ $t('Weight') }}:</strong> <small class="attribute-data">{{ getWeight(actor.weight) }}</small>
-                    </b-field>
-                    <b-field v-if="measurements() != ''">
-                      <strong class="attribute-heading">{{ $t('Measurements') }}:</strong> <small class="attribute-data">{{ measurements() }}</small>
-                    </b-field>
-                    <b-field v-if="actor.breast_type != ''">
-                      <strong class="attribute-heading">{{ $t('Breast Type') }}:</strong> <small class="attribute-data">{{ actor.breast_type }}</small>
-                    </b-field>
-                    <b-field v-if="actor.aliases != '' && actor.aliases != '[]'">
-                      <strong class="attribute-heading">{{ $t('Aliases') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.aliases) }}</small>
-                    </b-field>
-                    <b-field v-if="actor.tattoos != '' && actor.tattoos != '[]'">
-                      <strong class="attribute-heading">{{ $t('Tattoos') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.tattoos) }}</small>
-                    </b-field>
-                    <b-field v-if="actor.piercings != '' && actor.piercings != '[]'">
-                      <strong class="attribute-heading">{{ $t('Piercings') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.piercings) }}</small>
-                    </b-field>
+                        <span>{{ getCountryName(actor.nationality) }}</span>
+                      </dd>
+                    </div>
+                    <div class="fact" v-if="actor.ethnicity">
+                      <dt>{{ $t('Ethnicity') }}</dt><dd>{{ actor.ethnicity }}</dd>
+                    </div>
+                    <div class="fact" v-if="actor.hair_color">
+                      <dt>{{ $t('Hair Color') }}</dt><dd>{{ actor.hair_color }}</dd>
+                    </div>
+                    <div class="fact" v-if="actor.eye_color">
+                      <dt>{{ $t('Eye Color') }}</dt><dd>{{ actor.eye_color }}</dd>
+                    </div>
+                    <div class="fact" v-if="actor.height">
+                      <dt>{{ $t('Height') }}</dt><dd>{{ getHeight(actor.height) }}</dd>
+                    </div>
+                    <div class="fact" v-if="actor.weight">
+                      <dt>{{ $t('Weight') }}</dt><dd>{{ getWeight(actor.weight) }}</dd>
+                    </div>
+                    <div class="fact" v-if="measurements() != ''">
+                      <dt>{{ $t('Measurements') }}</dt><dd>{{ measurements() }}</dd>
+                    </div>
+                    <div class="fact" v-if="actor.breast_type">
+                      <dt>{{ $t('Breast Type') }}</dt><dd>{{ actor.breast_type }}</dd>
+                    </div>
+                    <div class="fact is-wide" v-if="actor.aliases && actor.aliases != '[]'">
+                      <dt>{{ $t('Aliases') }}</dt><dd>{{ joinArray(actor.aliases) }}</dd>
+                    </div>
+                    <div class="fact is-wide" v-if="actor.tattoos && actor.tattoos != '[]'">
+                      <dt>{{ $t('Tattoos') }}</dt><dd>{{ joinArray(actor.tattoos) }}</dd>
+                    </div>
+                    <div class="fact is-wide" v-if="actor.piercings && actor.piercings != '[]'">
+                      <dt>{{ $t('Piercings') }}</dt><dd>{{ joinArray(actor.piercings) }}</dd>
+                    </div>
+                  </dl>
+                  <div class="actor-bio" v-if="actor.biography">
+                    <p :class="{ 'is-clamped': !bioExpanded }" ref="bio">{{ actor.biography }}</p>
+                    <button v-if="bioLong" type="button" class="bio-toggle" @click="bioExpanded = !bioExpanded">
+                      {{ bioExpanded ? 'Show less' : 'Show more' }}
+                    </button>
                   </div>
-                  <b-message  v-if="actor.biography != ''">
-                      {{ actor.biography }}
-                    </b-message>
                   <p v-if="!hasDetails" class="actor-empty-details">
                     No profile details yet. Use Edit, or link the actor on StashDB, to fill them in.
                   </p>
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
-                    Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: transparent;"></b-icon></a>
+                    <span class="tab-label">Scenes ({{ actor.scenes.length }})<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" title="Open scenes in a new window" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
                   </template>
                   <div v-show="activeTab == 1" :class="['columns', 'is-multiline', actor.scenes.length > 6 ? 'scroll' : '']">
+                    <!-- list entries carry scene summaries; cards wait for the full scenes -->
                     <div :class="['column', 'is-multiline', 'is-one-third']"
-                      v-for="(scene, idx) in actor.scenes" :key="idx" class="image-wrapper">
+                      v-for="(scene, idx) in (actor.slim ? [] : actor.scenes)" :key="idx" class="image-wrapper">
                       <SceneCard :item="scene" :reRead=true />
                     </div>
                   </div>
@@ -335,6 +336,9 @@ export default defineComponent({
       index: 1,
       activeTab: 0,
       activeMedia: 0,
+      bioExpanded: false,
+      photoRatios: {},
+      bioLong: false,
       carouselSlide: 0,
       sortMultiple: true,
       countries: [],
@@ -355,6 +359,12 @@ export default defineComponent({
   },
 
   computed: {
+    // height/width of the photo on screen, so the box fits portrait and landscape
+    // shots (clamped between 3:2 landscape and 2:3 portrait)
+    activePhotoRatio () {
+      const r = this.photoRatios[this.carouselSlide] || 1
+      return Math.min(1.5, Math.max(0.66, r))
+    },
     actor () {      
       const actor = this.$store.state.overlay.actordetails.actor
       ky.get(`/api/actor/akas/${actor.id}`)
@@ -426,6 +436,18 @@ export default defineComponent({
     'actor.id': {
       handler () {
         this.activeTab = this.hasDetails ? 0 : 1
+        this.bioExpanded = false
+        this.$nextTick(() => this.measureBio())
+        // The actor list only carries scene summaries; fetch the full scenes for
+        // the Scenes tab. Merged in place so the akas/colleagues lookups don't rerun.
+        const shown = this.$store.state.overlay.actordetails.actor
+        if (shown && shown.slim) {
+          ky.get('/api/actor/' + shown.id).json().then(full => {
+            if (this.$store.state.overlay.actordetails.actor !== shown || !full.id) return
+            shown.scenes = full.scenes || []
+            shown.slim = false
+          }).catch(() => {})
+        }
       },
       immediate: true,
     },
@@ -433,6 +455,7 @@ export default defineComponent({
       handler () {
         // Reset loaded state when images change
         this.carouselImagesLoaded = {}
+        this.photoRatios = {}
         this.carouselImageRetries = {}
         this.carouselImageKeys = {}
       },
@@ -443,6 +466,11 @@ export default defineComponent({
   },
 
   methods: {
+    // "Show more" only when the clamped biography actually hides text
+    measureBio () {
+      const el = this.$refs.bio
+      this.bioLong = !!el && el.scrollHeight > el.clientHeight + 2
+    },
   getCarouselImageURL (url, index) {
     // Add a cache-busting key when retrying
     const key = this.carouselImageKeys[index] || 0
@@ -574,6 +602,7 @@ export default defineComponent({
           // Image loaded successfully with reasonable size
           this.carouselImagesLoaded[index] = true
           this.carouselImageRetries[index] = 0
+          this.photoRatios[index] = img.naturalHeight / img.naturalWidth
           // Fetch image info (format and size) for the badge
           this.fetchCarouselImageInfo(img.src, index)
         } else if ((this.carouselImageRetries[index] || 0) < 3) {
@@ -740,51 +769,30 @@ export default defineComponent({
   onZeroKey (e) {
     if (e.key === '0') this.setRating(0)
   },
-  async nextActor () {      
-    const data = this.$store.getters['actorList/nextActor'](this.actor)
-    if (data !== null) {
-      this.$store.commit('overlay/showActorDetails', { actor: data })
-      this.activeMedia = 0
-      this.carouselSlide = 0        
-    } else {
-      // no actor, get the next page (note offset already points to it)
-      let newoffset = this.$store.state.actorList.offset
-      if (newoffset>this.$store.state.actorList.total)
-      {
-        // wrap back to the start
-        newoffset = 0
+  // Next/previous follow the lazily loaded list: at the end, load the next batch
+  // if there is one, otherwise wrap around to the other end of what is loaded.
+  showActor (data) {
+    this.$store.commit('overlay/showActorDetails', { actor: data })
+    this.activeMedia = 0
+    this.carouselSlide = 0
+  },
+  async nextActor () {
+    let data = this.$store.getters['actorList/nextActor'](this.actor)
+    if (data === null) {
+      const list = this.$store.state.actorList
+      if (list.actors.length < list.total) {
+        await this.$store.dispatch('actorList/load', { offset: list.actors.length })
+        data = this.$store.getters['actorList/nextActor'](this.actor)
       }
-      await this.$store.dispatch('actorList/load', { offset: newoffset })
-      const data = this.$store.getters['actorList/firstActor'](this.actor)
-      if (data !== null) {
-        this.$store.commit('overlay/showActorDetails', { actor: data })
-        this.activeMedia = 0
-        this.carouselSlide = 0
-      }
+      if (data === null) data = this.$store.getters['actorList/firstActor']()
     }
+    if (data) this.showActor(data)
   },
   async prevActor () {
-    const data = this.$store.getters['actorList/prevActor'](this.actor)
-    if (data !== null) {
-      this.$store.commit('overlay/showActorDetails', { actor: data })
-      this.activeMedia = 0
-      this.carouselSlide = 0        
-    } else {
-      // no actor, get the previous page
-      let newoffset = this.$store.state.actorList.offset - (this.$store.state.actorList.limit * 2)
-      if (newoffset < 0) {
-        // wrap back to the last actor
-        newoffset = Math.floor(this.$store.state.actorList.total / this.$store.state.actorList.limit) * this.$store.state.actorList.limit
-      }
-      await this.$store.dispatch('actorList/load', { offset: newoffset })
-      const data = this.$store.getters['actorList/lastActor'](this.actor)
-      if (data !== null) {
-        this.$store.commit('overlay/showActorDetails', { actor: data })
-        this.activeMedia = 0
-        this.carouselSlide = 0
-      }
-    }
-  },    
+    let data = this.$store.getters['actorList/prevActor'](this.actor)
+    if (data === null) data = this.$store.getters['actorList/lastActor']()
+    if (data) this.showActor(data)
+  },
   scrollToActiveIndicator (value) {
     const indicators = document.querySelector('.carousel-indicator')
     const active = indicators.children[value]
@@ -1073,8 +1081,11 @@ export default defineComponent({
 
 /* Square photo area, but never taller than the modal can show next to the
    tabs, thumbnails and buttons (90vh modal minus roughly 380px of chrome). */
+/* Photo box follows the current photo's shape, but never taller than the modal
+   can show next to the tabs, thumbnails and buttons (90vh minus ~260px). */
 .is-1by1 {
-  padding-top: min(calc(100% - 40px - 1em), calc(90vh - 380px)) !important;
+  padding-top: min(calc(var(--photo-ratio, 1) * 100%), calc(90vh - 260px)) !important;
+  transition: padding-top 0.25s ease;
 }
 
 .modal-card {
@@ -1177,6 +1188,9 @@ span.is-active img {
   font-weight: 550;
 }
 
+:deep(.carousel .carousel-indicator .indicator-item img) {
+  border-radius: 4px;
+}
 :deep(.carousel .carousel-indicator) {
   justify-content: flex-start;
   width: 100%;
@@ -1227,23 +1241,96 @@ div.scroll {
   overflow-y: auto;
   text-align: center;
 }
-.attribute-container {
+/* Scenes tab header: the open-in-new link sits inline, same height as the other tabs */
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.5;
+}
+.tab-ext {
+  display: inline-flex;
+  padding: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  opacity: 0.6;
+}
+.tab-ext:hover {
+  opacity: 1;
+}
+.tab-ext :deep(.icon) {
+  width: 14px;
+  height: 14px;
+}
+
+/* Details: label/value pairs in two columns; long lists span both and wrap */
+.actor-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+  margin: 0 0 12px;
+}
+.fact {
+  min-width: 0;
+}
+.fact.is-wide {
+  grid-column: 1 / -1;
+}
+.fact dt {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin-bottom: 1px;
+}
+.fact dd {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.fact-flag {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
-.attribute-heading {
-  flex: 0 0 120px;
-  min-width: 0;
+.fact-flag-img {
+  display: block;
+  height: 12px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
-.attribute-data {
-  flex: 1 1 150px;
-  min-width: 0;
-  word-break: break-word;
+@media (max-width: 520px) {
+  .actor-facts { grid-template-columns: minmax(0, 1fr); }
 }
-.attribute-long-data {
-  flex: 1 1 150px;
-  min-width: 0;
-  word-break: break-word;
+.actor-bio {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.08);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.actor-bio p {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.actor-bio p.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.bio-toggle {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--accent, #7957d5);
+  cursor: pointer;
 }
 .flexcentre {
   display: flex;
@@ -1260,6 +1347,7 @@ div.scroll {
 }
 
 .carousel-image {
+  border-radius: 8px; /* same radius as cards and the player */
   max-width: 100%;
   max-height: 100%;
   width: auto;

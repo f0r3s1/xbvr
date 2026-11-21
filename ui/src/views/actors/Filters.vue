@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="filter-panel">
     <div class="is-divider" data-content="Saved searches" style="margin-top:0.8em;"></div>
 
      <SavedSearch/> 
@@ -60,12 +60,11 @@
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
                 :key="tag+index" :tabstop="false" closable  @close="cast=cast.filter(e => e !== tag)" @click="toggle2Way(tag,index,'cast')">              
-                <b-tooltip position="is-right" :delay="200"
-                  :label="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+                <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   {{removeConditionPrefix(tag)}}
-                </b-tooltip>
+                </span>
               </b-tag>
           </template>
         </b-taginput>
@@ -79,11 +78,10 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="sites=sites.filter(e => e !== tag)" @click="toggle3way(tag,index,'sites')">
-                <b-tooltip position="is-right" :delay="200"
-                  :label="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+                <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   {{removeConditionPrefix(tag)}}
-                </b-tooltip>
+                </span>
             </b-tag>
           </template>
         </b-taginput>
@@ -107,39 +105,60 @@
         </b-field>
       </b-tooltip>
 
-      <table width="100%">
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Age") }}:</small></strong></td>
-          <td ><b-slider :min="18" :max="100" :step="1" :tooltip="true" v-model="ages" lazy class="slider"></b-slider></td>
-        </tr>
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Height") }}:</small></strong></td>
-          <td><b-slider :min="120" :max="220" :step="1" :tooltip="true" v-model="heights" lazy class="slider"></b-slider></td>
-        </tr>
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Weight") }}:</small></strong></td>
-          <td><b-slider :min="25" :max="150" :step="1" :tooltip="true" v-model="weights" lazy class="slider"></b-slider></td>
-        </tr>
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Scenes") }}:</small></strong></td>
-          <td><b-slider :min="0" :max="150" :step="1" :tooltip="true" v-model="scenecounts" lazy class="slider" ></b-slider></td>
-        </tr>
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Available") }}:</small></strong></td>
-          <td><b-slider :min="0" :max="150" :step="1" :tooltip="true" v-model="avails" lazy class="slider" ></b-slider></td>
-        </tr>
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Rating") }}:</small></strong></td>
-          <td><b-slider :min="0" :max="5" :step=".5" :tooltip="true" v-model="ratings" lazy class="slider" ></b-slider></td>
-        </tr>
-        <tr>
-          <td class="slider-title"><strong><small>{{ $t("Scene Rating") }}:</small></strong></td>
-          <td><b-slider :min="0" :max="5" :step=".25" :tooltip="true" v-model="sceneratings" lazy class="slider" ></b-slider></td>
-        </tr>   
-      </table>
+      <div class="range-list">
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Age") }}</span>
+            <span class="range-value">{{ rangeText(ages, 18, 100, '') }}</span>
+          </div>
+          <b-slider :min="18" :max="100" :step="1" :tooltip="true" v-model="ages" lazy size="is-small"></b-slider>
+        </div>
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Height") }}</span>
+            <span class="range-value">{{ rangeText(heights, 120, 220, ' cm') }}</span>
+          </div>
+          <b-slider :min="120" :max="220" :step="1" :tooltip="true" v-model="heights" lazy size="is-small"></b-slider>
+        </div>
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Weight") }}</span>
+            <span class="range-value">{{ rangeText(weights, 25, 150, ' kg') }}</span>
+          </div>
+          <b-slider :min="25" :max="150" :step="1" :tooltip="true" v-model="weights" lazy size="is-small"></b-slider>
+        </div>
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Scenes") }}</span>
+            <span class="range-value">{{ rangeText(scenecounts, 0, 150, '') }}</span>
+          </div>
+          <b-slider :min="0" :max="150" :step="1" :tooltip="true" v-model="scenecounts" lazy size="is-small"></b-slider>
+        </div>
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Available") }}</span>
+            <span class="range-value">{{ rangeText(avails, 0, 150, '') }}</span>
+          </div>
+          <b-slider :min="0" :max="150" :step="1" :tooltip="true" v-model="avails" lazy size="is-small"></b-slider>
+        </div>
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Rating") }}</span>
+            <span class="range-value">{{ rangeText(ratings, 0, 5, '') }}</span>
+          </div>
+          <b-slider :min="0" :max="5" :step=".5" :tooltip="true" v-model="ratings" lazy size="is-small"></b-slider>
+        </div>
+        <div class="range">
+          <div class="range-head">
+            <span class="range-label">{{ $t("Scene Rating") }}</span>
+            <span class="range-value">{{ rangeText(sceneratings, 0, 5, '') }}</span>
+          </div>
+          <b-slider :min="0" :max="5" :step=".25" :tooltip="true" v-model="sceneratings" lazy size="is-small"></b-slider>
+        </div>
+      </div>
     </div>
     <div class="is-divider" data-content="Actor Also Known As groups"></div>
-    <b-field>
+    <b-field class="group-actions">
       <b-tooltip position="is-right" :label="$t('New Aka Group. Select 2 or more actors in the Cast filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="createAkaGroup" :disabled="disableNewAkaGroup">
           <b-icon pack="mdi" icon="account-multiple-plus-outline"></b-icon>
@@ -190,6 +209,12 @@ export default defineComponent({
   },
 
   methods: {
+    // "Any" when the range is untouched, else "min-max" (open ends shown as "+")
+    rangeText (v, min, max, unit) {
+      if (!v || (v[0] <= min && v[1] >= max)) return 'Any'
+      const hi = v[1] >= max ? v[1] + '+' : v[1]
+      return `${v[0]}-${hi}${unit}`
+    },
     reloadList () {
       this.$router.push({
         name: 'actors',
@@ -576,14 +601,32 @@ export default defineComponent({
 .tagicon {
   margin-right: -0.2em !important;
 }
-.slider-title {
-  width: 80px;
-  vertical-align: middle;
-  padding: 4px 0;
+.range-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
 }
-.slider {
-  padding-right: 1.5rem;
-  vertical-align: middle;
+.range-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.range-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.range-value {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+/* inset the track by half a thumb so the thumbs line up with the labels */
+.range :deep(.b-slider) {
+  margin: 0 !important;
+  padding: 0 7px;
+  box-sizing: border-box;
 }
 
 </style>

@@ -239,8 +239,41 @@ func (i ActorResource) getActors(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	out := models.QueryActors(r, true)
-	resp.WriteHeaderAndEntity(http.StatusOK, out)
+	// The list only needs a summary of each actor's scenes; full scenes made the
+	// response tens of MB for big libraries. The actor modal loads the full actor.
+	out := models.QueryActors(r, false)
+	list := actorListResponse{ResponseActorList: out, Actors: make([]actorListItem, len(out.Actors))}
+	for idx, a := range out.Actors {
+		item := actorListItem{Actor: a, Scenes: make([]actorSceneSummary, len(a.Scenes)), Slim: true}
+		for j, s := range a.Scenes {
+			item.Scenes[j] = actorSceneSummary{ID: s.ID, IsAvailable: s.IsAvailable, IsScripted: s.IsScripted,
+				IsWatched: s.IsWatched, StarRating: s.StarRating, ReleaseDate: s.ReleaseDate}
+		}
+		list.Actors[idx] = item
+	}
+	resp.WriteHeaderAndEntity(http.StatusOK, list)
+}
+
+type actorSceneSummary struct {
+	ID          uint      `json:"id"`
+	IsAvailable bool      `json:"is_available"`
+	IsScripted  bool      `json:"is_scripted"`
+	IsWatched   bool      `json:"is_watched"`
+	StarRating  float64   `json:"star_rating"`
+	ReleaseDate time.Time `json:"release_date"`
+}
+
+// actorListItem is an Actor whose scenes are summaries (the outer Scenes field
+// shadows Actor.Scenes in the JSON).
+type actorListItem struct {
+	models.Actor
+	Scenes []actorSceneSummary `json:"scenes"`
+	Slim   bool                `json:"slim"`
+}
+
+type actorListResponse struct {
+	models.ResponseActorList
+	Actors []actorListItem `json:"actors"`
 }
 
 func (i ActorResource) rateActor(req *restful.Request, resp *restful.Response) {

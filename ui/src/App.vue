@@ -61,12 +61,28 @@ export default defineComponent({
     }
     this._darkMQ.addEventListener('change', this._darkMQHandler)
 
+    // A navbar click while a modal is open lands on the modal backdrop, which only
+    // closed the modal. Send it on to the navbar link instead (the route change
+    // closes the modal). The current page's link still just closes the modal.
+    this._modalNavClick = e => {
+      if (!e.target.closest || !e.target.closest('.modal-background')) return
+      const link = document.elementsFromPoint(e.clientX, e.clientY)
+        .map(el => el.closest && el.closest('.navbar a'))
+        .find(Boolean)
+      if (!link || link.classList.contains('router-link-exact-active')) return
+      e.preventDefault()
+      e.stopPropagation()
+      link.click()
+    }
+    document.addEventListener('click', this._modalNavClick, true)
+
     // Load from server — watch will apply if different from localStorage
     this.$store.dispatch('optionsWeb/load')
   },
 
   beforeUnmount () {
     if (this._darkMQ) this._darkMQ.removeEventListener('change', this._darkMQHandler)
+    document.removeEventListener('click', this._modalNavClick, true)
   },
 
   watch: {
@@ -154,6 +170,361 @@ export default defineComponent({
   html[data-theme="dark"] .list-toolbar {
     background: #121218;
   }
+  /* ── Filter sidebars (scenes + actors) ──
+     Section headers on the left with a hairline, labels above their inputs
+     (not cut into the border), and more air between groups. */
+  html[data-theme] .filter-panel .is-divider {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    height: auto !important;
+    margin: 1.4rem 0 0.7rem !important;
+    border: none !important;
+    background: none !important;
+    text-align: left !important;
+  }
+  /* first header lines up with the list toolbar ("6 results") next to it */
+  html[data-theme] .filter-panel > .is-divider:first-child {
+    margin-top: 16px !important;
+  }
+  html[data-theme] .filter-panel .is-divider::before {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(127, 127, 127, 0.22);
+    order: 2;
+  }
+  html[data-theme] .filter-panel .is-divider[data-content]::after {
+    position: static;
+    order: 1;
+    transform: none !important;
+    padding: 0 !important;
+    background: none !important;
+    font-size: 0.68rem !important;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: inherit !important;
+    opacity: 0.55;
+  }
+  /* Labels sit inside their field on the left (one compact row, value vertically
+     centred), never cut into the border. Fixed label column so values align. */
+  .filter-panel .field.is-floating-label {
+    position: relative;
+    --label-col: 104px;
+  }
+  .filter-panel .field.is-floating-label .label {
+    position: absolute !important;
+    top: 20px !important;
+    left: 12px !important;
+    z-index: 5;
+    width: calc(var(--label-col) - 16px);
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: translateY(-50%) !important;
+    background: none !important;
+    font-size: 0.7rem !important;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .filter-panel .field.is-floating-label .label::before {
+    display: none !important;
+  }
+  .filter-panel .field.is-floating-label .select,
+  .filter-panel .field.is-floating-label .select select,
+  .filter-panel .field.is-floating-label .control > .input {
+    height: 40px !important;
+  }
+  .filter-panel .field.is-floating-label .select select,
+  .filter-panel .field.is-floating-label .control > .input {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: var(--label-col) !important;
+    font-size: 0.875rem;
+  }
+  .filter-panel .field.is-floating-label .select:not(.is-multiple):not(.is-loading)::after {
+    top: 50% !important;
+    margin-top: -0.375em !important;
+  }
+  .filter-panel .field.is-floating-label .taginput .taginput-container {
+    min-height: 40px !important;
+    padding: 4px 8px 4px var(--label-col) !important;
+    align-items: center;
+  }
+  /* typing slot: takes the rest of the row, wraps to its own line below 80px;
+     Buefy's 8em min-width on the input made it overflow the field after a chip */
+  .filter-panel .field.is-floating-label .taginput-container .autocomplete,
+  .filter-panel .field.is-floating-label .taginput-container .control {
+    flex: 1 1 80px;
+    min-width: 80px;
+  }
+  .filter-panel .taginput .taginput-container .autocomplete input {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  /* with chips and not focused, the empty typing slot takes no room (no extra
+     line); clicking the field focuses it and the slot opens again */
+  .filter-panel .field.is-floating-label .taginput-container:has(.tag):not(:focus-within) .autocomplete {
+    flex: 0 0 0;
+    min-width: 0;
+    width: 0;
+    overflow: hidden;
+  }
+  .filter-panel .field.is-floating-label .taginput-container .input,
+  .filter-panel .field.is-floating-label .taginput-container input {
+    width: 100% !important;
+    height: 30px !important;
+    min-height: 0 !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+    font-size: 0.875rem;
+  }
+  .filter-panel .field.is-floating-label .taginput-container .tag {
+    height: 24px;
+    margin: 2px 4px 2px 0 !important;
+  }
+  html[data-theme] .filter-panel .field.is-floating-label .control .button {
+    height: 40px !important;
+    background: transparent !important;
+    border: 1px solid rgba(127, 127, 127, 0.3) !important;
+  }
+  html[data-theme] .filter-panel .field.is-floating-label .control .button:hover {
+    background: rgba(127, 127, 127, 0.12) !important;
+  }
+
+  /* Saved searches: one segmented control (select + save/edit/delete) */
+  .filter-panel .saved-search .field.is-grouped {
+    gap: 0;
+    margin-bottom: 0;
+  }
+  .filter-panel .saved-search .field.is-grouped > .control,
+  .filter-panel .saved-search .field.is-grouped > .b-tooltip {
+    margin: 0 !important;
+  }
+  .filter-panel .saved-search .select,
+  .filter-panel .saved-search .select select {
+    height: 40px !important;
+  }
+  .filter-panel .saved-search .select select {
+    border-radius: 8px 0 0 8px !important;
+    font-size: 0.85rem;
+  }
+  .filter-panel .saved-search .button {
+    height: 40px !important;
+    width: 38px;
+    margin-left: -1px !important;
+    border-radius: 0 !important;
+    border-color: rgba(127, 127, 127, 0.3) !important;
+    background: transparent !important;
+    opacity: 0.85;
+  }
+  .filter-panel .saved-search .button:hover:not([disabled]) {
+    opacity: 1;
+    background: rgba(127, 127, 127, 0.12) !important;
+  }
+  /* disabled: fade the icon only, so every segment keeps the same border */
+  .filter-panel .saved-search .button[disabled] {
+    opacity: 1;
+  }
+  .filter-panel .saved-search .button[disabled] .icon {
+    opacity: 0.35;
+  }
+  .filter-panel .saved-search .b-tooltip:last-child .button {
+    border-radius: 0 8px 8px 0 !important;
+  }
+  .filter-panel .field-extra {
+    margin-bottom: 0.9rem !important;
+  }
+  /* Watchlist / Favourite / ... toggles as filter chips: neutral when off, a soft
+     tint of their colour when on (no heavy solid buttons) */
+  .filter-panel .columns.is-gapless {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 !important;
+  }
+  .filter-panel .columns.is-gapless > .column {
+    width: auto !important;
+    padding: 0 !important;
+  }
+  .filter-panel .columns.is-gapless .control,
+  .filter-panel .columns.is-gapless .b-checkbox.button {
+    width: 100%;
+  }
+  html[data-theme] .filter-panel .columns.is-gapless label.button {
+    justify-content: flex-start;
+    gap: 6px;
+    height: 34px;
+    padding: 0 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(127, 127, 127, 0.22) !important;
+    background: rgba(127, 127, 127, 0.06) !important;
+    color: inherit !important;
+    font-size: 0.8rem;
+    font-weight: 500;
+    box-shadow: none !important;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  html[data-theme] .filter-panel .columns.is-gapless label.button:hover {
+    background: rgba(127, 127, 127, 0.12) !important;
+  }
+  .filter-panel .columns.is-gapless label.button .icon {
+    margin: 0 !important;
+    width: 16px;
+    height: 16px;
+    opacity: 0.75;
+  }
+  .filter-panel .columns.is-gapless label.button .icon .mdi::before {
+    font-size: 16px;
+  }
+  html[data-theme] .filter-panel .columns.is-gapless label.button.is-primary {
+    background: rgba(121, 87, 213, 0.16) !important;
+    border-color: rgba(121, 87, 213, 0.55) !important;
+    color: #9d84ef !important;
+  }
+  html[data-theme] .filter-panel .columns.is-gapless label.button.is-danger {
+    background: rgba(241, 70, 104, 0.14) !important;
+    border-color: rgba(241, 70, 104, 0.5) !important;
+    color: #f2708b !important;
+  }
+  html[data-theme] .filter-panel .columns.is-gapless label.button.is-info {
+    background: rgba(62, 142, 208, 0.15) !important;
+    border-color: rgba(62, 142, 208, 0.5) !important;
+    color: #5aa5e6 !important;
+  }
+  .filter-panel .columns.is-gapless label.button[class*="is-"]:not(.is-small) .icon {
+    opacity: 1;
+  }
+
+  /* Aka group / tag group actions: one full-width segmented bar, same language as
+     the saved searches control */
+  .filter-panel .group-actions,
+  .filter-panel .group-actions > .field-body > .field,
+  .filter-panel .group-actions .field.has-addons {
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0;
+    margin-bottom: 0;
+  }
+  .filter-panel .group-actions .b-tooltip,
+  .filter-panel .group-actions .b-tooltip > .tooltip-trigger {
+    display: block;
+    width: 100%;
+    margin: 0 !important;
+  }
+  html[data-theme] .filter-panel .group-actions .button {
+    width: 100%;
+    height: 36px;
+    margin: 0 0 0 -1px !important;
+    border-radius: 0 !important;
+    border: 1px solid rgba(127, 127, 127, 0.3) !important;
+    background: transparent !important;
+    color: inherit !important;
+    box-shadow: none !important;
+  }
+  html[data-theme] .filter-panel .group-actions .button:hover:not([disabled]) {
+    background: rgba(127, 127, 127, 0.12) !important;
+  }
+  .filter-panel .group-actions .b-tooltip:first-child .button {
+    margin-left: 0 !important;
+    border-radius: 8px 0 0 8px !important;
+  }
+  .filter-panel .group-actions .b-tooltip:last-child .button {
+    border-radius: 0 8px 8px 0 !important;
+  }
+  .filter-panel .group-actions .button[disabled] {
+    opacity: 1;
+  }
+  .filter-panel .group-actions .button[disabled] .icon {
+    opacity: 0.35;
+  }
+
+  /* Filter chips: state shown by colour (exclude red, must-have green), full
+     text on hover via the native title, nothing pops outside the field */
+  .filter-panel .taginput-container .tag {
+    max-width: 100%;
+  }
+  .filter-panel .taginput-container .tag .chip-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .filter-panel .taginput-container .tag .chip-label .icon {
+    margin: 0 !important;
+  }
+  html[data-theme] .filter-panel .taginput-container .tag.is-danger {
+    background: rgba(241, 70, 104, 0.16) !important;
+    color: #f2708b !important;
+    box-shadow: inset 0 0 0 1px rgba(241, 70, 104, 0.45);
+  }
+  html[data-theme] .filter-panel .taginput-container .tag.is-success {
+    background: rgba(72, 199, 142, 0.16) !important;
+    color: #3fbf86 !important;
+    box-shadow: inset 0 0 0 1px rgba(72, 199, 142, 0.45);
+  }
+
+  /* Narrow sidebar (small windows): labels go above their field instead of
+     squeezing the value, chips stack, headers stay on one line */
+  .filter-panel {
+    container-type: inline-size;
+  }
+  html[data-theme] .filter-panel .is-divider[data-content]::after {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  @container (max-width: 240px) {
+    .filter-panel .field.is-floating-label .label {
+      position: static !important;
+      transform: none !important;
+      width: auto;
+      margin: 0 0 4px !important;
+    }
+    .filter-panel .field.is-floating-label {
+      flex-wrap: wrap;
+    }
+    .filter-panel .field.is-floating-label > .label {
+      flex: 1 0 100%;
+    }
+    .filter-panel .field.is-floating-label .select select,
+    .filter-panel .field.is-floating-label .control > .input {
+      padding-left: 10px !important;
+    }
+    .filter-panel .field.is-floating-label .taginput .taginput-container {
+      padding-left: 8px !important;
+    }
+    .filter-panel .columns.is-gapless {
+      grid-template-columns: 1fr;
+    }
+    /* full-width chips have room for their text again */
+    .filter-panel .columns.is-multiline.is-gapless > .column.is-half .b-checkbox.button span:not(.icon) {
+      display: inline !important;
+    }
+  }
+
+  /* Cards inside a modal (actor scenes, colleagues, akas) sit one step above the
+     modal surface, otherwise their footer blends into it. */
+  html .modal .modal-card .scene-card,
+  html .modal .modal-card .actor-card {
+    background: #f5f6f8;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  }
+  html[data-theme="dark"] .modal .modal-card .scene-card,
+  html[data-theme="dark"] .modal .modal-card .actor-card {
+    background: #262633;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
   .modal-background {
     background-color: rgba(0, 0, 0, .40) !important;
   }
@@ -184,15 +555,20 @@ export default defineComponent({
   html[data-theme="dark"] .navbar-brand .navbar-item {
     color: #d4d4d8 !important;
   }
+  /* hover is a faint tint; only the current page gets the filled tab + accent line,
+     so two tabs never look selected at once */
   html[data-theme="dark"] .navbar-item:hover,
   html[data-theme="dark"] .navbar-link:hover {
-    background-color: #222230 !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
     color: #fff !important;
   }
   html[data-theme="dark"] .navbar-item.is-active,
-  html[data-theme="dark"] .navbar-item.router-link-exact-active {
+  html[data-theme="dark"] .navbar-item.router-link-active {
     background-color: #222230 !important;
     color: #fff !important;
+  }
+  .navbar-start .navbar-item.router-link-active {
+    box-shadow: inset 0 -2px 0 var(--bulma-primary, #7957d5);
   }
   html[data-theme="dark"] .navbar-divider {
     background-color: #2a2a35 !important;

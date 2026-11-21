@@ -1,51 +1,54 @@
 <template>
-  <div class="card is-shadowless">
-    <div class="card-image">
-      <div class="bbox"
-           v-bind:style="{backgroundImage: `url(${getImageURL(actor.image_url)})`, backgroundSize: actorCardScale, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, aspectRatio: actorCardAspectRatio}"
-           @click="showDetails(actor)"
-           @mouseover="preview = true"
-           @mouseleave="preview = false">
+  <div class="actor-card" @click="showDetails(actor)" @mouseenter="hovering = true" @mouseleave="hovering = false">
+    <div class="thumbnail-wrapper" :style="{ aspectRatio: actorCardAspectRatio }">
+      <div class="thumbnail-img" :class="{ 'is-contain': actorCardScale === 'contain' }"
+           :style="{ opacity: isAvailable(actor) ? 1.0 : isAvailOpacity, '--actor-img': `url(${imageURL})` }">
+        <img :src="imageURL" class="cover-image" :class="{ 'is-loaded': imageLoaded }"
+             :style="{ objectFit: actorCardScale }" alt="" @load="imageLoaded = true" @error="imageLoaded = true"/>
       </div>
-        <div class="overlay align-bottom-left">
-         </div>
+
+      <div class="top-right-tags">
+        <b-tooltip :label="$t('Your rating')" :delay="500" v-if="actor.star_rating != 0">
+          <b-tag class="mini-tag star-tag">
+            <b-icon pack="mdi" icon="star" size="is-small"/>{{actor.star_rating}}
+          </b-tag>
+        </b-tooltip>
+        <b-tooltip :label="$t('Average rating of scenes')" :delay="500" v-if="actor.scene_rating_average != 0">
+          <b-tag class="mini-tag">
+            <b-icon pack="mdi" icon="star-half-full" size="is-small"/>{{Math.round(actor.scene_rating_average * 4) / 4}}
+          </b-tag>
+        </b-tooltip>
+      </div>
+
+      <div class="hover-actions" :class="{ 'is-visible': hovering }" @click.stop>
+        <a v-if="colleague != undefined" class="button is-info is-outlined is-small"
+           @click="showColleague(actor.name, colleague)" :title="'Show Scenes with ' + actor.name">
+          <b-icon pack="mdi" icon="movie-outline" size="is-small"/>
+        </a>
+        <actor-favourite-button :actor="actor" v-if="$store.state.optionsWeb.web.sceneFavourite"/>
+        <actor-watchlist-button :actor="actor" v-if="$store.state.optionsWeb.web.sceneWatchlist"/>
+        <actor-edit-button :actor="actor"/>
+        <link-stashdb-button :item="actor" objectType="actor"/>
+      </div>
     </div>
 
-    <div class="card-info">
-      <div class="scene_title">{{actor.name}}</div>
-      <a v-if="colleague!=undefined" class="button is-info is-outlined is-small"
-        @click="showColleague(actor.name,colleague)"
-        :title="'Show Scenes with ' + actor.name">
-        <b-icon pack="mdi" :icon="'movie-outline'" size="is-small"/>
-      </a>
-      <actor-favourite-button :actor="actor" v-if="this.$store.state.optionsWeb.web.sceneFavourite"/>
-      <actor-watchlist-button :actor="actor" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
-      <actor-edit-button :actor="actor"/>&nbsp;
-      <link-stashdb-button :item="actor" objectType="actor" />
-      <b-tooltip :label="$t('Your rating')" :delay="500">
-      <b-tag type="is-warning" v-if="actor.star_rating != 0 " size="is-small" style="height:30px;">
-        <b-icon pack="mdi" icon="star" size="is-small"/>
-        {{actor.star_rating}}
-      </b-tag>
-      </b-tooltip>
-      <b-tooltip :label="$t('Average rating of scenes')" :delay="500">
-      <b-tag type="is-primary" v-if="actor.scene_rating_average != 0 " style="height:30px;">
-        <b-icon pack="mdi" icon="star" size="is-small"/>
-        {{Math.round(actor.scene_rating_average * 4) / 4}}
-      </b-tag>
-      </b-tooltip>
-
-      <span class="is-pulled-right" style="font-size:11px;text-align:right;">                
-          <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ age }} yrs</span>
-          <vue-load-image style="display:inline-block">
-            <template #image><img :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" style="height:10px;border: 1px solid black;margin-left:0.5em"/></template>
+    <div class="info-section">
+      <div class="title-row">
+        <div class="actor-name">{{actor.name}}</div>
+        <span class="status-icons">
+          <b-icon v-if="actor.watchlist" pack="mdi" icon="calendar-check" size="is-small" class="status-primary" title="Watchlist"/>
+          <b-icon v-if="actor.favourite" pack="mdi" icon="heart" size="is-small" class="status-danger" title="Favourite"/>
+        </span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-left">
+          <vue-load-image v-if="actor.nationality" class="flag-wrap">
+            <template #image><img :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() + '.svg')" class="flag" :title="actor.nationality"/></template>
           </vue-load-image>
-          <div>
-          <span v-if="actor.scenes.length == 1">{{actor.scenes.length}} scene</span>
-          <span v-if="actor.scenes.length > 1">{{actor.scenes.length}} scenes</span>
-          <span v-if="actor.avail_count > 0">, {{actor.avail_count}} available</span>
-          </div>
-      </span>
+          <span>{{actor.scenes.length}} {{actor.scenes.length == 1 ? 'scene' : 'scenes'}}<template v-if="actor.avail_count > 0"> · {{actor.avail_count}} available</template></span>
+        </span>
+        <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ age }} yrs</span>
+      </div>
     </div>
   </div>
 </template>
@@ -53,7 +56,6 @@
 <script>
 import { defineComponent } from 'vue';
 
-import { format, parseISO } from 'date-fns'
 import ActorFavouriteButton from '../../components/ActorFavouriteButton'
 import ActorWatchlistButton from '../../components/ActorWatchlistButton'
 import ActorEditButton from '../../components/ActorEditButton'
@@ -67,13 +69,21 @@ export default defineComponent({
 
   data () {
     return {
-      preview: false,
-      format,
-      parseISO
+      hovering: false,
+      imageLoaded: false,
     }
   },
 
+  watch: {
+    imageURL () {
+      this.imageLoaded = false
+    },
+  },
+
   computed: {
+    imageURL () {
+      return this.getImageURL(this.actor.image_url)
+    },
     age () {
       const b = this.actor.birth_date
       if (!b || b.startsWith('0001')) return null
@@ -147,74 +157,217 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.actor-age {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  margin-right: 0.35em;
+/* Same card language as SceneCard: rounded surface, image fills the frame,
+   chips on the photo, actions on hover, fixed two-line info block. */
+.actor-card {
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease;
+  cursor: pointer;
 }
-  .button {
-    margin-right: 3px;
-  }
+.actor-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 5;
+}
 
-  .bbox {
-    flex: 1 0 calc(25%);
-    background: #f0f0f0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 0;
-    line-height: 0;
-  }
+.thumbnail-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+}
+.thumbnail-img {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #e9eaef;
+}
+/* scale-to-fit: fill the letterbox with a soft blurred copy instead of a flat colour */
+.thumbnail-img.is-contain::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: var(--actor-img) center / cover no-repeat;
+  filter: blur(18px) brightness(0.7);
+}
+.cover-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-position: center top;
+  filter: blur(15px);
+  transition: filter 0.5s ease;
+}
+.thumbnail-img.is-contain .cover-image {
+  object-position: center;
+}
+.cover-image.is-loaded {
+  filter: blur(0);
+}
 
-  .bbox:not(:hover) > video {
-    display: none;
-  }
+.top-right-tags {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 3px;
+  z-index: 3;
+}
+.mini-tag {
+  font-size: 10px !important;
+  padding: 4px 6px !important;
+  height: 22px !important;
+  line-height: 1 !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: #fff !important;
+  backdrop-filter: blur(4px);
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  gap: 3px;
+}
+.mini-tag.star-tag {
+  background: rgba(255, 221, 87, 0.95) !important;
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+.mini-tag :deep(.icon) {
+  margin: 0 2px 0 0 !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+.mini-tag :deep(.mdi) {
+  font-size: 12px !important;
+}
 
-  video {
-    object-fit: cover;
-    position: absolute;
-    width: 100%;
-    height: 100%;
-  }
+.hover-actions {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 25;
+}
+.hover-actions.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.hover-actions > *,
+.hover-actions :deep(.button) {
+  margin: 0 !important;
+}
+.hover-actions :deep(.button) {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 5px !important;
+  background: #fff !important;
+  color: #363636 !important;
+}
+.hover-actions :deep(.button.is-outlined) { opacity: 0.7; }
+.hover-actions :deep(.button.is-outlined:hover) { opacity: 1; }
+.hover-actions :deep(.button.is-primary),
+.hover-actions :deep(.button.is-primary.is-outlined) { background: #7957d5 !important; color: #fff !important; }
+.hover-actions :deep(.button.is-danger),
+.hover-actions :deep(.button.is-danger.is-outlined) { background: #f14668 !important; color: #fff !important; }
+.hover-actions :deep(.button.is-info),
+.hover-actions :deep(.button.is-info.is-outlined) { background: #3e8ed0 !important; color: #fff !important; }
+.hover-actions :deep(.button.is-dark),
+.hover-actions :deep(.button.is-dark.is-outlined) { background: #363636 !important; color: #fff !important; }
+.hover-actions :deep(.button .icon) { margin: 0 !important; }
+.hover-actions :deep(.button .mdi) { font-size: 16px !important; }
+.hover-actions :deep(.button span:not(.icon)) { display: none !important; }
 
-  .overlay {
-   position: absolute;
-  bottom: 0;
-  right: 0;
-  display: flex;  
-  padding: 5px;
-  max-width: 5px;
-  }
+.info-section {
+  padding: 7px 10px;
+  height: 52px;
+  box-sizing: border-box;
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  min-width: 0;
+}
+.actor-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-primary, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-icons {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.status-icons :deep(.mdi) { font-size: 14px !important; }
+.status-primary { color: #7957d5; }
+.status-danger { color: #f14668; }
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 18px;
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+  min-width: 0;
+}
+.meta-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.flag-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.flag {
+  display: block;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.actor-age {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
 
-  .align-bottom-left {
-    align-items: flex-end;
-    justify-content: flex-end;
-  }
-
-  .bbox:after {
-    content: '';
-    display: block;
-    padding-bottom: 100%;
-  }
-
-  .tag {
-    margin-left: 0.1em;
-  }
-
-  .card-info {
-    padding: 4px 4px 8px 4px;
-    overflow: hidden;
-    min-width: 0;
-  }
-
-  .scene_title {
-    font-size: 12px;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-    font-weight: 500;
-  }
+html[data-theme="dark"] .actor-card {
+  background: #1c1c26;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"] .actor-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .thumbnail-img {
+  background: #121218;
+}
+html[data-theme="dark"] .actor-name {
+  color: #e0e0e4;
+}
+html[data-theme="dark"] .meta-row {
+  color: #888;
+}
 </style>

@@ -1,7 +1,7 @@
 <template>
-  <div>
+  <div class="saved-search">
     <b-field grouped>
-      <b-select size="is-small" @update:modelValue="setPlaylist" expanded v-model="currentPlaylist">
+      <b-select @update:modelValue="setPlaylist" expanded v-model="currentPlaylist">
         <optgroup label="Web">
           <option v-for="(obj, idx) in playlistsWeb" :value="obj.id" :key="idx">
             {{ obj.name }}
@@ -15,17 +15,17 @@
       </b-select>
 
       <b-tooltip position="is-bottom" label="Save as new" :delay="200">
-        <button class="button is-small is-outlined" @click="showNewDialog">
+        <button class="button is-small is-outlined" @click="showNewDialog" aria-label="Save as new">
           <b-icon pack="mdi" icon="content-save-outline"></b-icon>
         </button>
       </b-tooltip>
       <b-tooltip position="is-bottom" label="Edit" :delay="200">
-        <button class="button is-small is-outlined" @click="showEditDialog" :disabled="disableEditDelete">
+        <button class="button is-small is-outlined" @click="showEditDialog" :disabled="disableEditDelete" aria-label="Edit">
           <b-icon pack="mdi" icon="square-edit-outline"></b-icon>
         </button>
       </b-tooltip>
       <b-tooltip position="is-bottom" label="Delete" :delay="200">
-        <button class="button is-small is-outlined" @click="removePlaylist" :disabled="disableEditDelete">
+        <button class="button is-small is-outlined" @click="removePlaylist" :disabled="disableEditDelete" aria-label="Delete">
           <b-icon pack="mdi" icon="delete-outline"></b-icon>
         </button>
       </b-tooltip>

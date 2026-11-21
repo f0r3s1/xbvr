@@ -65,7 +65,7 @@
               <b-tab-item label="Player" v-if="!displayingAlternateSource && fileCount > 0">
                 <!-- keyed per scene: each scene gets a fresh player -->
                 <div class="player-wrapper" :key="'player-' + item.scene_id">
-                  <VrPlayer ref="player" aspect-ratio="1 / 1"/>
+                  <VrPlayer ref="player" aspect-ratio="1 / 1" :script="playerScriptURL" :scripts="playerScripts" @select-script="id => selectScript({ id })"/>
                 </div>
                 <div class="skip-controls">
                   <div class="skip-group">
@@ -183,7 +183,7 @@
 
             <!-- Tags: content only (cast shown above, site in meta) -->
             <div class="tags-section" :class="{ 'no-accent': !accentColorTags }" v-if="activeTab != 1 && item.tags && item.tags.length > 0">
-              <div class="tag-group">
+              <div class="tag-group" :ref="watchTagGroup" :class="{ 'is-collapsed': tagsOverflow && !tagsExpanded }">
                 <a v-for="(tag, idx) in item.tags" :key="'tag' + idx"
                    @click='showTagScenes([tag.name])' class="tag is-info is-small tag-pill">
                   <span>{{ tag.name }} ({{ tag.count }})</span>
@@ -191,6 +191,10 @@
                     class="tag-external" @click.stop="openTagInNewWindow(tag.name)"/>
                 </a>
               </div>
+              <button v-if="tagsOverflow" type="button" class="tags-toggle" @click="tagsExpanded = !tagsExpanded">
+                <b-icon pack="mdi" :icon="tagsExpanded ? 'chevron-up' : 'chevron-down'" size="is-small"/>
+                <span>{{ tagsExpanded ? 'Show less' : `Show all ${item.tags.length}` }}</span>
+              </button>
             </div>
 
             <div class="block-tags block" v-if="activeTab == 1">
@@ -253,7 +257,7 @@
                         <b-tooltip :label="$t('Select this script for export')" position="is-right">
                         <button rounded class="button is-info is-small is-outlined" @click='selectScript(f)'
                           v-show="f.type === 'script'" v-bind:class="{ 'is-success': f.is_selected_script, 'is-info' :!f.is_selected_script }">
-                          <b-icon pack="mdi" icon="pulse"></b-icon>
+                          <b-icon pack="mdi" :icon="isAiScript(f.filename) ? 'robot-outline' : 'pulse'" :title="isAiScript(f.filename) ? 'AI script' : 'Script'"></b-icon>
                         </button>
                         </b-tooltip>
                         <button rounded class="button is-info is-small is-outlined" disabled
@@ -265,11 +269,10 @@
                           <b-icon pack="mdi" icon="subtitles"></b-icon>
                         </button>
                       </div>
-                      <div class="media-content" style="overflow-wrap: break-word;">
-                        <strong>{{ f.filename }}</strong><br/>
+                      <div class="media-content file-content">
+                        <strong class="scene-file-name" :title="f.filename">{{ f.filename }}</strong>
                         <small>
-                          <span class="pathDetails">{{ f.path }}</span>
-                          <br/>
+                          <span class="pathDetails scene-file-path" :title="f.path">{{ f.path }}</span>
                           {{ prettyBytes(f.size) }}<span v-if="f.type === 'video'"> ({{ prettyBytes(f.video_bitrate, { bits: true })  }}/s)</span>,
                           <span v-if="f.type === 'video'"><span class="videosize">{{ f.video_width }}x{{ f.video_height }} {{ f.video_codec_name }}</span>, {{ f.projection }},&nbsp;</span>
                           <span v-if="f.duration > 1">{{ humanizeSeconds(f.duration) }},</span>
@@ -464,12 +467,15 @@ import RefreshButton from '../../components/RefreshButton'
 import RescrapeButton from '../../components/RescrapeButton'
 import TrailerlistButton from '../../components/TrailerlistButton'
 import HiddenButton from '../../components/HiddenButton'
+import { isAiScript } from '@/scripts'
 
 export default {
   name: 'SceneDetails',
   components: { VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
   data () {
     return {
+      tagsExpanded: false,
+      tagsOverflow: false,
       index: 1,
       activeTab: 0,
       activeMedia: 0,
@@ -512,6 +518,20 @@ export default {
     }
   },
   computed: {
+    // funscript for the player's stroke overlay: the selected one, else the first
+    // all scripts of the scene, for the overlay's picker (selected one marked)
+    playerScripts () {
+      const files = (this.item && this.item.file) || []
+      const scripts = files.filter(f => f.type === 'script')
+      const sel = scripts.find(f => f.is_selected_script) || scripts[0]
+      return scripts.map(f => ({ id: f.id, name: f.filename, selected: f === sel, ai: isAiScript(f.filename) }))
+    },
+    playerScriptURL () {
+      const files = (this.item && this.item.file) || []
+      const scripts = files.filter(f => f.type === 'script')
+      const f = scripts.find(f => f.is_selected_script) || scripts[0]
+      return f ? '/api/dms/file/' + f.id + '?dnt=true' : ''
+    },
     playerShortcuts () {
       return [
         { keys: 'Space / K', label: 'play / pause' },
@@ -751,6 +771,7 @@ watch:{
     this.disposePlayer()
     this.playerRequest = null
     this.carouselSlide = 0
+    this.tagsExpanded = false
     if (this.activeMedia === 1 && this.firstVideoFile()) {
       this.$nextTick(() => this.loadPlayer())
     } else {
@@ -769,6 +790,25 @@ watch:{
   }
 },
   methods: {
+    isAiScript,
+    // Function ref for the tag list: watch its size so the "Show all" toggle only
+    // appears when the tags really run past three rows (also after resize/nav).
+    watchTagGroup (el) {
+      if (el === this.tagGroupEl) return
+      if (this.tagObserver) this.tagObserver.disconnect()
+      this.tagGroupEl = el
+      if (!el) { this.tagsOverflow = false; return }
+      this.tagObserver = new ResizeObserver(() => this.measureTags())
+      this.tagObserver.observe(el)
+      this.measureTags()
+    },
+    measureTags () {
+      const el = this.tagGroupEl
+      if (!el) return
+      // the collapsed height comes from CSS; compare the full height with it
+      const limit = parseFloat(getComputedStyle(el).getPropertyValue('--tags-collapsed')) || 80
+      this.tagsOverflow = el.scrollHeight > limit + 2
+    },
     getCarouselImageURL (url, index) {
       // Add a cache-busting key when retrying
       const key = this.carouselImageKeys[index] || 0
@@ -1699,6 +1739,7 @@ watch:{
 }
 
 .carousel-image {
+  border-radius: 8px; /* same radius as cards and the player */
   max-width: 100%;
   max-height: 100%;
   width: auto;
@@ -1732,9 +1773,22 @@ watch:{
 
 
 
+/* Files tab: long names and paths stay on one line with an ellipsis (full text
+   on hover) instead of making the modal scroll sideways. */
+.file-content {
+  min-width: 0;
+  overflow: hidden;
+}
+.scene-file-name,
+.scene-file-path {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .player-wrapper {
   width: 100%;
-  background: #000;
   margin-bottom: 8px;
 }
 
@@ -1945,9 +1999,33 @@ watch:{
 }
 
 .tag-group {
+  --tags-collapsed: 80px; /* three rows: 3 x 24px tags + 2 x 4px gaps */
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+.tag-group.is-collapsed {
+  max-height: var(--tags-collapsed);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+}
+.tags-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 2px 6px 2px 2px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--accent, #7957d5);
+  cursor: pointer;
+}
+.tags-toggle:hover {
+  background: rgba(121, 87, 213, 0.1);
 }
 
 .tag-pill {
@@ -2046,6 +2124,9 @@ span.is-active img {
   font-weight: 550;
 }
 
+:deep(.carousel .carousel-indicator .indicator-item img) {
+  border-radius: 4px;
+}
 :deep(.carousel .carousel-indicator) {
   justify-content: flex-start;
   width: 100%;

@@ -31,8 +31,9 @@
           <b-icon pack="mdi" icon="file" size="is-small"/>
           <span>{{videoFilesCount}}</span>
         </b-tag>
-        <b-tag v-if="item.is_scripted" class="mini-tag funscript-tag">
-          <b-icon pack="mdi" icon="pulse" size="is-small"/>
+        <b-tag v-if="item.is_scripted" class="mini-tag funscript-tag" :title="aiScripts === 'all' ? 'AI script' : aiScripts === 'some' ? 'Scripts (incl. AI)' : 'Script'">
+          <b-icon pack="mdi" :icon="aiScripts === 'all' ? 'robot-outline' : 'pulse'" size="is-small"/>
+          <b-icon v-if="aiScripts === 'some'" pack="mdi" icon="robot-outline" size="is-small"/>
           <span v-if="scriptFilesCount > 1">{{scriptFilesCount}}</span>
         </b-tag>
         <b-tag type="is-info" v-if="hspFilesCount > 0 && this.$store.state.optionsWeb.web.showHspFile" class="mini-tag">
@@ -152,6 +153,7 @@ import HiddenButton from '../../components/HiddenButton'
 import ky from 'ky'
 import { getAlternateSources } from '@/api'
 import VueLoadImage from 'vue-load-image'
+import { isAiScript } from '@/scripts'
 
 export default defineComponent({
   name: 'SceneCard',
@@ -180,6 +182,13 @@ export default defineComponent({
     videoFilesCount () {
       if (this.item.file == null) { return 0 }
       return this.item.file.filter(obj => obj.type === 'video').length
+    },
+    // 'all' / 'some' / 'none' of the local scripts are AI-generated (by file name)
+    aiScripts () {
+      const scripts = (this.item.file || []).filter(f => f.type === 'script')
+      const ai = scripts.filter(f => isAiScript(f.filename)).length
+      if (!ai) return 'none'
+      return ai === scripts.length ? 'all' : 'some'
     },
     scriptFilesCount () {
       if (this.item.file == null) { return 0 }
