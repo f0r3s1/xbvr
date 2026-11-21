@@ -41,7 +41,16 @@ func (i HealthResource) startScan(req *restful.Request, resp *restful.Response) 
 		resp.WriteHeaderAndEntity(http.StatusConflict, map[string]string{"error": "health check already running"})
 		return
 	}
-	go tasks.RunHealthCheck()
+	// {"background": true} runs the same throttled check the scheduler runs
+	var r struct {
+		Background bool `json:"background"`
+	}
+	_ = req.ReadEntity(&r)
+	if r.Background {
+		go tasks.BackgroundHealthCheck()
+	} else {
+		go tasks.RunHealthCheck()
+	}
 	resp.WriteHeaderAndEntity(http.StatusOK, map[string]string{"status": "started"})
 }
 

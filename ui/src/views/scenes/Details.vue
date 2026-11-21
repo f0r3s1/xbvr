@@ -281,6 +281,25 @@
                         <div v-if="f.type === 'script' && f.has_heatmap" class="heatmapFunscript">
                           <img :src="getHeatmapURL(f.id)"/>
                         </div>
+                        <!-- what the script says about itself + measured movement, one compact row -->
+                        <div v-if="f.type === 'script' && f.script_actions > 0" class="script-props">
+                          <span v-if="scriptLicense(f.script_license) === 'paid'" class="sp-badge is-paid" title="Paid script">
+                            <b-icon pack="mdi" icon="cash" custom-size="mdi-14px"/>Paid
+                          </span>
+                          <span v-else-if="scriptLicense(f.script_license) === 'free'" class="sp-badge is-free" title="Free script">Free</span>
+                          <span v-if="scriptGenerator(f.script_description)" class="sp-badge is-gen" :title="f.script_description">
+                            {{ scriptGenerator(f.script_description).name }} v{{ scriptGenerator(f.script_description).version }}
+                          </span>
+                          <span v-if="f.script_creator" class="sp-badge" title="Creator">
+                            <b-icon pack="mdi" icon="account-outline" custom-size="mdi-14px"/>{{ f.script_creator }}
+                          </span>
+                          <span class="sp-stats">
+                            <span title="Average speed while moving (position units per second)"><b>{{ Math.round(f.script_avg_speed) }}</b> avg</span>
+                            <span title="Fastest movement (position units per second)"><b>{{ Math.round(f.script_max_speed) }}</b> max</span>
+                            <span title="Up and down cycles per minute"><b>{{ Math.round(f.script_strokes_per_min) }}</b> spm</span>
+                            <span title="Average stroke depth" class="sp-depth"><b-icon pack="mdi" icon="arrow-expand-vertical" custom-size="mdi-12px"/><b>{{ Math.round(f.script_depth) }}%</b></span>
+                          </span>
+                        </div>
                       </div>
                       <div class="media-right">
                         <button class="button is-dark is-small is-outlined" data-tooltip="Unmatch file from scene" @click='unmatchFile(f)'>
@@ -467,7 +486,7 @@ import RefreshButton from '../../components/RefreshButton'
 import RescrapeButton from '../../components/RescrapeButton'
 import TrailerlistButton from '../../components/TrailerlistButton'
 import HiddenButton from '../../components/HiddenButton'
-import { isAiScript } from '@/scripts'
+import { isAiScript, scriptGenerator, scriptLicense } from '@/scripts'
 
 export default {
   name: 'SceneDetails',
@@ -524,7 +543,7 @@ export default {
       const files = (this.item && this.item.file) || []
       const scripts = files.filter(f => f.type === 'script')
       const sel = scripts.find(f => f.is_selected_script) || scripts[0]
-      return scripts.map(f => ({ id: f.id, name: f.filename, selected: f === sel, ai: isAiScript(f.filename) }))
+      return scripts.map(f => ({ id: f.id, name: f.filename, selected: f === sel, ai: isAiScript(f.filename), gen: scriptGenerator(f.script_description) }))
     },
     playerScriptURL () {
       const files = (this.item && this.item.file) || []
@@ -791,6 +810,8 @@ watch:{
 },
   methods: {
     isAiScript,
+    scriptGenerator,
+    scriptLicense,
     // Function ref for the tag list: watch its size so the "Show all" toggle only
     // appears when the tags really run past three rows (also after resize/nav).
     watchTagGroup (el) {
@@ -2106,6 +2127,69 @@ span.is-active img {
   color: #b0b0b0;
 }
 
+.script-props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 5px;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  line-height: 18px;
+}
+.sp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.12);
+  white-space: nowrap;
+}
+.sp-badge :deep(.icon) {
+  width: 13px;
+  height: 13px;
+}
+.sp-badge.is-gen {
+  background: rgba(62, 142, 208, 0.15);
+  color: #3e8ed0;
+}
+.sp-badge.is-paid {
+  background: rgba(255, 183, 77, 0.18);
+  color: #b7791f;
+}
+html[data-theme="dark"] .sp-badge.is-paid {
+  color: #e0a03c;
+}
+.sp-badge.is-free {
+  background: rgba(72, 199, 142, 0.16);
+  color: #3fbf86;
+  font-weight: 600;
+}
+/* the numbers stay together as one block: "150 avg · 213 max · 73 spm · 59% depth" */
+.sp-stats {
+  display: inline-flex;
+  white-space: nowrap;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.sp-stats > span + span::before {
+  content: '·';
+  margin: 0 4px;
+  opacity: 0.6;
+}
+.sp-stats b {
+  font-weight: 600;
+}
+.sp-depth {
+  display: inline-flex;
+  align-items: center;
+}
+.sp-depth :deep(.icon) {
+  width: 12px;
+  height: 12px;
+  margin-right: 1px;
+}
 .heatmapFunscript {
   width: 100%;
   padding: 0;

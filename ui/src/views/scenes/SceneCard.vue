@@ -31,9 +31,8 @@
           <b-icon pack="mdi" icon="file" size="is-small"/>
           <span>{{videoFilesCount}}</span>
         </b-tag>
-        <b-tag v-if="item.is_scripted" class="mini-tag funscript-tag" :title="aiScripts === 'all' ? 'AI script' : aiScripts === 'some' ? 'Scripts (incl. AI)' : 'Script'">
+        <b-tag v-if="item.is_scripted" class="mini-tag funscript-tag" :title="scriptBadgeTitle">
           <b-icon pack="mdi" :icon="aiScripts === 'all' ? 'robot-outline' : 'pulse'" size="is-small"/>
-          <b-icon v-if="aiScripts === 'some'" pack="mdi" icon="robot-outline" size="is-small"/>
           <span v-if="scriptFilesCount > 1">{{scriptFilesCount}}</span>
         </b-tag>
         <b-tag type="is-info" v-if="hspFilesCount > 0 && this.$store.state.optionsWeb.web.showHspFile" class="mini-tag">
@@ -189,6 +188,18 @@ export default defineComponent({
       const ai = scripts.filter(f => isAiScript(f.filename)).length
       if (!ai) return 'none'
       return ai === scripts.length ? 'all' : 'some'
+    },
+    // "AI script · 212 avg speed · 84 strokes/min" (selected script, else first)
+    scriptBadgeTitle () {
+      // the robot only shows when every script is AI; a mix just says how many are
+      const scripts0 = (this.item.file || []).filter(f => f.type === 'script')
+      const nAi = scripts0.filter(f => isAiScript(f.filename)).length
+      const kind = this.aiScripts === 'all' ? (scripts0.length > 1 ? `${scripts0.length} AI scripts` : 'AI script')
+        : this.aiScripts === 'some' ? `${scripts0.length} scripts, ${nAi} AI` : (scripts0.length > 1 ? `${scripts0.length} scripts` : 'Script')
+      const scripts = (this.item.file || []).filter(f => f.type === 'script')
+      const s = scripts.find(f => f.is_selected_script) || scripts[0]
+      if (!s || !s.script_actions) return kind
+      return `${kind} · ${Math.round(s.script_avg_speed)} avg speed · ${Math.round(s.script_strokes_per_min)} strokes/min`
     },
     scriptFilesCount () {
       if (this.item.file == null) { return 0 }

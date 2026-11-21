@@ -3,7 +3,6 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -34,6 +33,7 @@ type HealthIssue struct {
 
 type HealthReport struct {
 	GeneratedAt time.Time              `json:"generated_at"`
+	Auto        bool                   `json:"auto"` // made by the background monitor
 	Duration    string                 `json:"duration"`
 	Summary     map[string]int         `json:"summary"`
 	Issues      []HealthIssue          `json:"issues"`
@@ -61,10 +61,64 @@ var (
 
 const totalHealthSteps = 16
 
+// healthBackground is set while the periodic background check runs: it pauses
+// between steps and inside the per-file loop so it never competes for CPU or disk.
+var healthBackground int32
+
+func backgroundPause(d time.Duration) {
+	if atomic.LoadInt32(&healthBackground) == 1 {
+		time.Sleep(d)
+	}
+}
+
+// Duty-cycle limiter for the background check: after every 50 ms of work it
+// sleeps 200 ms. The check runs on one goroutine, so it stays under ~20% of one
+// CPU core however big the library is. Manual checks run at full speed.
+const (
+	bgWorkSlice = 50 * time.Millisecond
+	bgRestSlice = 200 * time.Millisecond
+)
+
+var bgSliceStart time.Time // only touched by the single background run
+
+func backgroundYield() {
+	if atomic.LoadInt32(&healthBackground) != 1 {
+		return
+	}
+	if bgSliceStart.IsZero() {
+		bgSliceStart = time.Now()
+		return
+	}
+	if time.Since(bgSliceStart) >= bgWorkSlice {
+		time.Sleep(bgRestSlice)
+		bgSliceStart = time.Now()
+	}
+}
+
+// BackgroundHealthCheck is run by the scheduler. It skips the round while a
+// rescan, scrape, index or preview job (or a manual check) is busy.
+func BackgroundHealthCheck() {
+	for _, lock := range []string{"rescan", "scrape", "index", "previews", "heatmaps", "scriptstats"} {
+		if models.CheckLock(lock) {
+			return
+		}
+	}
+	if IsHealthRunning() {
+		return
+	}
+	atomic.StoreInt32(&healthBackground, 1)
+	bgSliceStart = time.Time{}
+	defer atomic.StoreInt32(&healthBackground, 0)
+	RunHealthCheck()
+}
+
 func publishProgress(step string, stepNum int) {
+	backgroundPause(2 * time.Second)
+	bgSliceStart = time.Now() // the pause above was the rest; start a new work slice
 	pct := float64(stepNum) / float64(totalHealthSteps) * 100
 	common.PublishWS("health.progress", map[string]interface{}{
 		"running":     true,
+		"background":  atomic.LoadInt32(&healthBackground) == 1,
 		"step":        step,
 		"step_num":    stepNum,
 		"total_steps": totalHealthSteps,
@@ -360,6 +414,7 @@ func RunHealthCheck() {
 			publishCancelled()
 			return
 		}
+		backgroundYield() // also keeps disk/network storage traffic low
 		if f.Volume.Type == "local" {
 			fullPath := filepath.Join(f.Path, f.Filename)
 			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -569,38 +624,32 @@ func RunHealthCheck() {
 		return
 	}
 
-	// -- Step 15: Dead cover URLs (all scenes, capped at 300) --
-	publishProgress("Checking cover URLs", 15)
-	var coverScenes []struct {
-		ID       uint
-		Title    string
-		CoverURL string
-	}
-	commonDb.Model(&models.Scene{}).Select("id, title, cover_url").
-		Where("cover_url != '' AND cover_url IS NOT NULL AND cover_url LIKE 'http%'").
-		Order("RANDOM()").Limit(300).Scan(&coverScenes)
-	var deadCoverItems []AffectedItem
-	client := &http.Client{Timeout: 4 * time.Second}
-	for _, s := range coverScenes {
-		if cancelled() {
-			publishCancelled()
-			return
+	// -- Step 15: Likely duplicate actors (same person, several records) --
+	// (replaces the old cover URL probe: it fetched hundreds of covers from the
+	// studios on every run; broken covers are now caught passively in step 16)
+	publishProgress("Checking duplicate actors", 15)
+	dupActors := models.FindDuplicateActors(backgroundYield)
+	if len(dupActors) > 0 {
+		certain := 0
+		items := make([]AffectedItem, 0, 50)
+		for _, d := range dupActors {
+			if d.Score >= 95 {
+				certain++
+			}
+			if len(items) < 50 {
+				items = append(items, AffectedItem{ID: d.A.ID, Label: d.A.Name + "  /  " + d.B.Name, Extra: fmt.Sprintf("%d%% %s", d.Score, d.Reason)})
+			}
 		}
-		resp, err := client.Head(s.CoverURL)
-		if err != nil || resp.StatusCode >= 400 {
-			deadCoverItems = append(deadCoverItems, AffectedItem{ID: s.ID, Label: s.Title, Extra: s.CoverURL})
+		severity := "info"
+		if certain > 0 {
+			severity = "warning"
 		}
-		if resp != nil {
-			resp.Body.Close()
-		}
-	}
-	if len(deadCoverItems) > 0 {
 		issues = append(issues, HealthIssue{
-			ID: "dead-cover-urls", Category: "scenes", Severity: "warning",
-			Description: fmt.Sprintf("%d of %d sampled cover URLs are unreachable", len(deadCoverItems), len(coverScenes)),
-			Detail:      "Will clear dead cover URLs so the next scrape can re-fetch them",
-			Fixable:     true, FixAction: "clear-dead-covers", FixLabel: "Clear Dead Covers",
-			AffectedItems: deadCoverItems,
+			ID: "duplicate-actors", Category: "actors", Severity: severity,
+			Description: fmt.Sprintf("%d possible duplicate actors (%d almost certain)", len(dupActors), certain),
+			Detail:      "The same person recorded under slightly different names. Review and merge them below.",
+			Fixable:     true, FixAction: "review-duplicate-actors", FixLabel: "Review & merge",
+			AffectedItems: items,
 		})
 	}
 
@@ -654,6 +703,7 @@ func RunHealthCheck() {
 
 	report := HealthReport{
 		GeneratedAt: time.Now(),
+		Auto:        atomic.LoadInt32(&healthBackground) == 1,
 		Duration:    time.Since(start).Round(time.Millisecond).String(),
 		Summary:     summary,
 		Issues:      issues,
@@ -693,17 +743,6 @@ func FixHealthIssue(action string) error {
 			db, _ := models.GetDB()
 			defer db.Close()
 			db.Model(&models.Scene{}).Where("id IN (?)", ids).Updates(map[string]interface{}{"images": ""})
-		}()
-
-	case "clear-dead-covers":
-		go func() {
-			ids := getLastReportItemIDs("dead-cover-urls")
-			if len(ids) == 0 {
-				return
-			}
-			db, _ := models.GetDB()
-			defer db.Close()
-			db.Model(&models.Scene{}).Where("id IN (?)", ids).Updates(map[string]interface{}{"cover_url": ""})
 		}()
 
 	case "clear-reported-covers":

@@ -47,6 +47,11 @@ type Action struct {
 type ScriptMetadata struct {
 	// Duration of the scripted video, in seconds.
 	Duration int64 `json:"duration,omitempty"`
+	// Optional descriptive fields written by most script editors and generators.
+	Creator     string `json:"creator,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	License     string `json:"license,omitempty"`
 }
 
 type GradientTable []struct {

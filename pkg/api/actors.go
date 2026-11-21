@@ -12,6 +12,7 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/xbapps/xbvr/pkg/models"
 	"github.com/xbapps/xbvr/pkg/scrape"
+	"github.com/xbapps/xbvr/pkg/tasks"
 )
 
 type ResponseGetActors struct {
@@ -45,6 +46,14 @@ func (i ActorResource) WebService() *restful.WebService {
 	ws.Route(ws.POST("/toggle").To(i.toggleList).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(ResponseGetActors{}))
+
+	// likely duplicates + merging (registered before /{actor-id} so the literal wins)
+	ws.Route(ws.GET("/duplicates").To(i.getDuplicates).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes([]models.DuplicateActorPair{}))
+
+	ws.Route(ws.POST("/merge").To(i.mergeActors).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.GET("/{actor-id}").To(i.getActor).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -815,4 +824,77 @@ func (i ActorResource) editActorExtRefs(req *restful.Request, resp *restful.Resp
 		}
 	}
 	resp.WriteHeaderAndEntity(http.StatusOK, readExtRefs(id))
+}
+
+func (i ActorResource) getDuplicates(req *restful.Request, resp *restful.Response) {
+	resp.WriteHeaderAndEntity(http.StatusOK, models.FindDuplicateActors(nil))
+}
+
+type RequestMergeActors struct {
+	Pairs []struct {
+		Keep  uint `json:"keep"`
+		Merge uint `json:"merge"`
+	} `json:"pairs"`
+}
+
+type ResponseMergeActors struct {
+	Merged int      `json:"merged"`
+	Errors []string `json:"errors"`
+}
+
+// mergeActors merges each pair in order. When an earlier pair already merged an
+// actor away, later pairs follow it to the actor it went into.
+func (i ActorResource) mergeActors(req *restful.Request, resp *restful.Response) {
+	var r RequestMergeActors
+	if err := req.ReadEntity(&r); err != nil {
+		log.Error(err)
+		resp.WriteHeaderAndEntity(http.StatusBadRequest, ResponseMergeActors{Errors: []string{err.Error()}})
+		return
+	}
+	into := map[uint]uint{}
+	resolve := func(id uint) uint {
+		for n := 0; n < 50; n++ {
+			next, ok := into[id]
+			if !ok {
+				break
+			}
+			id = next
+		}
+		return id
+	}
+	out := ResponseMergeActors{Errors: []string{}}
+	touched := map[uint]bool{}
+	for _, p := range r.Pairs {
+		keep, drop := resolve(p.Keep), resolve(p.Merge)
+		if keep == drop {
+			continue // already the same actor after earlier merges
+		}
+		scenes, err := models.MergeActors(keep, drop)
+		if err != nil {
+			out.Errors = append(out.Errors, err.Error())
+			continue
+		}
+		into[drop] = keep
+		out.Merged++
+		for _, s := range scenes {
+			touched[s] = true
+		}
+	}
+
+	if out.Merged > 0 {
+		var a models.Actor
+		a.CountActorTags()
+		// the cast of these scenes changed: refresh their search entries
+		var scenes []models.Scene
+		for id := range touched {
+			var s models.Scene
+			if s.GetIfExistByPK(id) == nil {
+				scenes = append(scenes, s)
+			}
+		}
+		if len(scenes) > 0 {
+			go tasks.IndexScenes(&scenes)
+		}
+	}
+	resp.WriteHeaderAndEntity(http.StatusOK, out)
 }

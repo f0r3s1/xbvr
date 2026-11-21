@@ -6,11 +6,13 @@
 //     which XBVR itself sees at the same path.
 //
 // What you get (deterministic, re-runnable):
-//   - SCENES fictional scenes (default 240) from 8 studios, ~48 people, neutral tags,
+//   - SCENES fictional scenes (default 240) from 8 studios, ~48 people (plus five
+//     near-duplicate names for the duplicate actors review), neutral tags,
 //     landscape photos from picsum.photos as covers/galleries
 //   - a scanned storage folder containing:
-//       4 linked videos      file name matches a scene exactly (one with a .funscript,
-//                            one with an _ai.funscript)
+//       4 linked videos      file name matches a scene exactly (one with a hand
+//                            .funscript and an _ai.funscript to compare, one with
+//                            an _ai.funscript from a newer generator version)
 //       1 near-miss video    name that *should* match but doesn't (+ its funscript) -
 //                            a test case for the matcher
 //       1 unrelated video    belongs to no scene
@@ -123,6 +125,22 @@ const scenes = Array.from({ length: sceneCount }, (_, i) => {
   }
 })
 
+// Duplicate people for the Library Health "duplicate actors" review: the same
+// person recorded under a slightly different name, one variant per detection rule.
+// They replace the cast of the last few scenes (no extra randomness used).
+const duplicateVariants = [
+  people[0].toLowerCase(), // case only            -> 100%
+  people[2].replace('a', 'á'), // accent            -> 100%
+  people[4].replace(' ', ''), // no space           -> 97%
+  people[1].split(' ').reverse().join(' '), // order -> 95%
+  people[3] + 'e', // one letter more              -> similar spelling
+]
+duplicateVariants.forEach((name, k) => {
+  const sc = scenes[scenes.length - 1 - k]
+  sc.cast = [name]
+  sc.actor_details = { [name]: { ImageUrl: img(PERSON_PHOTOS + [0, 2, 4, 1, 3][k], 400, 600), ProfileUrl: '', Source: 'seed' } }
+})
+
 // ── helpers ─────────────────────────────────────────────────────────
 const api = async (method, path, body) => {
   const res = await fetch(`${baseUrl}${path}`, {
@@ -137,17 +155,31 @@ const api = async (method, path, body) => {
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const sceneTotal = async () => (await api('POST', '/api/scene/list', { dlState: 'any', limit: 1, offset: 0 })).results
 
-// A plausible random stroke pattern covering the sample clip.
-const funscript = (durationMs = 10_000) => {
+// A plausible random stroke pattern covering the sample clip, with funscript
+// metadata (creator, generator description, chapters) for the UI to display.
+// `tempo` is the average ms between turning points, `depth` the stroke size (0-1).
+const chapters = [
+  { name: 'Intro', startTime: '00:00:00.000', endTime: '00:00:03.000' },
+  { name: 'Fast', startTime: '00:00:03.000', endTime: '00:00:07.000' },
+  { name: 'Slow', startTime: '00:00:07.000', endTime: '00:00:10.000' },
+]
+const funscript = ({ durationMs = 10_000, tempo = 520, depth = 0.8, title = '', creator = 'demo', description = '', license = '' } = {}) => {
   const actions = []
   let at = 0
   let up = true
+  const lo = Math.round(50 - depth * 50)
+  const hi = Math.round(50 + depth * 50)
   while (at <= durationMs) {
-    actions.push({ at, pos: up ? 60 + Math.floor(rand() * 40) : Math.floor(rand() * 40) })
+    const jitter = Math.floor(rand() * 15)
+    actions.push({ at, pos: up ? hi - jitter : lo + jitter })
     up = !up
-    at += 250 + Math.floor(rand() * 550)
+    at += Math.round(tempo * (0.6 + rand() * 0.8))
   }
-  return JSON.stringify({ version: '1.0', inverted: false, range: 100, actions })
+  return JSON.stringify({
+    version: '1.0', inverted: false, range: 100,
+    metadata: { creator, title, description, license, duration: Math.round(durationMs / 1000), chapters, tags: [], performers: [] },
+    actions,
+  })
 }
 
 // ── 1. scenes ───────────────────────────────────────────────────────
@@ -169,15 +201,20 @@ if (!existsSync(sample)) {
 rmSync(libraryDir, { recursive: true, force: true })
 mkdirSync(libraryDir, { recursive: true })
 const video = name => linkSync(sample, join(libraryDir, name))
-const script = name => writeFileSync(join(libraryDir, name), funscript())
+const script = (name, opts = {}) => writeFileSync(join(libraryDir, name), funscript({ title: name.replace(/\.funscript$/, ''), ...opts }))
 const counts = { linked: 0, funscript: 0, aiFunscript: 0, nearMiss: 0, unrelated: 0, orphanScripts: 0 }
 const order = pickN(scenes, scenes.length)
 const ref = i => order[i].filename[0]
 const base = n => n.replace(/\.mp4$/, '')
 
-// linked: exact file name; one plain funscript, one *_ai funscript, two video-only
-video(ref(0)); script(`${base(ref(0))}.funscript`); counts.linked++; counts.funscript++
-video(ref(1)); script(`${base(ref(1))}_ai.funscript`); counts.linked++; counts.aiFunscript++
+// linked: exact file name. The first video has a hand script and an AI script to
+// compare (different tempo and depth), the second an AI script from a newer
+// generator version, two are video-only.
+video(ref(0))
+script(`${base(ref(0))}.funscript`, { tempo: 480, depth: 0.9, license: 'Free' }); counts.funscript++
+script(`${base(ref(0))}_ai.funscript`, { tempo: 380, depth: 0.7, description: 'AutoScript v1.0', license: 'Paid' }); counts.aiFunscript++
+counts.linked++
+video(ref(1)); script(`${base(ref(1))}_ai.funscript`, { tempo: 300, depth: 0.6, description: 'AutoScript v1.1', license: 'Paid' }); counts.linked++; counts.aiFunscript++
 video(ref(2)); counts.linked++
 video(ref(3)); counts.linked++
 

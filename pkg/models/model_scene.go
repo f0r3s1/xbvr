@@ -492,7 +492,7 @@ func SceneCreateUpdateFromExternal(db *gorm.DB, ext ScrapedScene) error {
 	var tmpActor Actor
 	for _, name := range ext.Cast {
 		tmpActor = Actor{}
-		db.Where(&Actor{Name: strings.Replace(name, ".", "", -1)}).FirstOrCreate(&tmpActor)
+		FindOrCreateActorByName(db, strings.Replace(name, ".", "", -1), &tmpActor) // merged names resolve to the kept actor
 		saveActor := false
 		if ext.ActorDetails[name].ImageUrl != "" {
 			if tmpActor.ImageUrl == "" {
@@ -656,7 +656,7 @@ func (o *Scene) PopulateSceneFieldsFromExternal(db *gorm.DB, ext ScrapedScene) {
 	var tmpActor Actor
 	for _, name := range ext.Cast {
 		tmpActor = Actor{}
-		db.Where(&Actor{Name: strings.Replace(name, ".", "", -1)}).FirstOrCreate(&tmpActor)
+		FindOrCreateActorByName(db, strings.Replace(name, ".", "", -1), &tmpActor) // merged names resolve to the kept actor
 		cast = append(cast, tmpActor)
 	}
 	o.Cast = cast
@@ -1247,6 +1247,19 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 		tx = tx.Order("scene_id desc")
 	case "site_asc":
 		tx = tx.Order("scenes.site")
+	case "script_speed_desc", "script_speed_asc", "script_spm_desc", "script_spm_asc":
+		// by the scene's selected script (else its fastest one); scenes without a
+		// measured script go last either way
+		col := "script_avg_speed"
+		if strings.HasPrefix(r.Sort.OrElse(""), "script_spm") {
+			col = "script_strokes_per_min"
+		}
+		dir := "desc"
+		if strings.HasSuffix(r.Sort.OrElse(""), "_asc") {
+			dir = "asc"
+		}
+		sub := "(select coalesce(max(case when f.is_selected_script then f." + col + " end), max(f." + col + ")) from files f where f.scene_id = scenes.id and f.type = 'script' and f." + col + " > 0)"
+		tx = tx.Order(sub + " is null, " + sub + " " + dir)
 	case "random":
 		if dbConn.Driver == "mysql" {
 			tx = tx.Order("rand()")

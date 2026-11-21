@@ -43,6 +43,17 @@ type File struct {
 	IsSelectedScript    bool `json:"is_selected_script" xbvrbackup:"is_selected_script"`
 	IsExported          bool `json:"is_exported" xbvrbackup:"-"`
 	RefreshHeatmapCache bool `json:"refresh_heatmap_cache" xbvrbackup:"-"`
+
+	// Funscript measurements and metadata (see tasks.UpdateScriptStats).
+	ScriptActions       int     `json:"script_actions" xbvrbackup:"-"`
+	ScriptAvgSpeed      float64 `json:"script_avg_speed" xbvrbackup:"-"`
+	ScriptMaxSpeed      float64 `json:"script_max_speed" xbvrbackup:"-"`
+	ScriptStrokesPerMin float64 `json:"script_strokes_per_min" xbvrbackup:"-"`
+	ScriptDepth         float64 `json:"script_depth" xbvrbackup:"-"`
+	ScriptCreator       string  `json:"script_creator" xbvrbackup:"-"`
+	ScriptDescription   string  `json:"script_description" xbvrbackup:"-"`
+	ScriptLicense       string  `json:"script_license" xbvrbackup:"-"`
+	ScriptStatsVersion  int     `json:"-" gorm:"default:0" xbvrbackup:"-"`
 }
 
 func (f *File) GetPath() string {

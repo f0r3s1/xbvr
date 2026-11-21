@@ -6,15 +6,20 @@
 
       <!-- No report yet, not running -->
       <div v-if="!report && !isRunning">
-        <p>Scan your library for data integrity issues, orphaned records, missing files, and stale metadata.</p>
+        <p>
+          Your library is checked automatically in the background (about 10 minutes after XBVR starts, then every
+          6 hours) for data integrity issues, duplicate actors, orphaned records, missing files and stale metadata.
+        </p>
         <b-button type="is-primary" @click="startScan">
-          Run Health Check
+          Check now
         </b-button>
       </div>
 
       <!-- Running: progress bar -->
       <div v-if="isRunning" class="progress-section">
         <div style="margin-bottom: 0.5rem;">
+          <span v-if="progress.background" class="tag is-success is-light is-small" style="margin-right: 0.4rem;"
+                title="Throttled to about 20% of one CPU core">Background · low power</span>
           <strong>{{ progress.step }}</strong>
           <span class="has-text-grey" style="margin-left: 0.5rem;">
             Step {{ progress.step_num }} of {{ progress.total_steps }}
@@ -38,9 +43,11 @@
             </div>
           </div>
           <div class="column">
-            <div class="is-pulled-right" style="padding-top: 0.5rem;">
-              <span class="tag is-light is-small" style="margin-right: 0.3rem;">{{ report.duration }}</span>
-              <b-button size="is-small" @click="startScan">Rescan</b-button>
+            <div class="is-pulled-right health-when">
+              <span class="health-when-text" :title="report.generated_at">
+                {{ report.auto ? 'Checked automatically' : 'Checked' }} {{ checkedAgo }}
+              </span>
+              <b-button size="is-small" @click="startScan">Check now</b-button>
             </div>
           </div>
         </div>
@@ -59,6 +66,8 @@
             All clear
           </span>
         </div>
+
+        <DuplicateActors v-if="showDuplicates" ref="dups" class="health-dups"/>
 
         <div v-for="issue in sortedIssues" :key="issue.id" class="health-issue">
           <div class="health-issue-header" @click="toggle(issue.id)">
@@ -101,14 +110,19 @@
 <script>
 import ky from 'ky'
 import { defineComponent } from 'vue';
+import { formatDistanceToNow, parseISO } from 'date-fns'
+import DuplicateActors from './DuplicateActors.vue'
 
 export default defineComponent({
   name: 'LibraryHealth',
+  components: { DuplicateActors },
 
   data () {
     return {
       report: null,
       fixingAction: null,
+      showDuplicates: false,
+      now: Date.now(),
       expanded: {}
     }
   },
@@ -128,6 +142,17 @@ export default defineComponent({
       if (!this.report) return []
       const order = { critical: 0, warning: 1, info: 2 }
       return [...this.report.issues].sort((a, b) => order[a.severity] - order[b.severity])
+    },
+    checkedAgo () {
+      if (!this.report || !this.report.generated_at) return ''
+      void this.now // re-evaluated every minute
+      try {
+        // the server clock can be a little ahead of the browser: never say "in ..."
+        const t = Math.min(parseISO(this.report.generated_at).getTime(), this.now)
+        return formatDistanceToNow(t, { addSuffix: true })
+      } catch {
+        return ''
+      }
     },
     statCards () {
       if (!this.report) return {}
@@ -151,10 +176,12 @@ export default defineComponent({
 
   async mounted () {
     await this.fetchReport()
+    this._clock = setInterval(() => { this.now = Date.now() }, 60000)
   },
 
   beforeUnmount () {
     if (this._pollTimer) clearInterval(this._pollTimer)
+    if (this._clock) clearInterval(this._clock)
   },
 
   methods: {
@@ -163,6 +190,7 @@ export default defineComponent({
         const data = await ky.get('/api/health/report', { timeout: 10000 }).json()
         if (data.report) {
           this.report = data.report
+          this.$store.commit('health/setReport', data.report)
         }
         if (data.running) {
           this.$store.commit('health/setProgress', { ...this.progress, running: true })
@@ -192,7 +220,8 @@ export default defineComponent({
             }
           } else if (data.report) {
             this.report = data.report
-            this.$store.commit('health/setProgress', { running: false, step: 'done', step_num: 15, total_steps: 15, percent: 100 })
+            this.$store.commit('health/setReport', data.report)
+            this.$store.commit('health/setProgress', { running: false, step: 'done', step_num: 16, total_steps: 16, percent: 100 })
             clearInterval(this._pollTimer)
           }
         } catch { /* silent */ }
@@ -207,6 +236,12 @@ export default defineComponent({
       this.expanded[id] = !this.expanded[id]
     },
     confirmFix (issue) {
+      // not a one-click fix: open the review list instead
+      if (issue.fix_action === 'review-duplicate-actors') {
+        this.showDuplicates = true
+        this.$nextTick(() => this.$refs.dups && this.$refs.dups.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+        return
+      }
       const count = issue.affected_items ? issue.affected_items.length : 0
       this.$buefy.dialog.confirm({
         title: issue.fix_label,
@@ -248,6 +283,19 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.health-when {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 0.5rem;
+}
+.health-when-text {
+  font-size: 0.78rem;
+  opacity: 0.65;
+}
+.health-dups {
+  margin-bottom: 1rem;
+}
 .progress-section {
   max-width: 500px;
 }

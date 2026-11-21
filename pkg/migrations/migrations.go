@@ -2476,6 +2476,26 @@ func Migrate(migrateTo string) {
 				return nil
 			},
 		},
+		{
+			// Funscript stats (speed, strokes per minute, depth) and metadata on files,
+			// for display and sorting; existing scripts are measured in the background.
+			ID: "0094-file-script-stats",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&models.File{}).Error; err != nil {
+					return err
+				}
+				go tasks.UpdateScriptStats(nil)
+				return nil
+			},
+		},
+		{
+			// Names of actors merged into another one, so scrapers keep linking the
+			// kept actor instead of re-creating the duplicate.
+			ID: "0095-actor-merges",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&models.ActorMerge{}).Error
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

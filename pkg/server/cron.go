@@ -52,6 +52,11 @@ func SetupCron() {
 
 	go tasks.CalculateCacheSizes()
 
+	// Library Health runs quietly in the background (fork addition): first ~10 min
+	// after start, then every 6 hours; it skips a round while other jobs are busy.
+	cronInstance.AddFunc("@every 6h", tasks.BackgroundHealthCheck)
+	time.AfterFunc(10*time.Minute, tasks.BackgroundHealthCheck)
+
 	if config.Config.Cron.RescrapeSchedule.RunAtStartDelay > 0 {
 		time.AfterFunc(time.Duration(config.Config.Cron.RescrapeSchedule.RunAtStartDelay)*time.Minute, scrapeCron)
 	}

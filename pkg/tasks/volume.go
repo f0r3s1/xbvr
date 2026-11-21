@@ -203,6 +203,7 @@ func RescanVolumes(id int) {
 		tlog.Infof("Generating heatmaps")
 
 		GenerateHeatmaps(tlog)
+		UpdateScriptStats(tlog)
 
 		tlog.Infof("Scanning complete")
 
@@ -389,6 +390,10 @@ func scanLocalVolume(vol models.Volume, db *gorm.DB, tlog *logrus.Entry) {
 			fStat, _ := os.Stat(path)
 			fTimes, _ := times.Stat(path)
 
+			// a rewritten script (new size or mtime) is measured again (fork addition)
+			if fStat.Size() != fl.Size || !fTimes.ModTime().Equal(fl.UpdatedTime) {
+				fl.ScriptStatsVersion = 0
+			}
 			if fStat.Size() != fl.Size {
 				fl.Size = fStat.Size()
 				fl.HasHeatmap = false

@@ -23,6 +23,12 @@
       </b-navbar-item>
     </template>
     <template #end>
+      <!-- Library Health running (background checks are throttled to stay light) -->
+      <b-navbar-item v-if="health.running" tag="router-link" :to="{ path: './options', query: { tab: 'health' } }"
+                     class="health-indicator" :title="healthTitle">
+        <span class="health-dot"></span>
+        <span class="health-label">{{ health.background ? 'Background check' : 'Health check' }}</span>
+      </b-navbar-item>
       <b-navbar-item v-if="hasStatusMessages">
         <table style="font-size:0.9em">
           <tr v-if="Object.keys(lastRescanMessage).length !== 0">
@@ -53,6 +59,14 @@ export default defineComponent({
   },
 
   computed: {
+    health () {
+      return this.$store.state.health.progress
+    },
+    healthTitle () {
+      const h = this.health
+      const step = h.step && h.step !== 'done' ? ` · step ${h.step_num}/${h.total_steps}: ${h.step}` : ''
+      return (h.background ? 'Library Health is checking in the background at low power (max ~20% of one core)' : 'Library Health check running') + step
+    },
     lockRescan () {
       return this.$store.state.messages.lockRescan
     },
@@ -94,6 +108,33 @@ export default defineComponent({
   },
 });
 </script>
+
+<style>
+.health-indicator {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+.health-indicator:hover {
+  opacity: 1;
+}
+.health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #48c78e;
+  animation: health-pulse 1.6s ease-in-out infinite;
+}
+@keyframes health-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .health-dot { animation: none; }
+}
+</style>
 
 <style scoped>
   h1 {

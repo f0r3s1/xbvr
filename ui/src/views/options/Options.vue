@@ -9,7 +9,13 @@
             <b-menu-item :label="$t('Previews')" :active="active==='previews'" @click="setActive('previews')"/>
             <!--            <b-menu-item :label="$t('Scheduled tasks')" :active="active==='tasks'" @click="setActive ('tasks')"/>-->
             <b-menu-item :label="$t('Cache')" :active="active==='cache'" @click="setActive('cache')"></b-menu-item>
-            <b-menu-item :label="$t('Library Health')" :active="active==='health'" @click="setActive('health')"></b-menu-item>
+            <b-menu-item :active="active==='health'" @click="setActive('health')">
+              <template #label>
+                <span class="menu-with-badge">{{ $t('Library Health') }}
+                  <span v-if="healthAttention" class="menu-badge" :title="healthAttention + ' issues need attention'">{{ healthAttention }}</span>
+                </span>
+              </template>
+            </b-menu-item>
             <b-menu-item :label="$t('Task Schedules')" :active="active==='schedules'" @click="setActive('schedules')"></b-menu-item>
           </b-menu-list>
           <b-menu-list :label="$t('Scene data')">
@@ -56,6 +62,7 @@
 
 <script>
 import { defineComponent } from 'vue';
+import ky from 'ky'
 
 import InterfaceWeb from './sections/InterfaceWeb'
 import Storage from './sections/Storage'
@@ -85,6 +92,12 @@ export default defineComponent({
   },
 
   methods: {
+    async loadHealthSummary () {
+      try {
+        const data = await ky.get('/api/health/report', { timeout: 10000 }).json()
+        if (data.report) this.$store.commit('health/setReport', data.report)
+      } catch { /* the badge is optional */ }
+    },
     setActive: function (e) {
       this.active = e
       localStorage.setItem('optionsActiveTab', e)
@@ -96,6 +109,7 @@ export default defineComponent({
   },
 
   mounted () {
+    this.loadHealthSummary()
     setTimeout(() => { this.settling = false }, 600)
     // Restore tab from URL query if present
     if (this.$route.query.tab) {
@@ -104,6 +118,9 @@ export default defineComponent({
   },
 
   computed: {
+    healthAttention () {
+      return this.$store.state.health.attention
+    },
     showMatchParamsOverlay () {      
       return this.$store.state.overlay.sceneMatchParams.show
     },
@@ -119,11 +136,32 @@ export default defineComponent({
   watch: {
     // Accessing showSceneCreate here forces re-evaluation of the computed when the store changes.
     showSceneCreate() {},
+    // a (background or manual) check finished: refresh the badge
+    '$store.state.health.progress.running' (running, was) {
+      if (was && !running) this.loadHealthSummary()
+    },
   },
 });
 </script>
 
 <style scoped>
+.menu-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.menu-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #f14668;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
 .options-content.settling :deep(*),
 .options-content.settling :deep(*::before),
 .options-content.settling :deep(*::after) {

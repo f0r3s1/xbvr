@@ -5,22 +5,43 @@
       <b-icon pack="mdi" icon="pulse" size="is-small"/>
     </button>
 
-    <div v-show="enabled" ref="panel" class="script-panel" :style="{ left: pos.x + '%', top: pos.y + '%' }">
+    <div v-show="enabled" ref="panel" class="script-panel" :class="{ 'is-multi': lanes.length > 1, 'is-sized': !!size.h, 'is-compact': compact }"
+         :style="panelStyle">
       <div class="script-head" @pointerdown="dragStart">
         <b-icon pack="mdi" icon="drag" size="is-small" class="grip"/>
-        <span class="script-title">Script</span>
-        <b-icon v-if="currentIsAi" pack="mdi" icon="robot-outline" size="is-small" class="script-ai" title="AI script"/>
-        <select v-if="scripts.length > 1" class="script-pick" :value="selectedId" :title="selectedName"
-                @pointerdown.stop @change="$emit('select', Number($event.target.value))">
-          <option v-for="o in scriptOptions" :key="o.id" :value="o.id" :title="o.name">{{ o.label }}</option>
-        </select>
+        <span class="script-title">{{ lanes.length > 1 ? 'Compare' : 'Script' }}</span>
+        <b-icon v-if="lanes.length === 1 && lanes[0].ai" pack="mdi" icon="robot-outline" size="is-small" class="script-ai" title="AI script"/>
+        <span v-if="lanes.length === 1 && options.length > 1" class="script-name" :title="lanes[0].name">{{ lanes[0].label }}</span>
         <span class="script-state">{{ status }}</span>
+        <button v-if="options.length > 1" type="button" class="script-menu-btn" :class="{ 'is-open': menuOpen }"
+                title="Choose scripts to show and compare" @pointerdown.stop @click="toggleMenu">
+          <b-icon pack="mdi" icon="tune-variant" size="is-small"/>
+        </button>
       </div>
-      <div class="script-body">
-        <canvas ref="graph" class="script-graph"></canvas>
-        <div class="script-meter" title="Current position">
-          <div class="script-meter-fill" ref="meter"></div>
+
+      <!-- checklist: which scripts get a lane; the star is the scene's saved script -->
+      <div v-if="menuOpen" ref="menu" class="script-menu" :style="menuStyle" @pointerdown.stop>
+        <div v-for="o in options" :key="o.id" class="script-menu-row">
+          <label class="script-check" :title="o.name">
+            <input type="checkbox" :checked="shown.includes(o.id)" :disabled="shown.includes(o.id) && shown.length === 1"
+                   @change="toggleShown(o.id)"/>
+            <span class="lane-dot" :style="{ background: shown.includes(o.id) ? laneColour(shown.indexOf(o.id)) : 'transparent' }"></span>
+            <span class="script-check-label">{{ o.label }}</span>
+            <b-icon v-if="o.ai" pack="mdi" icon="robot-outline" custom-size="mdi-14px" class="script-ai" title="AI script"/>
+          </label>
+          <button type="button" class="script-star" :class="{ 'is-main': o.selected }"
+                  :title="o.selected ? 'Selected script for this scene' : 'Use as the scene\'s selected script'"
+                  @click="!o.selected && $emit('select', o.id)">
+            <b-icon pack="mdi" :icon="o.selected ? 'star' : 'star-outline'" custom-size="mdi-14px"/>
+          </button>
         </div>
+      </div>
+
+      <div class="script-body">
+        <canvas ref="graph" class="script-graph" :style="size.h ? null : { height: graphHeight + 'px' }"></canvas>
+      </div>
+      <div class="script-resize" title="Drag to resize, double-click to reset" @pointerdown.stop="resizeStart" @dblclick.stop="resetSize">
+        <b-icon pack="mdi" icon="resize-bottom-right" custom-size="mdi-14px"/>
       </div>
     </div>
   </div>
@@ -29,12 +50,21 @@
 <script>
 // Funscript overlay for the player: a draggable panel showing the strokes around
 // the playhead (coloured by speed, like the heatmaps) and the current position.
-// Off by default; on/off and the panel position are remembered per browser.
+// Several scripts can be shown at once, one lane each on the same playhead, to
+// compare them. Off by default; on/off and the panel position are remembered.
 import { defineComponent } from 'vue'
 
 const STORE_KEY = 'xbvr.scriptOverlay'
-const BEFORE = 2.5 // seconds of past strokes shown left of the playhead
-const AFTER = 3.5 // seconds of upcoming strokes
+// Fixed time scale: resizing the panel shows more or less time around the
+// playhead instead of stretching the wave (the default size shows ~6 s).
+const PX_PER_SEC = 48
+const PAST_SHARE = 0.4 // part of the window before the playhead
+// narrower than this the wave is dropped and only the up/down bars remain
+const COMPACT_W = 160
+const BAR_W = 14
+const BAR_GAP = 6
+const MAX_LANES = 4
+const LANE_COLOURS = ['#9d84ef', '#5aa5e6', '#3fbf86', '#f2a65a']
 
 function loadPrefs () {
   try {
@@ -59,13 +89,15 @@ function speedColour (v) {
   return `rgb(${STOPS[0][1].join(',')})`
 }
 
+const scriptUrl = id => '/api/dms/file/' + id + '?dnt=true'
+
 export default defineComponent({
   name: 'ScriptOverlay',
   emits: ['select'],
 
   props: {
-    url: { type: String, default: '' },
-    scripts: { type: Array, default: () => [] }, // [{ id, name, selected }]
+    url: { type: String, default: '' }, // main script (used alone when no list is given)
+    scripts: { type: Array, default: () => [] }, // [{ id, name, selected, ai, gen }]
     video: { type: Function, required: true } // () => HTMLVideoElement
   },
 
@@ -74,58 +106,87 @@ export default defineComponent({
     return {
       enabled: prefs.enabled === true,
       pos: { x: prefs.x ?? 3, y: prefs.y ?? 4 },
-      status: ''
+      // panel size in % of the player (scales with fullscreen); null = automatic
+      size: { w: prefs.w ?? null, h: prefs.h ?? null },
+      status: '',
+      menuOpen: false,
+      compact: false, // only the position bars (very small panel)
+      menuStyle: {},
+      extra: [] // script ids shown next to the main one
     }
   },
 
   computed: {
-    selectedId () {
-      const s = this.scripts.find(x => x.selected)
-      return s ? s.id : null
-    },
-    currentIsAi () {
-      const s = this.scripts.find(x => x.selected)
-      return !!(s && s.ai)
-    },
-    selectedName () {
-      const s = this.scripts.find(x => x.selected)
-      return s ? s.name : ''
-    },
     // short labels: drop the extension and the part all names share
     // ("Clip.mkv.funscript" + "Clip - Script v2.funscript" -> "mkv", "Script v2")
-    scriptOptions () {
+    options () {
       const base = this.scripts.map(x => x.name.replace(/\.funscript$/i, ''))
       let pre = base[0] || ''
       for (const b of base) while (pre && !b.startsWith(pre)) pre = pre.slice(0, -1)
       return this.scripts.map((x, i) => {
         const rest = base[i].slice(pre.length).replace(/^[\s._\-\u2013()[\]]+/, '').trim()
-        return { id: x.id, name: x.name, label: (x.ai ? 'AI · ' : '') + (rest || 'Default') }
+        // generator + version when the script says it ("AutoScript v1.0"), else the
+        // distinguishing part of the name; a bare or "_ai" name reads Original / AI
+        let label = rest
+        if (x.gen) label = `${x.gen.name} v${x.gen.version}`
+        else if (!rest || /^ai\d*$/i.test(rest)) label = x.ai ? 'AI' + rest.slice(2) : 'Original'
+        return { ...x, label }
       })
+    },
+    mainId () {
+      const s = this.scripts.find(x => x.selected)
+      return s ? s.id : null
+    },
+    // ids with a lane, main script first
+    shown () {
+      const ids = this.mainId !== null ? [this.mainId] : []
+      for (const id of this.extra) if (!ids.includes(id) && this.scripts.some(s => s.id === id)) ids.push(id)
+      return ids.slice(0, MAX_LANES)
+    },
+    lanes () {
+      if (!this.scripts.length) return [{ key: this.url, url: this.url, label: 'Script', name: '', ai: false }]
+      return this.shown.map(id => {
+        const o = this.options.find(x => x.id === id)
+        return { key: 'f' + id, url: scriptUrl(id), label: o.label, name: o.name, ai: o.ai }
+      })
+    },
+    panelStyle () {
+      return {
+        left: this.pos.x + '%',
+        top: this.pos.y + '%',
+        width: this.size.w ? this.size.w + '%' : null,
+        height: this.size.h ? this.size.h + '%' : null
+      }
+    },
+    graphHeight () {
+      return this.lanes.length > 1 ? this.lanes.length * 40 : 64
     }
   },
 
   created () {
-    this.actions = [] // [{ at: seconds, pos: 0..100 }], not reactive
+    this.cache = new Map() // url -> { actions, status }, not reactive
     this.raf = 0
-    this.loadedUrl = ''
   },
 
   watch: {
-    url () { if (this.enabled) this.fetchScript() },
+    lanes () { if (this.enabled) this.fetchLanes() },
+    // a new scene resets the comparison
+    url () { this.extra = []; this.menuOpen = false },
     enabled (on) {
       this.savePrefs()
       if (on) {
-        this.fetchScript()
+        this.fetchLanes()
         this.$nextTick(() => this.startLoop())
       } else {
         this.stopLoop()
+        this.menuOpen = false
       }
     }
   },
 
   mounted () {
     if (this.enabled) {
-      this.fetchScript()
+      this.fetchLanes()
       this.startLoop()
     }
   },
@@ -134,43 +195,81 @@ export default defineComponent({
     this.stopLoop()
     window.removeEventListener('pointermove', this.dragMove, true)
     window.removeEventListener('pointerup', this.dragEnd, true)
+    window.removeEventListener('pointermove', this.resizeMove, true)
+    window.removeEventListener('pointerup', this.resizeEnd, true)
   },
 
   methods: {
     toggle () {
       this.enabled = !this.enabled
     },
+    laneColour (i) {
+      return LANE_COLOURS[i % LANE_COLOURS.length]
+    },
+    // open the checklist on the side of the panel that has room inside the player
+    // (to the right when the panel sits at the left edge, upward near the bottom)
+    toggleMenu () {
+      this.menuOpen = !this.menuOpen
+      if (!this.menuOpen) return
+      this.menuStyle = { visibility: 'hidden' }
+      this.$nextTick(() => {
+        const box = this.$el.getBoundingClientRect()
+        const p = this.$refs.panel.getBoundingClientRect()
+        const m = this.$refs.menu
+        if (!m) return
+        const mw = m.offsetWidth
+        const mh = m.offsetHeight
+        const st = {}
+        if (p.right - 6 - mw >= box.left + 4) st.right = '6px'
+        else st.left = Math.max(6, Math.min(box.left + 4 - p.left, box.right - 4 - mw - p.left)) + 'px'
+        if (p.top + 28 + mh <= box.bottom - 4 || p.top - box.top < mh) st.top = '28px'
+        else st.bottom = 'calc(100% - 24px)'
+        this.menuStyle = st
+      })
+    },
+    toggleShown (id) {
+      if (this.shown.includes(id)) {
+        if (id === this.mainId) return // the main script always has a lane
+        this.extra = this.extra.filter(x => x !== id)
+      } else if (this.shown.length < MAX_LANES) {
+        this.extra = [...this.extra, id]
+      }
+    },
 
     savePrefs () {
       try {
-        localStorage.setItem(STORE_KEY, JSON.stringify({ enabled: this.enabled, x: this.pos.x, y: this.pos.y }))
+        localStorage.setItem(STORE_KEY, JSON.stringify({ enabled: this.enabled, x: this.pos.x, y: this.pos.y, w: this.size.w, h: this.size.h }))
       } catch {
         // storage blocked: the overlay still works, it just won't remember
       }
     },
 
-    async fetchScript () {
-      if (!this.url || this.loadedUrl === this.url) return
-      const url = this.url
-      this.loadedUrl = url
-      this.actions = []
-      this.status = 'loading'
-      try {
-        const data = await (await fetch(url)).json()
-        if (url !== this.url) return
-        const inv = data.inverted === true
-        this.actions = (data.actions || [])
-          .map(a => ({ at: a.at / 1000, pos: inv ? 100 - a.pos : a.pos }))
-          .sort((a, b) => a.at - b.at)
-        this.status = this.actions.length ? '' : 'empty'
-      } catch {
-        if (url === this.url) this.status = 'unreadable'
-      }
+    async fetchLanes () {
+      const missing = this.lanes.filter(l => !this.cache.has(l.url))
+      this.updateStatus()
+      await Promise.all(missing.map(async l => {
+        this.cache.set(l.url, { actions: [], status: 'loading' })
+        this.updateStatus()
+        try {
+          const data = await (await fetch(l.url)).json()
+          const inv = data.inverted === true
+          const actions = (data.actions || [])
+            .map(a => ({ at: a.at / 1000, pos: inv ? 100 - a.pos : a.pos }))
+            .sort((a, b) => a.at - b.at)
+          this.cache.set(l.url, { actions, status: actions.length ? '' : 'empty' })
+        } catch {
+          this.cache.set(l.url, { actions: [], status: 'unreadable' })
+        }
+        this.updateStatus()
+      }))
+    },
+    updateStatus () {
+      const st = this.lanes.map(l => (this.cache.get(l.url) || {}).status).filter(Boolean)
+      this.status = st.includes('loading') ? 'loading' : (this.lanes.length === 1 ? (st[0] || '') : '')
     },
 
     // index of the last action at or before t
-    indexAt (t) {
-      const a = this.actions
+    indexAt (a, t) {
       let lo = 0
       let hi = a.length - 1
       if (!a.length || t < a[0].at) return -1
@@ -181,10 +280,8 @@ export default defineComponent({
       }
       return lo
     },
-
-    positionAt (t) {
-      const a = this.actions
-      const i = this.indexAt(t)
+    positionAt (a, t) {
+      const i = this.indexAt(a, t)
       if (i < 0) return a.length ? a[0].pos : 0
       if (i >= a.length - 1) return a[a.length - 1].pos
       const p = a[i]
@@ -218,58 +315,119 @@ export default defineComponent({
         ctx.clearRect(0, 0, w, h)
 
         const t = v.currentTime || 0
-        const start = t - BEFORE
-        const span = BEFORE + AFTER
-        const pad = 4
-        const x = s => ((s - start) / span) * w
-        const y = p => pad + (1 - p / 100) * (h - pad * 2)
+        const multi = this.lanes.length > 1
+        const compact = w < COMPACT_W - 16
+        if (compact !== this.compact) this.compact = compact
+        if (compact) {
+          this.drawBars(ctx, w, h, t)
+          this.raf = requestAnimationFrame(this.draw)
+          return
+        }
+        const meterW = 6
+        const gw = w - meterW - 8 // graph width, meter on the right
+        const span = Math.max(gw, 1) / PX_PER_SEC
+        const start = t - span * PAST_SHARE
+        const laneH = h / this.lanes.length
+        const x = s => ((s - start) / span) * gw
+        const px = x(t)
 
-        // mid line
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)'
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        ctx.moveTo(0, h / 2)
-        ctx.lineTo(w, h / 2)
-        ctx.stroke()
+        this.lanes.forEach((lane, li) => {
+          const top = li * laneH
+          const pad = multi ? 5 : 4
+          const y = p => top + pad + (1 - p / 100) * (laneH - pad * 2)
+          const a = (this.cache.get(lane.url) || {}).actions || []
 
-        const a = this.actions
-        if (a.length) {
-          let i = Math.max(0, this.indexAt(start))
-          ctx.lineWidth = 2
-          ctx.lineJoin = 'round'
-          ctx.lineCap = 'round'
-          for (; i < a.length - 1 && a[i].at <= start + span; i++) {
-            const p = a[i]
-            const n = a[i + 1]
-            const speed = Math.abs(n.pos - p.pos) / Math.max(n.at - p.at, 0.001)
-            ctx.strokeStyle = speedColour(speed)
-            ctx.globalAlpha = n.at < t ? 0.45 : 1 // played strokes dimmed
+          // lane background line + separator
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(0, top + laneH / 2)
+          ctx.lineTo(gw, top + laneH / 2)
+          ctx.stroke()
+          if (li > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.14)'
             ctx.beginPath()
-            ctx.moveTo(x(p.at), y(p.pos))
-            ctx.lineTo(x(n.at), y(n.pos))
+            ctx.moveTo(0, top)
+            ctx.lineTo(w, top)
             ctx.stroke()
           }
-          ctx.globalAlpha = 1
-        }
 
-        // playhead + current point
-        const px = x(t)
+          if (a.length) {
+            let i = Math.max(0, this.indexAt(a, start))
+            ctx.lineWidth = multi ? 1.5 : 2
+            ctx.lineJoin = 'round'
+            ctx.lineCap = 'round'
+            for (; i < a.length - 1 && a[i].at <= start + span; i++) {
+              const p = a[i]
+              const n = a[i + 1]
+              const speed = Math.abs(n.pos - p.pos) / Math.max(n.at - p.at, 0.001)
+              ctx.strokeStyle = speedColour(speed)
+              ctx.globalAlpha = n.at < t ? 0.45 : 1 // played strokes dimmed
+              ctx.beginPath()
+              ctx.moveTo(x(p.at), y(p.pos))
+              ctx.lineTo(x(n.at), y(n.pos))
+              ctx.stroke()
+            }
+            ctx.globalAlpha = 1
+            const cur = this.positionAt(a, t)
+            ctx.fillStyle = '#fff'
+            ctx.beginPath()
+            ctx.arc(px, y(cur), multi ? 3 : 3.5, 0, Math.PI * 2)
+            ctx.fill()
+            // position meter for this lane
+            const mx = w - meterW
+            const mTop = top + pad
+            const mH = laneH - pad * 2
+            ctx.fillStyle = 'rgba(255,255,255,0.1)'
+            ctx.fillRect(mx, mTop, meterW, mH)
+            ctx.fillStyle = multi ? this.laneColour(li) : '#7957d5'
+            ctx.fillRect(mx, mTop + mH * (1 - cur / 100), meterW, mH * (cur / 100))
+          }
+
+          // lane label (compare mode)
+          if (multi) {
+            ctx.font = '600 10px system-ui, sans-serif'
+            const label = (lane.ai && !/^AI/.test(lane.label) ? 'AI · ' : '') + lane.label
+            const tw = Math.min(ctx.measureText(label).width, gw - 20)
+            ctx.fillStyle = 'rgba(14,14,20,0.75)'
+            ctx.fillRect(2, top + 2, tw + 16, 14)
+            ctx.fillStyle = this.laneColour(li)
+            ctx.beginPath()
+            ctx.arc(8, top + 9, 3, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.fillStyle = '#e0e0e4'
+            ctx.fillText(label, 14, top + 13, gw - 20)
+          }
+        })
+
+        // playhead across all lanes
         ctx.strokeStyle = 'rgba(255,255,255,0.55)'
         ctx.lineWidth = 1
         ctx.beginPath()
         ctx.moveTo(px, 0)
         ctx.lineTo(px, h)
         ctx.stroke()
-        const cur = this.positionAt(t)
-        if (a.length) {
-          ctx.fillStyle = '#fff'
-          ctx.beginPath()
-          ctx.arc(px, y(cur), 3.5, 0, Math.PI * 2)
-          ctx.fill()
-        }
-        if (this.$refs.meter) this.$refs.meter.style.height = (a.length ? cur : 0) + '%'
       }
       this.raf = requestAnimationFrame(this.draw)
+    },
+
+    // compact mode: one vertical up/down bar per lane, side by side
+    drawBars (ctx, w, h, t) {
+      const n = this.lanes.length
+      const barW = Math.min(BAR_W, (w - (n - 1) * BAR_GAP) / n)
+      const total = n * barW + (n - 1) * BAR_GAP
+      let x0 = (w - total) / 2
+      this.lanes.forEach((lane, li) => {
+        const a = (this.cache.get(lane.url) || {}).actions || []
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'
+        ctx.fillRect(x0, 0, barW, h)
+        if (a.length) {
+          const cur = this.positionAt(a, t)
+          ctx.fillStyle = n > 1 ? this.laneColour(li) : '#7957d5'
+          ctx.fillRect(x0, h * (1 - cur / 100), barW, h * (cur / 100))
+        }
+        x0 += barW + BAR_GAP
+      })
     },
 
     // ── dragging (positions kept as % of the player so it survives resizes) ──
@@ -296,6 +454,41 @@ export default defineComponent({
       this.dragging = null
       window.removeEventListener('pointermove', this.dragMove, true)
       window.removeEventListener('pointerup', this.dragEnd, true)
+      this.savePrefs()
+    },
+
+    // ── resizing from the bottom-right grip, kept inside the player ──
+    resizeStart (e) {
+      if (e.button !== 0) return
+      const box = this.$el.getBoundingClientRect()
+      const r = this.$refs.panel.getBoundingClientRect()
+      this.resizing = { box, left: r.left, top: r.top, dx: r.right - e.clientX, dy: r.bottom - e.clientY }
+      window.addEventListener('pointermove', this.resizeMove, true)
+      window.addEventListener('pointerup', this.resizeEnd, true)
+      e.preventDefault()
+    },
+    resizeMove (e) {
+      const d = this.resizing
+      if (!d) return
+      // smallest: room for the header and ~24 px per lane
+      // (below COMPACT_W wide only the up/down bars are drawn, so it can go small)
+      const narrow = e.clientX + d.dx - d.left < COMPACT_W
+      const minH = narrow ? 74 : 34 + this.lanes.length * 24
+      // narrowest: the bars (14 px each, 6 px apart) or the header's grip + menu button
+      const n = this.lanes.length
+      const minW = Math.max(56, 16 + n * BAR_W + (n - 1) * BAR_GAP)
+      const w = Math.max(minW, Math.min(d.box.right - d.left, e.clientX + d.dx - d.left))
+      const h = Math.max(minH, Math.min(d.box.bottom - d.top, e.clientY + d.dy - d.top))
+      this.size = { w: (w / d.box.width) * 100, h: (h / d.box.height) * 100 }
+    },
+    resizeEnd () {
+      this.resizing = null
+      window.removeEventListener('pointermove', this.resizeMove, true)
+      window.removeEventListener('pointerup', this.resizeEnd, true)
+      this.savePrefs()
+    },
+    resetSize () {
+      this.size = { w: null, h: null }
       this.savePrefs()
     }
   }
@@ -352,11 +545,14 @@ export default defineComponent({
   user-select: none;
   touch-action: none;
 }
+.script-panel.is-multi {
+  width: min(340px, 80%);
+}
 .script-head {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px 2px 4px;
+  padding: 4px 6px 2px 4px;
   font-size: 11px;
   cursor: grab;
 }
@@ -370,6 +566,13 @@ export default defineComponent({
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+.script-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
 .script-state {
   margin-left: auto;
   opacity: 0.6;
@@ -377,49 +580,163 @@ export default defineComponent({
 .script-ai {
   color: #5aa5e6;
 }
-.script-pick {
-  min-width: 0;
-  max-width: 150px;
-  margin-left: 6px;
-  padding: 1px 4px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+.script-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  margin-left: 4px;
+  border: none;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: inherit;
-  font: inherit;
-  font-size: 11px;
-  text-overflow: ellipsis;
   cursor: pointer;
 }
-.script-pick option {
-  color: #e0e0e4;
-  background: #1c1c26;
+.script-state + .script-menu-btn {
+  margin-left: 4px;
 }
-.script-body {
+.script-menu-btn:hover,
+.script-menu-btn.is-open {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* floating checklist under the header: opens over the graph (and past the panel
+   edge when needed), so resizing the panel never squeezes it */
+.script-menu {
+  position: absolute;
+  top: 28px;
+  right: 6px;
+  z-index: 10;
+  width: 230px;
+  max-width: calc(100vw - 32px);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(22, 22, 30, 0.97);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.script-menu-row {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
+}
+.script-check {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.script-check:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.script-check input {
+  margin: 0;
+  accent-color: #7957d5;
+}
+.script-check :deep(.icon) {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-left: -2px;
+}
+.script-check-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lane-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.script-star :deep(.icon) {
+  width: 14px;
+  height: 14px;
+}
+.script-star {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+.script-star:hover {
+  color: #ffdd57;
+}
+.script-star.is-main {
+  color: #ffdd57;
+  cursor: default;
+}
+
+.script-body {
   padding: 0 8px 8px;
 }
 .script-graph {
-  flex: 1;
+  width: 100%;
   min-width: 0;
-  height: 64px;
   display: block;
 }
-.script-meter {
-  position: relative;
-  width: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  overflow: hidden;
+/* compact: just the grip and the menu button in the header */
+.script-panel.is-compact .script-head .script-title,
+.script-panel.is-compact .script-head .script-name,
+.script-panel.is-compact .script-head .script-state,
+.script-panel.is-compact .script-head .script-ai {
+  display: none;
 }
-.script-meter-fill {
+.script-panel.is-compact .script-menu-btn {
+  margin-left: auto;
+}
+/* resized: header on top, the graph fills the rest */
+.script-panel.is-sized {
+  display: flex;
+  flex-direction: column;
+}
+.script-panel.is-sized .script-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+/* out of the layout: the canvas buffer size must not become the panel's minimum
+   (that made the panel grow-only) */
+.script-panel.is-sized .script-graph {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 0;
-  border-radius: 4px;
-  background: linear-gradient(to top, #3e8ed0, #7957d5);
+  left: 8px;
+  top: 0;
+  /* explicit size: a canvas does not stretch between left/right like a div */
+  width: calc(100% - 16px);
+  height: calc(100% - 8px);
+}
+.script-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 14px;
+  height: 14px;
+  line-height: 0;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.script-resize :deep(.icon) {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+.script-resize :deep(.mdi::before) {
+  display: block;
+  line-height: 14px;
+}
+.script-resize:hover {
+  color: rgba(255, 255, 255, 0.8);
 }
 </style>
