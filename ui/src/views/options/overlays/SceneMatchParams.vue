@@ -262,7 +262,7 @@ export default defineComponent({
         const formattedDate = this.ignoreReleasedBefore.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric',});
         this.$buefy.dialog.confirm({
           title: this.$t('Clear existing links'),
-          message: `Do you also wish to clear links from <strong>${formattedDate}</strong>`,
+          message: this.$t('Do you also wish to clear links from {date}', { date: `<strong>${formattedDate}</strong>` }),
           type: 'is-info is-wide',
           hasIcon: true,
           id: 'heh',

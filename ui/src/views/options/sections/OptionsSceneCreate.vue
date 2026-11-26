@@ -16,9 +16,13 @@
           </b-field>
           <p style="font-size: 0.75em;">
             <span style="color: red; font-weight: bold;">{{ $t('R18.dev:') }}</span>
-            {{ $t('DVD-IDs like') }} <span style="font-family: monospace;color:#7957d5">VRKM-139</span> {{ $t('will only work for scenes that were released on r18.com prior to 2022-06.') }}
+            <i18n-t keypath="DVD-IDs like {id} will only work for scenes that were released on r18.com prior to 2022-06." tag="span">
+              <template #id><span style="font-family: monospace;color:#7957d5">VRKM-139</span></template>
+            </i18n-t>
             <br>
-            {{ $t('All newer scenes should be scraped using their full FANZA content ID, e.g.') }} <span style="font-family: monospace;color:#7957d5">84vrkm00139</span> {{ $t('or using one of the other scrapers.') }}
+            <i18n-t keypath="All newer scenes should be scraped using their full FANZA content ID, e.g. {id} or using one of the other scrapers." tag="span">
+              <template #id><span style="font-family: monospace;color:#7957d5">84vrkm00139</span></template>
+            </i18n-t>
           </p>
         </div>
       </div>
@@ -206,22 +210,22 @@ export default defineComponent({
             case "wetvr":
             case "sexbabesvr":
             case "tonightsgirlfriend":
-              fieldCheckMsg = "Please check the Release Date"
+              fieldCheckMsg = this.$t('Please check the Release Date')
               break
             case "fuckpassvr-native":
-              fieldCheckMsg = "Note: Video Previews are not available when scraping single scenes from FuckpassVR"
+              fieldCheckMsg = this.$t('Note: Video Previews are not available when scraping single scenes from FuckpassVR')
               break
             case "lethalhardcorevr":
-              fieldCheckMsg = `Please check the Site if the scene was for WhorecraftVR. Please check the Release Date`
+              fieldCheckMsg = this.$t('Please check the Site if the scene was for WhorecraftVR. Please check the Release Date')
               break
             case "littlecaprice":
-              fieldCheckMsg = `Please specify a URL for the cover image`
+              fieldCheckMsg = this.$t('Please specify a URL for the cover image')
               break
             case "stasyqvr":
-              fieldCheckMsg = `Please specify a Duration if required`
+              fieldCheckMsg = this.$t('Please specify a Duration if required')
               break
             case "bvr ":
-              fieldCheckMsg = `Please check the Release Date and specify a Duration if required`
+              fieldCheckMsg = this.$t('Please check the Release Date and specify a Duration if required')
               break
           }
 

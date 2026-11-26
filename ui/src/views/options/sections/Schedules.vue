@@ -20,7 +20,7 @@
           </div>
 
           <div v-if="open === task.key" class="schedule-body">
-            <p v-if="task.note" class="schedule-note">{{ task.note }}</p>
+            <p v-if="task.note" class="schedule-note">{{ $t(task.note) }}</p>
             <div class="schedule-grid">
               <label>{{ $t('Every') }}</label>
               <b-select size="is-small" v-model.number="schedules[task.key].hourInterval">
@@ -53,7 +53,7 @@
               <label>{{ $t('After startup') }}</label>
               <b-select size="is-small" v-model.number="schedules[task.key].runAtStartDelay">
                 <option v-for="d in startDelays(schedules[task.key].runAtStartDelay)" :key="d" :value="d">
-                  {{ d === 0 ? $t("Don't run") : `${$t('Run after')} ${d} min` }}
+                  {{ d === 0 ? $t("Don't run") : $t('Run after {n} min', { n: d }) }}
                 </option>
               </b-select>
             </div>
@@ -67,7 +67,7 @@
 <script>
 import { defineComponent } from 'vue'
 import ky from 'ky'
-import { formatDistanceToNow, parseISO } from 'date-fns'
+import { relativeTime } from '@/relativeTime'
 import OptionsSection from '../OptionsSection.vue'
 
 // One entry per config.Cron schedule; keys match the Go json keys.
@@ -81,13 +81,7 @@ const TASKS = [
   { key: 'libraryHealthSchedule', name: 'Library health', note: 'Low power background check; it skips a round while other jobs are busy.' }
 ]
 
-const INTERVALS = [
-  ...[1, 2, 3, 4, 6, 8, 12].map(h => ({ hours: h, label: h === 1 ? '1 hour' : `${h} hours` })),
-  ...[1, 2, 3, 5].map(d => ({ hours: d * 24, label: d === 1 ? '1 day' : `${d} days` })),
-  { hours: 168, label: '1 week' },
-  { hours: 336, label: '2 weeks' },
-  { hours: 720, label: '30 days' }
-]
+const INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24, 48, 72, 120, 168, 336, 720]
 
 const DELAYS = [0, 1, 2, 5, 10, 15, 30, 60]
 
@@ -144,10 +138,10 @@ export default defineComponent({
     },
     intervalOptions (key) {
       const s = this.schedules[key]
-      let opts = s.useRange ? [...Array(23)].map((_, i) => ({ hours: i + 1, label: i === 0 ? '1 hour' : `${i + 1} hours` })) : INTERVALS
+      let opts = (s.useRange ? [...Array(23)].map((_, i) => i + 1) : INTERVALS).map(h => ({ hours: h, label: this.intervalLabel(h) }))
       if (!opts.some(o => o.hours === s.hourInterval)) {
         // keep values saved by older versions selectable
-        opts = [...opts, { hours: s.hourInterval, label: `${s.hourInterval} hours` }].sort((a, b) => a.hours - b.hours)
+        opts = [...opts, { hours: s.hourInterval, label: this.intervalLabel(s.hourInterval) }].sort((a, b) => a.hours - b.hours)
       }
       return opts
     },
@@ -158,21 +152,23 @@ export default defineComponent({
       return `${String(h).padStart(2, '0')}:00`
     },
     intervalLabel (hours) {
-      const o = INTERVALS.find(i => i.hours === hours)
-      return o ? o.label : `${hours} hours`
+      if (hours === 168) return this.$t('1 week')
+      if (hours === 336) return this.$t('2 weeks')
+      if (INTERVALS.includes(hours) && hours >= 24) return this.$t('{n} day | {n} days', { n: hours / 24 }, hours / 24)
+      return this.$t('{n} hour | {n} hours', { n: hours }, hours)
     },
     summary (task) {
       const s = this.schedules[task.key]
       if (!s.enabled) return this.$t('Off')
-      let out = `${this.$t('every')} ${this.intervalLabel(s.hourInterval)}`
-      if (s.useRange) out += `, ${this.hourLabel(s.hourStart)} to ${this.hourLabel(s.hourEnd)}`
-      if (s.runAtStartDelay > 0) out += `, ${s.runAtStartDelay} min after start`
+      let out = this.$t('every {interval}', { interval: this.intervalLabel(s.hourInterval) })
+      if (s.useRange) out += this.$t(', {from} to {to}', { from: this.hourLabel(s.hourStart), to: this.hourLabel(s.hourEnd) })
+      if (s.runAtStartDelay > 0) out += this.$t(', {n} min after start', { n: s.runAtStartDelay })
       return out
     },
     nextLabel (task) {
       const next = this.nextRuns[task.key]
       if (!next || !this.schedules[task.key].enabled) return ''
-      return `${this.$t('next')} ${formatDistanceToNow(parseISO(next), { addSuffix: true })}`
+      return this.$t('next {time}', { time: relativeTime(next) })
     }
   }
 })

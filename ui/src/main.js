@@ -6,6 +6,7 @@ import i18n from './i18n'
 
 import vueDebounce from 'vue-debounce'
 import queuedSrc from './imageQueue'
+import fitLabels from './fitLabels'
 
 import Buefy from '@ntohq/buefy-next'
 import '@ntohq/buefy-next/dist/buefy.css'
@@ -29,6 +30,7 @@ app.use(i18n)
 app.use(Buefy)
 app.directive('debounce', vueDebounce({ lock: true }))
 app.directive('queued-src', queuedSrc)
+app.directive('fit-labels', fitLabels)
 
 // a 401 means the session ended (expired, logged out, password changed): go to the login page
 const fetchWithLogin = window.fetch.bind(window)

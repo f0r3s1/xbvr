@@ -1,7 +1,7 @@
 <template>
   <div ref="scrollContainer" style="position: relative; min-height: 200px;">
     <div class="list-toolbar" ref="toolbar">
-      <strong class="toolbar-total">{{ showStudios ? studioCount + ' studios' : showSkeleton ? $t('Loading…') : total + ' results' }}</strong>
+      <strong class="toolbar-total">{{ showStudios ? $t('{n} studios', { n: studioCount }) : showSkeleton ? $t('Loading…') : $t('{n} results', { n: total }) }}</strong>
       <div class="toolbar-segment">
         <b-radio-button name="scene-view" v-model="tab" native-value="any" size="is-small">
           {{$t("Any")}} ({{counts.any}})

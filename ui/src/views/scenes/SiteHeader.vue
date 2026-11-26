@@ -7,15 +7,15 @@
     <div class="site-text">
       <h2 class="site-name">{{ site.name }}</h2>
       <p class="site-meta">
-        {{ site.scene_count.toLocaleString() }} scenes
-        <template v-if="site.available"> · {{ site.available.toLocaleString() }} available</template>
-        <template v-if="site.latest_release"> · latest {{ site.latest_release }}</template>
+        {{ $t('{n} scene | {n} scenes', { n: site.scene_count.toLocaleString() }, site.scene_count) }}
+        <template v-if="site.available"> · {{ $t('{n} available', { n: site.available.toLocaleString() }) }}</template>
+        <template v-if="site.latest_release"> · {{ $t('latest {date}', { date: site.latest_release }) }}</template>
       </p>
     </div>
     <a v-if="site.homepage_url" class="site-home" :href="site.homepage_url" target="_blank" rel="noopener noreferrer" :title="$t('Open website')">
       <b-icon pack="mdi" icon="open-in-new" size="is-small"/>
     </a>
-    <span v-if="site.upcoming" class="site-upcoming">{{ site.upcoming }} upcoming</span>
+    <span v-if="site.upcoming" class="site-upcoming">{{ $t('{n} upcoming', { n: site.upcoming }) }}</span>
     <button type="button" class="site-clear" :title="$t('Show all sites')" :aria-label="$t('Show all sites')" @click="clear">
       <b-icon pack="mdi" icon="close"/>
     </button>

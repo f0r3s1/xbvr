@@ -12,7 +12,7 @@
             <div class="progress-info">
               <span class="progress-count">{{ migrationState.progress }}/{{ migrationState.total }}</span>
               <span v-if="showETA" class="eta-text">
-                ETA: {{ estimatedTimeRemaining || '∞' }}
+                {{ $t('ETA: {eta}', { eta: estimatedTimeRemaining || '∞' }) }}
               </span>
             </div>
             <progress

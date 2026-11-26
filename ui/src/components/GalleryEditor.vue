@@ -27,7 +27,7 @@
           :class="{ 'is-info': !isLocked, 'is-warning': isLocked }"
           icon-left="lock"
           style="font-size: 0.6rem; padding: 0.25rem 0.5rem; line-height: 1; margin: 0;">
-          {{ isLocked ? 'Unlock' : 'Lock' }} Delete
+          {{ isLocked ? $t('Unlock Delete') : $t('Lock Delete') }}
         </b-button>
       </div>
     </div>
@@ -35,7 +35,7 @@
     <draggable :list="internalList" :item-key="item => item" @end="onDragEnd" class="image-grid">
       <template #item="{ element: item, index }">
       <div class="image-item">
-        <img :src="getImageURL(item)" alt="Gallery image" class="gallery-image"/>
+        <img :src="getImageURL(item)" :alt="$t('Gallery image')" class="gallery-image"/>
         <div class="image-controls">
           <b-tooltip :label="$t('Delete Image')" type="is-dark" position="is-top" :delay="500" append-to-body>
             <b-button 

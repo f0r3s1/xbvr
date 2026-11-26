@@ -61,7 +61,7 @@
                     <b-button :label="$t('Clear Fields')" @click="videoSequence=''" />                  
                     <b-dropdown v-model="selectedVideoField" aria-role="list" :scrollable=true max-height="200">
                         <template #trigger>
-                            <b-button :label="selectedVideoField" icon-right="menu-down"/>
+                            <b-button :label="$t(selectedVideoField)" icon-right="menu-down"/>
                         </template>
                         <b-dropdown-item aria-role="listitem" value='Filename'>{{ $t('Filename') }}</b-dropdown-item>
                         <b-dropdown-item aria-role="listitem" value='Added'>{{ $t('Added') }}</b-dropdown-item>
@@ -75,7 +75,7 @@
                     </b-dropdown>
                     <b-dropdown v-model="selectedVideoSequence" aria-role="list">
                         <template #trigger>
-                            <b-button :label="selectedVideoSequence" icon-right="menu-down" />
+                            <b-button :label="$t(selectedVideoSequence)" icon-right="menu-down" />
                         </template>
                         <b-dropdown-item aria-role="listitem" value='Ascending'>{{ $t('Ascending') }}</b-dropdown-item>
                         <b-dropdown-item aria-role="listitem" value='Descending'>{{ $t('Descending') }}</b-dropdown-item>
@@ -91,7 +91,7 @@
                     <b-button :label="$t('Clear Fields')" @click="scriptSequence=''" />                  
                     <b-dropdown v-model="selectedScriptField" aria-role="list">
                         <template #trigger>
-                            <b-button :label="selectedScriptField" icon-right="menu-down" />
+                            <b-button :label="$t(selectedScriptField)" icon-right="menu-down" />
                         </template>
                         <b-dropdown-item aria-role="listitem" value='Filename'>{{ $t('Filename') }}</b-dropdown-item>
                         <b-dropdown-item aria-role="listitem" value='Added'>{{ $t('Added') }}</b-dropdown-item>
@@ -100,7 +100,7 @@
                     </b-dropdown>
                     <b-dropdown v-model="selectedScriptSequence" aria-role="list">
                         <template #trigger>
-                            <b-button :label="selectedScriptSequence" icon-right="menu-down" />
+                            <b-button :label="$t(selectedScriptSequence)" icon-right="menu-down" />
                         </template>
                         <b-dropdown-item aria-role="listitem" value='Ascending'>{{ $t('Ascending') }}</b-dropdown-item>
                         <b-dropdown-item aria-role="listitem" value='Descending'>{{ $t('Descending') }}</b-dropdown-item>
@@ -116,7 +116,7 @@
                     <b-button :label="$t('Clear Fields')" @click="subtitleSequence=''" />
                     <b-dropdown v-model="selectedSubtitleField" aria-role="list">
                         <template #trigger>
-                            <b-button :label="selectedSubtitleField" icon-right="menu-down" />
+                            <b-button :label="$t(selectedSubtitleField)" icon-right="menu-down" />
                         </template>
                         <b-dropdown-item aria-role="listitem" value='Filename'>{{ $t('Filename') }}</b-dropdown-item>
                         <b-dropdown-item aria-role="listitem" value='Added'>{{ $t('Added') }}</b-dropdown-item>
@@ -125,7 +125,7 @@
                     </b-dropdown>
                     <b-dropdown v-model="selectedSubtitleSequence" aria-role="list">
                         <template #trigger>
-                            <b-button :label="selectedSubtitleSequence" icon-right="menu-down" />
+                            <b-button :label="$t(selectedSubtitleSequence)" icon-right="menu-down" />
                         </template>
                         <b-dropdown-item aria-role="listitem" value='Ascending'>{{ $t('Ascending') }}</b-dropdown-item>
                         <b-dropdown-item aria-role="listitem" value='Descending'>{{ $t('Descending') }}</b-dropdown-item>
@@ -145,7 +145,10 @@
           </div>
           <hr/>
           <p>
-            {{ $t('NOTE: make sure DeoVR is using') }} <strong>http://</strong> not <strong>https://</strong>.<br/>
+            <i18n-t keypath="NOTE: make sure DeoVR is using {http} not {https}." tag="span">
+              <template #http><strong>http://</strong></template>
+              <template #https><strong>https://</strong></template>
+            </i18n-t><br/>
             {{ $t('To toggle used protocol, click on it in DeoVR\'s URL bar.') }}
           </p>
         </div>

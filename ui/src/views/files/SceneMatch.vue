@@ -22,7 +22,7 @@
             <br/>
             {{ prettyBytes(file.size) }},
             <span v-if="file.type == 'video'">{{ file.video_width }}x{{ file.video_height }}, </span>
-            <span v-if="file.duration > 0">{{ Math.floor(file.duration / 60) }} min,</span>
+            <span v-if="file.duration > 0">{{ $t('{n} min', { n: Math.floor(file.duration / 60) }) }},</span>
             {{ format(parseISO(file.created_time), "yyyy-MM-dd") }}
           </small>
 
@@ -88,7 +88,7 @@
               {{ format(parseISO(props.row.release_date), "yyyy-MM-dd") }}
             </b-table-column>
             <b-table-column field="duration" :label="$t('Duration')" sortable nowrap v-slot="props">
-              {{ props.row.duration > 0 ? props.row.duration + " min" : ""}}
+              {{ props.row.duration > 0 ? $t('{n} min', { n: props.row.duration }) : ""}}
             </b-table-column>
             <b-table-column field="scene_id" :label="$t('ID')" sortable nowrap v-slot="props">
               {{ props.row.scene_id }}

@@ -1,10 +1,10 @@
 <template>
-  <div class="filter-panel">
-    <div class="is-divider" data-content="Saved searches"></div>
+  <div v-fit-labels class="filter-panel">
+    <div class="is-divider" :data-content="$t('Saved searches')"></div>
 
     <SavedSearch/>
 
-    <div class="is-divider" data-content="Properties"></div>
+    <div class="is-divider" :data-content="$t('Properties')"></div>
 
     <div class="columns is-mobile is-gapless property-filters">
       <div class="column" :title="$t('Watchlist')">
@@ -33,7 +33,7 @@
       </div>
     </div>
 
-    <div class="is-divider" data-content="Sorting / Status / Release"></div>
+    <div class="is-divider" :data-content="$t('Sorting / Status / Release')"></div>
 
     <b-field :label="$t('Sort by')" label-for="filter-sort" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
@@ -103,7 +103,7 @@
       </div>
     </b-field>
 
-    <div class="is-divider" data-content="Filters"></div>
+    <div class="is-divider" :data-content="$t('Filters')"></div>
 
     <div v-if="Object.keys(filters).length !== 0">
       <b-field :label="$t('Cast')" label-for="filter-cast" label-position="on-border" class="field-extra">
@@ -114,7 +114,7 @@
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
                 :key="tag+index" :tabstop="false" closable  @close="cast=cast.filter(e => e !== tag)" @click="toggle3way(tag,index,'cast')">              
-                <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+                <span class="chip-label" :title="$t(tag.charAt(0)=='!' ? 'Exclude {name}' : tag.charAt(0)=='&' ? 'Must Have {name}' : 'Include {name}', { name: removeConditionPrefix(tag) })">
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   {{removeConditionPrefix(tag)}}
@@ -132,7 +132,7 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="sites=sites.filter(e => e !== tag)" @click="toggle2Way(tag,index,'sites')">
-                <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+                <span class="chip-label" :title="$t(tag.charAt(0)=='!' ? 'Exclude {name}' : 'Include {name}', { name: removeConditionPrefix(tag) })">
                   <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                   {{removeConditionPrefix(tag)}}
                 </span>
@@ -149,7 +149,7 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="tags=tags.filter(e => e !== tag)" @click="toggle3way(tag,index,'tags')"> 
-              <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+              <span class="chip-label" :title="$t(tag.charAt(0)=='!' ? 'Exclude {name}' : tag.charAt(0)=='&' ? 'Must Have {name}' : 'Include {name}', { name: removeConditionPrefix(tag) })">
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 {{removeConditionPrefix(tag)}}
@@ -167,7 +167,7 @@
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
               :key="tag+index" :tabstop="false" closable  @close="cuepoint=cuepoint.filter(e => e !== tag)" @click="toggle3way(tag,index,'cuepoints')"> 
-              <span class="chip-label" :title="tag.charAt(0)=='!' ? 'Exclude ' + removeConditionPrefix(tag) : tag.charAt(0)=='&' ? 'Must Have ' + removeConditionPrefix(tag) : 'Include ' + removeConditionPrefix(tag)">
+              <span class="chip-label" :title="$t(tag.charAt(0)=='!' ? 'Exclude {name}' : tag.charAt(0)=='&' ? 'Must Have {name}' : 'Include {name}', { name: removeConditionPrefix(tag) })">
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='!'" icon="minus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 <b-icon pack="mdi" v-if="tag.charAt(0)=='&'" icon="plus-circle-outline" size="is-small" class="tagicon"></b-icon>
                 {{removeConditionPrefix(tag)}}
@@ -195,7 +195,7 @@
         </b-field>
       </b-tooltip>
     </div>
-    <div class="is-divider" data-content="Actor Also Known As groups"></div>
+    <div class="is-divider" :data-content="$t('Actor Also Known As groups')"></div>
     <b-field class="group-actions">
       <b-tooltip position="is-right" :label="$t('New Aka Group. Select 2 or more actors in the Cast filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="createAkaGroup" :disabled="disableNewAkaGroup">
@@ -219,7 +219,7 @@
       </b-tooltip>
 
     </b-field>
-    <div class="is-divider" data-content="Tag Groups"></div>
+    <div class="is-divider" :data-content="$t('Tag Groups')"></div>
     <b-field class="group-actions">
       <b-tooltip position="is-right" :label="$t('New Tag Group. Select 2 or more tags in the Tag filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="showGroupTagNameDialog('create')" :disabled="disableNewTagGroup">
@@ -368,7 +368,7 @@ export default defineComponent({
         this.$store.dispatch('sceneList/filters')
         this.reloadList()
         if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+          this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
         }
         this.$store.state.sceneList.isLoading = false
       })
@@ -390,7 +390,7 @@ export default defineComponent({
         this.$store.dispatch('sceneList/filters')       
         this.reloadList()        
         if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+          this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
         }
         this.$store.state.sceneList.isLoading = false
       })
@@ -404,7 +404,7 @@ export default defineComponent({
         this.$store.dispatch('sceneList/filters')
         this.reloadList()
         if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+          this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
         }
         this.$store.state.sceneList.isLoading = false
       })
@@ -431,7 +431,7 @@ export default defineComponent({
         this.$store.dispatch('sceneList/filters')
         this.reloadList()
         if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+          this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
         }
         this.$store.state.sceneList.isLoading = false
       })
@@ -451,7 +451,7 @@ export default defineComponent({
         this.$store.dispatch('sceneList/filters')       
         this.reloadList()        
         if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+          this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
         }
         this.$store.state.sceneList.isLoading = false
       })
@@ -463,7 +463,7 @@ export default defineComponent({
         this.$store.dispatch('sceneList/filters')
         this.reloadList()
         if (data.status != '') {
-          this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+          this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
         }
         this.$store.state.sceneList.isLoading = false
       })

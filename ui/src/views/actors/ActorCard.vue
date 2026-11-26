@@ -24,7 +24,7 @@
 
       <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
         <a v-if="colleague != undefined" class="button is-info is-outlined is-small"
-           @click="showColleague(actor.name, colleague)" :title="'Show Scenes with ' + actor.name">
+           @click="showColleague(actor.name, colleague)" :title="$t('Show Scenes with {name}', { name: actor.name })">
           <b-icon pack="mdi" icon="movie-outline" size="is-small"/>
         </a>
         <actor-favourite-button :actor="actor" v-if="$store.state.optionsWeb.web.sceneFavourite"/>
@@ -47,9 +47,9 @@
           <vue-load-image v-if="actor.nationality" class="flag-wrap">
             <template #image><img loading="lazy" decoding="async" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() + '.svg')" class="flag" :title="actor.nationality"/></template>
           </vue-load-image>
-          <span>{{sceneCount}} {{sceneCount == 1 ? 'scene' : 'scenes'}}<template v-if="actor.avail_count > 0"> · {{actor.avail_count}} available</template></span>
+          <span>{{ $t('{n} scene | {n} scenes', { n: sceneCount }, sceneCount) }}<template v-if="actor.avail_count > 0"> · {{ $t('{n} available', { n: actor.avail_count }) }}</template></span>
         </span>
-        <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ age }} yrs</span>
+        <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ $t('{n} yrs', { n: age }) }}</span>
       </div>
     </div>
   </div>

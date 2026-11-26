@@ -137,12 +137,16 @@
                   <option value="light">{{ $t('Light') }}</option>
                 </b-select>
               </div>
-              <div class="setting-item">
+              <div class="setting-item language-item">
                 <label class="setting-label">{{ $t('Language') }}</label>
                 <b-select size="is-small" v-model="language">
                   <option value="">{{ $t('Auto') }}</option>
                   <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.name }}</option>
                 </b-select>
+                <p class="language-hint">
+                  {{ $t('Missing or wrong translation?') }}
+                  <a href="https://github.com/f0r3s1/xbvr/tree/master/ui/src/locales" target="_blank" rel="noopener">{{ $t('Suggest a fix on GitHub') }}</a>
+                </p>
               </div>
               <div class="setting-item">
                 <b-switch v-model="accentColorTags" type="is-dark" size="is-small">
@@ -418,6 +422,15 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.language-item {
+  flex-wrap: wrap;
+}
+.language-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.6;
 }
 .setting-label {
   font-size: 0.85rem;

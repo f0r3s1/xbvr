@@ -1,7 +1,7 @@
 <template>
   <div style="position: relative; min-height: 200px;">
     <div class="list-toolbar" ref="toolbar">
-      <strong class="toolbar-total">{{ showSkeleton ? $t('Loading…') : total + ' results' }}</strong>
+      <strong class="toolbar-total">{{ showSkeleton ? $t('Loading…') : $t('{n} results', { n: total }) }}</strong>
       <nav class="letter-filter" :aria-label="$t('Filter by first letter')">
         <button v-for="l in letters" :key="l.value" type="button" class="letter"
                 :class="{ 'is-active': jumpTo === l.value, 'is-all': l.value === '' }"
@@ -37,7 +37,7 @@
         </div>
       </template>
       <div class="column is-full empty-state" v-if="!isLoading && !actors.length">
-        {{ jumpTo ? `No actors starting with ${jumpTo}` : 'No actors match these filters' }}
+        {{ jumpTo ? $t('No actors starting with {letter}', { letter: jumpTo }) : $t('No actors match these filters') }}
       </div>
     </div>
 

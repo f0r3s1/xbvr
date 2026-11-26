@@ -419,11 +419,10 @@ export default defineComponent({
   @media (prefers-reduced-motion: reduce) {
     .skeleton-card, .skeleton-block { animation: none; }
   }
-  /* Labels sit inside their field on the left (one compact row, value vertically
-     centred), never cut into the border. Fixed label column so values align. */
+  /* labels sit inside their field; the column fits the longest label of the panel (v-fit-labels) */
   .filter-panel .field.is-floating-label {
     position: relative;
-    --label-col: 84px;
+    --label-col: var(--panel-label-col, 84px);
   }
   .filter-panel .field.is-floating-label .label {
     position: absolute !important;

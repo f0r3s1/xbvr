@@ -65,7 +65,7 @@
                     </span>
                   </div>
                   <div>
-                    <a class="button is-primary is-small" @click="linktoStashdb(props.row)" :title="'Link Actor with stashdb'">
+                    <a class="button is-primary is-small" @click="linktoStashdb(props.row)" :title="$t('Link Actor with stashdb')">
                       <b-icon pack="mdi" :icon="'link-variant-plus'" size="is-small" />
                     </a>
                   </div>
@@ -147,7 +147,7 @@ export default defineComponent({
             this.searchResults = Object.values(data.Results).sort((a, b) => b.Weight - a.Weight)
             this.isModalActive = true
             if (data.Status!='') {
-              this.$buefy.toast.open({message: `Warning:  ${data.Status}`, type: 'is-warning', duration: 5000})
+              this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.Status }), type: 'is-warning', duration: 5000})
             }
         })
     },

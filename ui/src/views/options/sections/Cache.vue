@@ -8,7 +8,7 @@
         </div>
         <span class="row-size">{{ prettyBytes(sizes.images) }}</span>
         <div class="row-actions">
-          <b-field class="max-size" :title="'Max size in GB'">
+          <b-field class="max-size" :title="$t('Max size in GB')">
             <b-input v-model.number="imageMaxGB" type="number" min="0" size="is-small" @blur="saveImageMaxGB" @keyup.enter="saveImageMaxGB" />
             <p class="control"><span class="button is-static is-small">{{ $t('GB') }}</span></p>
           </b-field>
@@ -29,7 +29,7 @@
       <div class="settings-row">
         <div class="row-text">
           <strong>{{ $t('Search index') }}</strong>
-          <span class="row-note">{{ searchInprogress ? 'Indexing…' : indexSceneCount + ' scenes indexed' }}</span>
+          <span class="row-note">{{ searchInprogress ? $t('Indexing…') : $t('{n} scenes indexed', { n: indexSceneCount }) }}</span>
           <p>{{ $t('Remove the search index when finding or matching files misbehaves.') }}</p>
         </div>
         <span class="row-size">{{ prettyBytes(sizes.searchIndex) }}</span>
@@ -91,11 +91,11 @@ export default defineComponent({
   },
   computed: {
     fixStatusText () {
-      if (this.fixRunning && this.fixPhase === 'scanning') return 'Scanning…'
-      if (this.fixRunning && this.fixPhase === 'fixing') return `Fixing ${this.fixDone}/${this.fixTotal}…`
+      if (this.fixRunning && this.fixPhase === 'scanning') return this.$t('Scanning…')
+      if (this.fixRunning && this.fixPhase === 'fixing') return this.$t('Fixing {done}/{total}…', { done: this.fixDone, total: this.fixTotal })
       if (this.fixResult) {
-        let t = `Fixed ${this.fixResult.fixed} of ${this.fixResult.scanned}`
-        if (this.fixResult.failed) t += `, ${this.fixResult.failed} failed`
+        let t = this.$t('Fixed {fixed} of {scanned}', { fixed: this.fixResult.fixed, scanned: this.fixResult.scanned })
+        if (this.fixResult.failed) t += this.$t(', {n} failed', { n: this.fixResult.failed })
         return t
       }
       return ''

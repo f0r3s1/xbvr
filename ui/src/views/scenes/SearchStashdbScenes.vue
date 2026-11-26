@@ -39,13 +39,13 @@
                         <template #error><img src="/ui/images/blank.png" height="150"/></template>
                     </vue-load-image>
                     <div v-if="tooltipImage!='' && tooltipImage==props.row.ImageUrl" class="tooltipimg">
-                      <img :src="tooltipImage" alt="Tooltip Image" width="400px" />
+                      <img :src="tooltipImage" :alt="$t('Tooltip Image')" width="400px" />
                     </div>
                   <div v-if="props.row.Date!=''"><small><strong>{{ $t('Released:') }}</strong> {{format(parseISO(props.row.Date), "yyyy-MM-dd")}}</small></div>
                   <div v-if="props.row.Duration!=''"><small><strong>{{ $t('Durn:') }}</strong> {{ props.row.Duration }}</small></div>
                   <div><small><strong>{{ $t('Score:') }}</strong> {{ props.row.Weight }}</small></div>
                   <div>
-                    <a class="button is-primary is-small" @click="linktoStashdb(props.row)" :title="'Link scene with stashdb'">
+                    <a class="button is-primary is-small" @click="linktoStashdb(props.row)" :title="$t('Link scene with stashdb')">
                       <b-icon pack="mdi" :icon="'link-variant-plus'" size="is-small"/>
                     </a>
                   </div>
@@ -120,9 +120,9 @@ export default defineComponent({
       ky.get('/api/extref/stashdb/search/' + this.scene.id, { searchParams: { q: this.queryString }, timeout: 120000 }).json()
         .then(data => {
           this.searchResults = Object.values(data.Results || {}).sort((a, b) => b.Weight - a.Weight)
-          if (!this.searchResults.length) this.statusMessage = data.Status || 'No StashDB scenes found. Try other words or paste the scene URL.'
+          if (!this.searchResults.length) this.statusMessage = data.Status || this.$t('No StashDB scenes found. Try other words or paste the scene URL.')
         })
-        .catch(() => { this.statusMessage = 'StashDB search failed. Check the StashDB API key in Options → Advanced.' })
+        .catch(() => { this.statusMessage = this.$t('StashDB search failed. Check the StashDB API key in Options → Advanced.') })
         .finally(() => { this.isFetching = false })
     },
     selectScene(option) {

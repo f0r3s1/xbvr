@@ -59,7 +59,7 @@
           {{item.star_rating}}
         </b-tag>
         <b-tag v-if="scriptSpeed && $store.state.optionsWeb.web.sceneScriptSpeed" class="mini-tag duration-tag" :title="$t('Average speed of the selected script')">
-          {{ scriptSpeed }} avg
+          {{ $t('{speed} avg', { speed: scriptSpeed }) }}
         </b-tag>
         <b-tag v-if="item.duration > 0 && this.$store.state.optionsWeb.web.sceneDuration" class="mini-tag duration-tag">
           {{item.duration}}m
@@ -209,12 +209,12 @@ export default defineComponent({
     scriptBadgeTitle () {
       const scripts0 = (this.item.file || []).filter(f => f.type === 'script')
       const nAi = scripts0.filter(f => isAiScript(f.filename)).length
-      const kind = this.aiScripts === 'all' ? (scripts0.length > 1 ? `${scripts0.length} AI scripts` : 'AI script')
-        : this.aiScripts === 'some' ? `${scripts0.length} scripts, ${nAi} AI` : (scripts0.length > 1 ? `${scripts0.length} scripts` : 'Script')
+      const kind = this.aiScripts === 'all' ? (scripts0.length > 1 ? this.$t('{n} AI scripts', { n: scripts0.length }) : this.$t('AI script'))
+        : this.aiScripts === 'some' ? this.$t('{n} scripts, {ai} AI', { n: scripts0.length, ai: nAi }) : (scripts0.length > 1 ? this.$t('{n} scripts', { n: scripts0.length }) : this.$t('Script'))
       const scripts = (this.item.file || []).filter(f => f.type === 'script')
       const s = scripts.find(f => f.is_selected_script) || scripts[0]
       if (!s || !s.script_actions) return kind
-      return `${kind} · ${Math.round(s.script_avg_speed)} avg speed · ${Math.round(s.script_strokes_per_min)} strokes/min`
+      return `${kind} · ${this.$t('{n} avg speed', { n: Math.round(s.script_avg_speed) })} · ${this.$t('{n} strokes/min', { n: Math.round(s.script_strokes_per_min) })}`
     },
     scriptFilesCount () {
       if (this.item.file == null) { return 0 }
@@ -264,14 +264,14 @@ export default defineComponent({
     upcomingLabel () {
       if (!this.item.is_upcoming) return ''
       const d = this.item.release_date
-      if (!d || d.startsWith('0001-')) return 'Upcoming'
+      if (!d || d.startsWith('0001-')) return this.$t('Upcoming')
       const release = parseISO(d.slice(0, 10))
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const days = Math.round((release.setHours(0, 0, 0, 0) - today) / 86400000)
-      if (days < 0) return 'Upcoming'
-      if (days === 0) return 'Upcoming today'
-      return days === 1 ? 'Upcoming tomorrow' : `Upcoming in ${days} days`
+      if (days < 0) return this.$t('Upcoming')
+      if (days === 0) return this.$t('Upcoming today')
+      return days === 1 ? this.$t('Upcoming tomorrow') : this.$t('Upcoming in {n} days', { n: days })
     },
     hasActiveStatus () {
       return this.item.is_hidden || this.item.favourite || this.item.is_watched ||
@@ -337,9 +337,9 @@ export default defineComponent({
             const extdata = JSON.parse(altsrc.external_data)
             let title
             if (altsrc.external_source.startsWith("alternate scene ")) {
-              title = extdata.scene?.title || 'No Title'
+              title = extdata.scene?.title || this.$t('No Title')
             } else if (altsrc.external_source == "stashdb scene") {
-              title = extdata.title || 'No Title'
+              title = extdata.title || this.$t('No Title')
             }
             if (altsrc.external_source.includes('stashdb')) {
               this.stashLinkExists = true

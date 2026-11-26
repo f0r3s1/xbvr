@@ -59,7 +59,7 @@
       <b-table-column field="last_update" :label="$t('Last scrape')" sortable v-slot="props">
         <span v-if="!runningScrapers.includes(props.row.id)">
           <span v-if="props.row.last_update !== '0001-01-01T00:00:00Z'" class="last-scrape">
-            {{formatDistanceToNow(parseISO(props.row.last_update))}}
+            {{ relativeTime(props.row.last_update) }}
           </span>
           <span v-else class="never-scraped">{{$t('Never')}}</span>
         </span>
@@ -183,16 +183,16 @@
         <section class="modal-card-body">
           <b-field v-if="additionalInfoIdx == 0 && this.scraperwarning != ''"><span>{{this.scraperwarning}}</span></b-field>
           <b-field v-if="additionalInfoIdx == 0 && this.scraperwarning2 != ''"><span>{{this.scraperwarning2}}</span></b-field>          
-          <b-field :label=this.additionalInfo[additionalInfoIdx].fieldPrompt>
+          <b-field :label="$t(additionalInfo[additionalInfoIdx].fieldPrompt)">
             <b-input v-if="additionalInfo[additionalInfoIdx].type != 'checkbox'"
               :type=additionalInfo[additionalInfoIdx].type
               v-model='additionalInfo[additionalInfoIdx].fieldValue'
               :required=additionalInfo[additionalInfoIdx].required
-              :placeholder=additionalInfo[additionalInfoIdx].placeholder                            
+              :placeholder="$t(additionalInfo[additionalInfoIdx].placeholder)"                            
               ref="additionInfoInput"
               >
             </b-input>
-            <b-checkbox v-if="additionalInfo[additionalInfoIdx].type == 'checkbox'" v-model="additionalInfo[additionalInfoIdx].fieldValue">{{this.additionalInfo[additionalInfoIdx].fieldPrompt}}</b-checkbox>
+            <b-checkbox v-if="additionalInfo[additionalInfoIdx].type == 'checkbox'" v-model="additionalInfo[additionalInfoIdx].fieldValue">{{ $t(additionalInfo[additionalInfoIdx].fieldPrompt) }}</b-checkbox>
           </b-field>
         </section>
         <footer class="modal-card-foot">
@@ -208,7 +208,8 @@
 import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
-import { formatDistanceToNow, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
+import { relativeTime } from '@/relativeTime'
 
 export default {
   name: 'OptionsSites',
@@ -254,7 +255,7 @@ export default {
     taskScrapeScene (scraper) {
       this.currentScraper=scraper      
       this.additionalInfo = [{fieldName: "scene_url", fieldPrompt: "Scene Url", placeholder: "Enter the url for a VR Scene", fieldValue: '', required: true, type: 'url'}]      
-      this.scraperwarning = "Take care to only use scene urls for the " + scraper + " Scraper"
+      this.scraperwarning = this.$t('Take care to only use scene urls for the {scraper} Scraper', { scraper })
       this.scraperwarning2 = ""
       switch (scraper) {
         case 'wankzvr':
@@ -262,13 +263,13 @@ export default {
         case 'herpovr':
         case  'brasilvr':
         case 'tranzvr':
-          this.scraperwarning = "Only use povr.com urls for the " + scraper + " Scraper"
+          this.scraperwarning = this.$t('Only use povr.com urls for the {scraper} Scraper', { scraper })
           break
         case 'tonightsgirlfriend':
-          this.scraperwarning2 = "Warning " + scraper + " also includes 2d scenes, only select scenes from their VR section"
+          this.scraperwarning2 = this.$t('Warning {scraper} also includes 2d scenes, only select scenes from their VR section', { scraper })
           break
         case 'naughtyamericavr':
-          this.scraperwarning2 = "Warning The NaughtyAmerica site also includes 2d scenes, only select scenes from their VR section"
+          this.scraperwarning2 = this.$t('Warning The NaughtyAmerica site also includes 2d scenes, only select scenes from their VR section')
           break
     }
       this.additionalInfoIdx=0
@@ -284,28 +285,28 @@ export default {
       this.isSingleScrapeModalActive = false      
       let fieldCheckMsg = ""
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('fuckpassvr.com')) {
-        fieldCheckMsg = "Note: Video Previews are not available when scraping single scenes from FuckpassVR"
+        fieldCheckMsg = this.$t('Note: Video Previews are not available when scraping single scenes from FuckpassVR')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('lethalhardcorevr.com')) {
-        fieldCheckMsg = `Please check the Site if the scene was for WhorecraftVR. Please check the Release Date`
+        fieldCheckMsg = this.$t('Please check the Site if the scene was for WhorecraftVR. Please check the Release Date')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('littlecaprice-dreams.com')) {
-        fieldCheckMsg = `Please specify a URL for the cover image`
+        fieldCheckMsg = this.$t('Please specify a URL for the cover image')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('sexbabesvr.com')) {
-        fieldCheckMsg = "Please check the Release Date"
+        fieldCheckMsg = this.$t('Please check the Release Date')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('stasyqvr.com')) {
-        fieldCheckMsg = `Please specify a Duration if required`
+        fieldCheckMsg = this.$t('Please specify a Duration if required')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('tonightsgirlfriend.com')) {
-        fieldCheckMsg = "Please check the Release Date"
+        fieldCheckMsg = this.$t('Please check the Release Date')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('virtualporn.com')) {
-        fieldCheckMsg = `Please check the Release Date and specify a Duration if required`
+        fieldCheckMsg = this.$t('Please check the Release Date and specify a Duration if required')
       }
       if (this.additionalInfo[0].fieldValue.toLowerCase().includes('wetvr.com')) {
-        fieldCheckMsg = "Please check the Release Date"
+        fieldCheckMsg = this.$t('Please check the Release Date')
       }
 
       if (this.additionalInfoIdx == 0) {
@@ -340,13 +341,13 @@ export default {
       ky.post('/api/options/scraper/force-site-update', {
         json: { scraper_id: scraper }
       })
-      this.$buefy.toast.open(`Scenes from ${site} will be updated on next scrape`)
+      this.$buefy.toast.open(this.$t('Scenes from {site} will be updated on next scrape', { site }))
     },
     deleteScenes (site) {
       const self = this
       this.$buefy.dialog.confirm({
         title: this.$t('Delete scraped scenes'),
-        message: `You're about to delete scraped scenes for <strong>${site.name}</strong>.`,
+        message: this.$t("You're about to delete scraped scenes for {site}.", { site: `<strong>${site.name}</strong>` }),
         type: 'is-danger',
         hasIcon: true,
         onConfirm: function () {
@@ -370,7 +371,7 @@ export default {
     removeSceneLinks (site, all) {
       this.$buefy.dialog.confirm({
         title: this.$t('Remove Scene Links'),
-        message: `You're about to remove links for scenes from <strong>${site.name}</strong>. Scenes will be relinked after the next scrape.`,
+        message: this.$t("You're about to remove links for scenes from {site}. Scenes will be relinked after the next scrape.", { site: `<strong>${site.name}</strong>` }),
         type: 'is-warning',
         hasIcon: true,
         onConfirm: function () {
@@ -389,7 +390,7 @@ export default {
     },
     scrapeActors(site, scraper) {      
       ky.get('/api/extref/generic/scrape_by_site/' + scraper)
-      this.$buefy.toast.open(`Scraping Actor Details from ${site}`)
+      this.$buefy.toast.open(this.$t('Scraping Actor Details from {site}', { site }))
     },
     async toggleAllSubscriptions(){
       const table = this.$refs.scraperTable;
@@ -464,7 +465,7 @@ export default {
       return `${month}/${day}/${year}`
     },
     parseISO,
-    formatDistanceToNow
+    relativeTime
   },
   computed: {
     scraperList() {

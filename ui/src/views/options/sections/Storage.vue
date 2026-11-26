@@ -28,7 +28,7 @@
         </b-table-column>
         <b-table-column field="last_scan" :label="$t('Last scan')" sortable v-slot="props">
             <span v-if="props.row.last_scan !== '0001-01-01T00:00:00Z'">
-              {{ formatDistanceToNow(parseISO(props.row.last_scan)) }} ago
+              {{ relativeTime(props.row.last_scan) }}
             </span>
           <span v-else>{{ $t('never') }}</span>
         </b-table-column>
@@ -146,7 +146,8 @@
 import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import prettyBytes from 'pretty-bytes'
-import { formatDistanceToNow, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
+import { relativeTime } from '@/relativeTime'
 
 export default {
   name: 'Storage',
@@ -160,7 +161,7 @@ export default {
       newVolumePath: '',
       prettyBytes,
       parseISO,
-      formatDistanceToNow,
+      relativeTime,
       lastAddedTag: null,
       lastAddedTime: 0
     }
@@ -193,7 +194,7 @@ export default {
     removeFolder: function (folder) {
       this.$buefy.dialog.confirm({
         title: this.$t('Remove folder'),
-        message: `You're about to remove storage location <strong>${folder.path}</strong> and its files from local database - files will remain intact at the location.`,
+        message: this.$t("You're about to remove storage location {path} and its files from local database - files will remain intact at the location.", { path: `<strong>${folder.path}</strong>` }),
         type: 'is-danger',
         hasIcon: true,
         onConfirm: function () {
@@ -250,7 +251,7 @@ export default {
       if (this.forbidden_video_ext && this.forbidden_video_ext.includes(cleanTag)) {
         this.$buefy.dialog.alert({
           title: this.$t('Invalid Extension'),
-          message: `The file extension <strong>${cleanTag}</strong> is a reserved extension and cannot be added.`,
+          message: this.$t('The file extension {ext} is a reserved extension and cannot be added.', { ext: `<strong>${cleanTag}</strong>` }),
           type: 'is-danger',
           hasIcon: true,
           ariaRole: 'alertdialog',

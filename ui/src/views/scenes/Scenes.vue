@@ -10,7 +10,7 @@
           <a id="toTop" @click="scrollToTop">
             <b-icon pack="mdi" icon="navigation" />
           </a>
-          <a id="toggleInfiniteScroll" @click="toggleInfiniteScroll" :title="infiniteScrollEnabled ? 'Disable Auto Load More' : 'Enable Auto Load More'">
+          <a id="toggleInfiniteScroll" @click="toggleInfiniteScroll" :title="infiniteScrollEnabled ? $t('Disable Auto Load More') : $t('Enable Auto Load More')">
             <b-icon pack="mdi" :icon="infiniteScrollEnabled ? 'reload' : 'pause'" />
           </a>
         </div>

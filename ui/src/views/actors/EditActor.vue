@@ -55,7 +55,7 @@
                 <b-input type="number" v-model.number="actor.height" min="0" :placeholder="$t('cm')" @blur="blur('height')"/>
               </b-field>
               <b-field :label="$t('Measurements')" label-position="on-border">
-                <b-input type="text" v-model="actor.measurements" :placeholder="$t('eg 36C-24-36')" pattern="(^(\d{2})?([A-Za-z]{0,2})-(\d{2})?-(\d{2}$)?)|^[A-Z]{0,2}$" validation-message="use the format 99A-99-99"
+                <b-input type="text" v-model="actor.measurements" :placeholder="$t('eg 36C-24-36')" pattern="(^(\d{2})?([A-Za-z]{0,2})-(\d{2})?-(\d{2}$)?)|^[A-Z]{0,2}$" :validation-message="$t('use the format 99A-99-99')"
                   @blur="blur('measurements')"/>
               </b-field>
               <div class="year-pair">
@@ -295,7 +295,7 @@ export default defineComponent({
     deleteactor () {
       this.$buefy.dialog.confirm({
         title: this.$t('Delete actor'),
-        message: `Do you really want to delete <strong>${this.actor.name}</strong>`,
+        message: this.$t('Do you really want to delete {name}', { name: `<strong>${this.actor.name}</strong>` }),
         type: 'is-info is-wide',
         hasIcon: true,
         id: 'heh',

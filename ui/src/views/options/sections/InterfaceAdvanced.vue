@@ -166,19 +166,22 @@
           <section>
             <h4 class="options-subtitle">{{ $t('Network Proxy') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>{{ $t('Network Proxy') }}</strong> {{ $t('routes ALL scraper traffic through an HTTP/SOCKS proxy server.') }}</p>
+              <i18n-t keypath="{name} routes ALL scraper traffic through an HTTP/SOCKS proxy server." tag="p"><template #name><strong>{{ $t('Network Proxy') }}</strong></template></i18n-t>
               <p>{{ $t('Use this if you\'re behind a corporate firewall or want to route traffic through a VPN.') }}</p>
             </b-message>
             <b-field :label="$t('HTTP/SOCKS Proxy')" label-position="on-border">
-              <b-input v-model="scraperProxy" placeholder="http://proxy:8080 or socks5://proxy:1080"></b-input>
+              <b-input v-model="scraperProxy" :placeholder="$t('http://proxy:8080 or socks5://proxy:1080')"></b-input>
             </b-field>
 
             <hr/>
 
             <h4 class="options-subtitle">{{ $t('FlareSolverr') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>{{ $t('FlareSolverr') }}</strong> {{ $t('helps bypass Cloudflare protection using a headless browser.') }}</p>
-              <p>{{ $t('Set the address here, then enable per-site in the') }} <strong>{{ $t('Scrapers') }}</strong> {{ $t('page using the') }} <b-icon icon="fire" size="is-small"/> toggle.</p>
+              <i18n-t keypath="{name} helps bypass Cloudflare protection using a headless browser." tag="p"><template #name><strong>{{ $t('FlareSolverr') }}</strong></template></i18n-t>
+              <i18n-t keypath="Set the address here, then enable per-site in the {page} page using the {icon} toggle." tag="p">
+                <template #page><strong>{{ $t('Scrapers') }}</strong></template>
+                <template #icon><b-icon icon="fire" size="is-small"/></template>
+              </i18n-t>
               <p><a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a></p>
             </b-message>
             <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
@@ -193,9 +196,15 @@
 
             <h4 class="options-subtitle">{{ $t('Proxy Service') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>{{ $t('Proxy Service') }}</strong> {{ $t('routes requests through a URL-based proxy.') }}</p>
-              <p>{{ $t('Used for:') }} <strong>1)</strong> {{ $t('Image fallback when direct access fails,') }} <strong>2)</strong> {{ $t('Scraping sites that block direct access (enable per-site with') }} <b-icon icon="cloud" size="is-small"/> toggle).</p>
-              <p>{{ $t('The proxy should accept a') }} <code>url</code> {{ $t('parameter and forward the request.') }}</p>
+              <i18n-t keypath="{name} routes requests through a URL-based proxy." tag="p"><template #name><strong>{{ $t('Proxy Service') }}</strong></template></i18n-t>
+              <i18n-t keypath="Used for: {one} Image fallback when direct access fails, {two} Scraping sites that block direct access (enable per-site with {icon} toggle)." tag="p">
+                <template #one><strong>1)</strong></template>
+                <template #two><strong>2)</strong></template>
+                <template #icon><b-icon icon="cloud" size="is-small"/></template>
+              </i18n-t>
+              <i18n-t keypath="The proxy should accept a {param} parameter and forward the request." tag="p">
+                <template #param><code>url</code></template>
+              </i18n-t>
             </b-message>
 
             <b-collapse class="card" animation="slide" :open="false">
@@ -270,7 +279,7 @@
   }
 };</pre>
                 <p style="margin-top: 0.5em; font-size: 0.85em; color: #888;">
-                  {{ $t('Deploy as a serverless worker. Handles images, JSON, and HTML. Set') }} <code>apikey</code> {{ $t('in settings.') }}
+                  <i18n-t keypath="Deploy as a serverless worker. Handles images, JSON, and HTML. Set {key} in settings." tag="span"><template #key><code>apikey</code></template></i18n-t>
                 </p>
               </div>
             </b-collapse>
@@ -453,13 +462,13 @@ export default {
               this.uploadData = JSON.stringify(JSON.parse(event.target.result))
               this.restoreCollectorConfig()
             } catch (error) {
-              this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
+              this.$buefy.toast.open({message: this.$t('Error: {message}', { message: error.message }), type: 'is-danger', duration: 30000})    
             }
           }
           reader.readAsText(this.file)
         }
       } catch (error) {        
-        this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
+        this.$buefy.toast.open({message: this.$t('Error: {message}', { message: error.message }), type: 'is-danger', duration: 30000})    
       }
     },
   },
@@ -595,7 +604,7 @@ export default {
       this.$buefy.dialog.prompt({
                 message: this.$t('Add new config'),
                 inputAttrs: {
-                    placeholder: 'domainname-scraper or domainname-trailers e.g. naughtyamerica-trailers',
+                    placeholder: this.$t('domainname-scraper or domainname-trailers e.g. naughtyamerica-trailers'),
                     maxlength: 20,
                     value: this.kvName
                 },

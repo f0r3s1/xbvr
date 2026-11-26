@@ -17,7 +17,7 @@
                 :title="$t('Throttled to about 20% of one CPU core')">{{ $t('Background · low power') }}</span>
           <strong>{{ progress.step }}</strong>
           <span class="has-text-grey" style="margin-left: 0.5rem;">
-            Step {{ progress.step_num }} of {{ progress.total_steps }}
+            {{ $t('Step {n} of {total}', { n: progress.step_num, total: progress.total_steps }) }}
           </span>
         </div>
         <b-progress :modelValue="progress.percent" type="is-primary" size="is-medium" show-value>
@@ -39,7 +39,7 @@
           <div class="column">
             <div class="is-pulled-right health-when">
               <span class="health-when-text" :title="report.generated_at">
-                {{ report.auto ? 'Checked automatically' : 'Checked' }} {{ checkedAgo }}
+                {{ $t(report.auto ? 'Checked automatically {time}' : 'Checked {time}', { time: checkedAgo }) }}
               </span>
               <b-button size="is-small" @click="startScan">{{ $t('Check now') }}</b-button>
             </div>
@@ -48,13 +48,13 @@
 
         <div style="margin-bottom: 1rem;">
           <span class="tag is-danger" v-if="report.summary.critical > 0" style="margin-right: 0.4rem;">
-            {{ report.summary.critical }} critical
+            {{ $t('{n} critical', { n: report.summary.critical }) }}
           </span>
           <span class="tag is-warning" v-if="report.summary.warning > 0" style="margin-right: 0.4rem;">
-            {{ report.summary.warning }} warnings
+            {{ $t('{n} warning | {n} warnings', { n: report.summary.warning }, report.summary.warning) }}
           </span>
           <span class="tag is-info" v-if="report.summary.info > 0" style="margin-right: 0.4rem;">
-            {{ report.summary.info }} info
+            {{ $t('{n} info', { n: report.summary.info }) }}
           </span>
           <span class="tag is-success" v-if="totalIssues === 0">
             {{ $t('All clear') }}
@@ -105,7 +105,8 @@
 import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import { defineComponent } from 'vue';
-import { formatDistanceToNow, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
+import { relativeTime } from '@/relativeTime'
 import DuplicateActors from './DuplicateActors.vue'
 
 export default defineComponent({
@@ -144,7 +145,7 @@ export default defineComponent({
       try {
         // the server clock can be a little ahead of the browser: never say "in ..."
         const t = Math.min(parseISO(this.report.generated_at).getTime(), this.now)
-        return formatDistanceToNow(t, { addSuffix: true })
+        return relativeTime(t)
       } catch {
         return ''
       }
@@ -208,7 +209,7 @@ export default defineComponent({
           const data = await ky.get('/api/health/report', { timeout: 5000 }).json()
           if (data.running) {
             if (!this.progress.running) {
-              this.$store.commit('health/setProgress', { ...this.progress, running: true, step: 'Scanning...' })
+              this.$store.commit('health/setProgress', { ...this.progress, running: true, step: this.$t('Scanning...') })
             }
           } else if (data.report) {
             this.report = data.report
@@ -237,7 +238,7 @@ export default defineComponent({
       const count = issue.affected_items ? issue.affected_items.length : 0
       this.$buefy.dialog.confirm({
         title: issue.fix_label,
-        message: `This will run <strong>${issue.fix_label}</strong> to address <strong>${count}</strong> affected items.<br><br>` +
+        message: this.$t('This will run {action} to address {count} affected items.', { action: `<strong>${issue.fix_label}</strong>`, count: `<strong>${count}</strong>` }) + '<br><br>' +
                  (issue.detail ? `<em>${issue.detail}</em>` : ''),
         type: 'is-warning',
         hasIcon: true,
@@ -248,7 +249,7 @@ export default defineComponent({
       this.fixingAction = issue.fix_action
       try {
         await ky.post('/api/health/fix', { json: { action: issue.fix_action }, timeout: 10000 }).json()
-        this.$buefy.toast.open({ message: `${issue.fix_label} started — rescan when complete`, type: 'is-success' })
+        this.$buefy.toast.open({ message: this.$t('{action} started — rescan when complete', { action: issue.fix_label }), type: 'is-success' })
       } catch {
         this.$buefy.toast.open({ message: this.$t('Fix failed'), type: 'is-danger' })
       }

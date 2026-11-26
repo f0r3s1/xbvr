@@ -246,7 +246,7 @@ export default defineComponent({
     deletescene () {
       this.$buefy.dialog.confirm({
         title: this.$t('Delete scene'),
-        message: `Do you really want to delete the scene <strong>${this.scene.title}</strong> from <strong>${this.scene.studio}</strong>? If this is an existing scene, it will be re-added during the next scrape.`,
+        message: this.$t('Do you really want to delete the scene {title} from {studio}? If this is an existing scene, it will be re-added during the next scrape.', { title: `<strong>${this.scene.title}</strong>`, studio: `<strong>${this.scene.studio}</strong>` }),
         type: 'is-info is-wide',
         hasIcon: true,
         id: 'heh',

@@ -2,13 +2,16 @@ package imgcache
 
 import (
 	"bytes"
+	"context"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -197,10 +200,10 @@ func testJPEG(t *testing.T, w, h int) []byte {
 
 func TestScaleToWidth(t *testing.T) {
 	small := testJPEG(t, 500, 300)
-	if out, err := scaleToWidth(small, 700, 80); err != nil || !bytes.Equal(out, small) {
+	if out, err := scaleTo(small, 700, 0, 80); err != nil || !bytes.Equal(out, small) {
 		t.Fatal("narrow jpeg should pass through unchanged")
 	}
-	out, err := scaleToWidth(testJPEG(t, 1600, 900), 700, 80)
+	out, err := scaleTo(testJPEG(t, 1600, 900), 700, 0, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,9 +213,72 @@ func TestScaleToWidth(t *testing.T) {
 	}
 	var png bytes.Buffer
 	pngEncode(&png, image.NewRGBA(image.Rect(0, 0, 1600, 900)))
-	if _, err := scaleToWidth(png.Bytes(), 700, 80); err == nil {
+	if _, err := scaleTo(png.Bytes(), 700, 0, 80); err == nil {
 		t.Fatal("png should be left to imageproxy")
 	}
 }
 
 var pngEncode = png.Encode
+
+type countingTransport struct {
+	body  []byte
+	calls int32
+}
+
+func (c *countingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	atomic.AddInt32(&c.calls, 1)
+	return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(c.body)), Request: req}, nil
+}
+
+func cachedDump(t *testing.T, body []byte) []byte {
+	resp := &http.Response{StatusCode: 200, ProtoMajor: 1, ProtoMinor: 1, Header: http.Header{"Content-Type": {"image/jpeg"}}, ContentLength: int64(len(body)), Body: io.NopCloser(bytes.NewReader(body))}
+	dump, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dump
+}
+
+func TestPassthroughReusesLargerCachedCover(t *testing.T) {
+	c, _ := newTestCache(t, 1<<20)
+	c.Set("http://x/a.jpg#1200x0,q80", cachedDump(t, testJPEG(t, 1200, 675)))
+	next := &countingTransport{body: testJPEG(t, 1600, 900)}
+	p := &Passthrough{Next: next, Cache: c}
+
+	req, _ := http.NewRequest("GET", "http://x/a.jpg#700x0,q80", nil)
+	resp, err := p.RoundTrip(req)
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("got %v %v", resp, err)
+	}
+	cfg, err := jpeg.DecodeConfig(resp.Body)
+	if err != nil || cfg.Width != 700 {
+		t.Fatalf("width %d (%v)", cfg.Width, err)
+	}
+	if next.calls != 0 {
+		t.Fatalf("original fetched %d times although a larger copy was cached", next.calls)
+	}
+	if !c.Has("http://x/a.jpg#700x0,q80") {
+		t.Fatal("700 px copy not cached")
+	}
+}
+
+func TestPassthroughHeightOnlyAndCancelledClient(t *testing.T) {
+	c, _ := newTestCache(t, 1<<20)
+	next := &countingTransport{body: testJPEG(t, 1200, 600)}
+	p := &Passthrough{Next: next, Cache: c}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // the browser already gave up
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://x/b.jpg#0x85,q80", nil)
+	resp, err := p.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := jpeg.DecodeConfig(resp.Body)
+	if cfg.Height != 85 {
+		t.Fatalf("height %d, want 85", cfg.Height)
+	}
+	if !c.Has("http://x/b.jpg#0x85,q80") {
+		t.Fatal("thumbnail not cached after the client cancelled")
+	}
+}

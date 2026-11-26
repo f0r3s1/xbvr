@@ -11,7 +11,7 @@
             <b-menu-item :active="active==='health'" @click="setActive('health')">
               <template #label>
                 <span class="menu-with-badge">{{ $t('Library Health') }}
-                  <span v-if="healthAttention" class="menu-badge" :title="healthAttention + ' issues need attention'">{{ healthAttention }}</span>
+                  <span v-if="healthAttention" class="menu-badge" :title="$t('{n} issues need attention', { n: healthAttention })">{{ healthAttention }}</span>
                 </span>
               </template>
             </b-menu-item>

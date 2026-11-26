@@ -32,12 +32,12 @@
               <span v-else>{{ props.option.name.slice(0, 2).toUpperCase() }}</span>
             </span>
             <span class="qf-person-name">{{ props.option.name }}</span>
-            <span class="qf-person-meta">{{ props.option.scene_count }} scenes</span>
+            <span class="qf-person-meta">{{ $t('{n} scene | {n} scenes', { n: props.option.scene_count }, props.option.scene_count) }}</span>
           </div>
           <div v-else-if="props.option.kind === 'actor'" class="qf-person">
             <img :src="props.option.image_url ? getImageURL(props.option.image_url) : '/ui/images/actor_placeholder.svg'" class="qf-person-img" alt=""/>
             <span class="qf-person-name">{{ props.option.name }}</span>
-            <span class="qf-person-meta">{{ props.option.scene_count }} scenes</span>
+            <span class="qf-person-meta">{{ $t('{n} scene | {n} scenes', { n: props.option.scene_count }, props.option.scene_count) }}</span>
           </div>
           <div v-else class="qf-scene">
             <img :src="getImageURL(props.option.cover_url)" class="qf-scene-img" alt="" @error="e => e.target.src = '/ui/images/blank.png'"/>
@@ -80,13 +80,13 @@ export default defineComponent({
   computed: {
     fieldChips () {
       return [
-        { label: 'title', hint: 'Search titles', action: () => this.searchPrefix('+title:') },
-        { label: 'cast', hint: 'Search cast names', action: () => this.searchPrefix('cast:') },
-        { label: 'site', hint: 'Search sites', action: () => this.searchPrefix('+site:') },
-        { label: 'id', hint: 'Search scene ids', action: () => this.searchPrefix('+id:') },
-        { label: 'duration', hint: 'Filter by file duration in minutes', action: () => this.searchDurationPrefix('duration:') },
-        { label: 'released', hint: 'Released in the last week (yyyy-mm-dd)', action: () => this.searchDatePrefix('released:') },
-        { label: 'added', hint: 'Added in the last week (yyyy-mm-dd)', action: () => this.searchDatePrefix('added:') }
+        { label: 'title', hint: this.$t('Search titles'), action: () => this.searchPrefix('+title:') },
+        { label: 'cast', hint: this.$t('Search cast names'), action: () => this.searchPrefix('cast:') },
+        { label: 'site', hint: this.$t('Search sites'), action: () => this.searchPrefix('+site:') },
+        { label: 'id', hint: this.$t('Search scene ids'), action: () => this.searchPrefix('+id:') },
+        { label: 'duration', hint: this.$t('Filter by file duration in minutes'), action: () => this.searchDurationPrefix('duration:') },
+        { label: 'released', hint: this.$t('Released in the last week (yyyy-mm-dd)'), action: () => this.searchDatePrefix('released:') },
+        { label: 'added', hint: this.$t('Added in the last week (yyyy-mm-dd)'), action: () => this.searchDatePrefix('added:') }
       ]
     },
     shortcutLabel () {
@@ -171,11 +171,11 @@ export default defineComponent({
         const groups = []
         const sites = await loadSites()
         const siteHits = name.length > 1 ? sites.filter(s => s.name.toLowerCase().includes(name.toLowerCase())).slice(0, 4) : []
-        if (siteHits.length) groups.push({ group: 'Studios', items: siteHits.map(s => ({ ...s, kind: 'site' })) })
+        if (siteHits.length) groups.push({ group: this.$t('Studios'), items: siteHits.map(s => ({ ...s, kind: 'site' })) })
         if (people.actors && people.actors.length) {
-          groups.push({ group: 'People', items: people.actors.map(a => ({ ...a, kind: 'actor' })) })
+          groups.push({ group: this.$t('People'), items: people.actors.map(a => ({ ...a, kind: 'actor' })) })
         }
-        if (resp.results > 0) groups.push({ group: 'Scenes', items: resp.scenes })
+        if (resp.results > 0) groups.push({ group: this.$t('Scenes'), items: resp.scenes })
         this.data = groups
       }
     },

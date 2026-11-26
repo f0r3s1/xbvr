@@ -52,7 +52,7 @@
               <button class="button is-success is-outlined" @click="createScene(props.row)" :title="$t('Create a custom scene for this file')" style="margin-right: 3px;">
                 <b-icon pack="mdi" icon="plus-box"></b-icon>
               </button>
-              <button class="button is-danger is-outlined" @click='removeFile(props.row)' title='Delete file from disk'>
+              <button class="button is-danger is-outlined" @click='removeFile(props.row)' :title="$t('Delete file from disk')">
                 <b-icon pack="mdi" icon="delete"></b-icon>
               </button>
             </b-table-column>
@@ -139,7 +139,7 @@ export default {
     removeFile (file) {
       this.$buefy.dialog.confirm({
         title: this.$t('Remove file'),
-        message: `You're about to remove file <strong>${file.filename}</strong> from <strong>disk</strong>.`,
+        message: this.$t("You're about to remove file {file} from {disk}.", { file: `<strong>${file.filename}</strong>`, disk: `<strong>${this.$t('disk')}</strong>` }),
         type: 'is-danger',
         hasIcon: true,
         onConfirm: () => {

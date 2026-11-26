@@ -2,6 +2,7 @@ package scrape
 
 import (
 	"time"
+	_ "time/tzdata" // the runtime image has no zone database; release times are site-local
 
 	"github.com/xbapps/xbvr/pkg/models"
 )
@@ -24,18 +25,30 @@ func pruneUpcoming(scraperID string, listed []string) {
 	models.PruneUpcoming(scraperID, listed)
 }
 
-// fillWeeklyDates gives undated announcements of a weekly site the next release days in list order; the real date replaces it on release.
-func fillWeeklyDates(scenes []models.ScrapedScene, day time.Weekday, latestRelease, now time.Time) {
-	from := now.Truncate(24 * time.Hour)
-	if after := latestRelease.Truncate(24*time.Hour).AddDate(0, 0, 1); after.After(from) {
-		from = after
+// fillWeeklyDates gives undated announcements of a weekly site the next release times (UTC) in list order.
+func fillWeeklyDates(scenes []models.ScrapedScene, release weeklyRelease, latestRelease, now time.Time) {
+	from := now
+	if latestRelease.After(from) {
+		from = latestRelease
 	}
-	next := from.AddDate(0, 0, (int(day)-int(from.Weekday())+7)%7)
+	local := from.In(release.Location)
+	next := time.Date(local.Year(), local.Month(), local.Day(), release.Hour, release.Minute, 0, 0, release.Location)
+	next = next.AddDate(0, 0, (int(release.Day)-int(next.Weekday())+7)%7)
+	if !next.After(from) {
+		next = next.AddDate(0, 0, 7)
+	}
 	for i := range scenes {
 		if scenes[i].Released != "" {
 			continue
 		}
-		scenes[i].Released = next.Format("2006-01-02")
+		scenes[i].Released = next.UTC().Format(time.RFC3339)
 		next = next.AddDate(0, 0, 7)
 	}
+}
+
+// weeklyRelease is when a site publishes its weekly scene, in the site's own time zone.
+type weeklyRelease struct {
+	Day          time.Weekday
+	Hour, Minute int
+	Location     *time.Location
 }

@@ -166,7 +166,7 @@
                   <div class="actor-bio" v-if="actor.biography">
                     <p :class="{ 'is-clamped': !bioExpanded }" ref="bio">{{ actor.biography }}</p>
                     <button v-if="bioLong" type="button" class="bio-toggle" @click="bioExpanded = !bioExpanded">
-                      {{ bioExpanded ? 'Show less' : 'Show more' }}
+                      {{ bioExpanded ? $t('Show less') : $t('Show more') }}
                     </button>
                   </div>
                   <p v-if="!hasDetails" class="actor-empty-details">
@@ -175,7 +175,7 @@
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
-                    <span class="tab-label">Scenes ({{ actorScenes.length || actor.scene_count || 0 }})<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" :title="$t('Open scenes in a new window')" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
+                    <span class="tab-label">{{ $t('Scenes ({n})', { n: actorScenes.length || actor.scene_count || 0 }) }}<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" :title="$t('Open scenes in a new window')" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
                   </template>
                   <div v-show="activeTab == 1">
                     <b-field class="segmented scene-scope">
@@ -222,12 +222,12 @@
                     </b-field>
                   </div>
                 </b-tab-item>                
-                <b-tab-item :visible="colleagues.length != 0" :label="`Colleagues (${colleagues.length})`">
+                <b-tab-item :visible="colleagues.length != 0" :label="$t('Colleagues ({n})', { n: colleagues.length })">
                   <div v-show="activeTab == 3" class="modal-grid">
                     <ActorCard v-for="colleague in colleagues" :key="colleague.id" :actor="colleague" :colleague="actor.name" />
                   </div>
                 </b-tab-item>
-                <b-tab-item :label="`Links (${getActorUrls().length})`" :visible="getActorUrls().length != 0">
+                <b-tab-item :label="$t('Links ({n})', { n: getActorUrls().length })" :visible="getActorUrls().length != 0">
                   <div v-show="activeTab == 4">
                     <div >                    
                       <b-field :label="$t('Links')" >
@@ -241,17 +241,17 @@
                     </div>
                   </div>
                 </b-tab-item>
-                <b-tab-item  :label="`Scrapers (${extrefs.length})`" :visible="extrefs.length != 0">
+                <b-tab-item  :label="$t('Scrapers ({n})', { n: extrefs.length })" :visible="extrefs.length != 0">
                   <div v-show="activeTab == 5">
                     <div >                    
                       <b-field :label="$t('Actor Scrapers')" >
                         <div >                       
                           <div v-for="(extref, idx) in extrefs" :key="idx">
                             <b-field grouped>
-                              <a @click="refreshScraper(extref.external_reference.external_url)" :title="'Rescrape Actor Details now'">
+                              <a @click="refreshScraper(extref.external_reference.external_url)" :title="$t('Rescrape Actor Details now')">
                                 <b-icon pack="mdi" icon="refresh" size="is-small" style="margin-right: 1em;"/>
                               </a>
-                            <a class="tag is-info" :href="extref.external_reference.external_url" target="_blank" rel="noreferrer" style="margin-bottom: .5em;">{{extref.external_source}} - Updated: {{format(parseISO(extref.external_reference.external_date), "yyyy-MM-dd") }}</a>                            
+                            <a class="tag is-info" :href="extref.external_reference.external_url" target="_blank" rel="noreferrer" style="margin-bottom: .5em;">{{ $t('{source} - Updated: {date}', { source: extref.external_source, date: format(parseISO(extref.external_reference.external_date), "yyyy-MM-dd") }) }}</a>                            
                             </b-field>
                           </div>                        
                         </div>
@@ -677,7 +677,7 @@ export default defineComponent({
     }
     ky.post('/api/aka/create', {json: {actorList: actorlist}}).json().then(data => {
       if (data.status != '') {
-        this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+        this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
       }
       ky.get('/api/actor/'+this.actor.id).json().then(data => {
         if (data.id != 0){
@@ -703,7 +703,7 @@ export default defineComponent({
     this.$store.state.actorList.isLoading = true
     ky.post('/api/aka/add', {json: {actorList: [this.actor.name, newMember]}}).json().then(data => {        
       if (data.status != '') {
-        this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+        this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
       }
       ky.get('/api/actor/'+this.actor.id).json().then(data => {
         if (data.id != 0){
@@ -718,7 +718,7 @@ export default defineComponent({
     this.$store.state.actorList.isLoading = true
     ky.post('/api/aka/remove', {json: {actorList: [this.actor.name, memberToRemove]}}).json().then(data => {        
       if (data.status != '') {
-        this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
+        this.$buefy.toast.open({message: this.$t('Warning: {status}', { status: data.status }), type: 'is-warning', duration: 5000})
       }
       ky.get('/api/actor/'+this.actor.id).json().then(data => {          
         if (data.id != 0){

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -232,12 +233,11 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 	if singleSceneURL == "" && config.Config.Web.ShowUpcoming {
 		builder, err := fetchURLWithFlareSolverr(contentBaseURL+"/api/content/v1/home-page-builder", siteName)
 		if err != nil || gjson.Get(builder, "status.message").String() != "Ok" {
-			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+			log.Warnf("%s: could not read the upcoming scenes (the site may refuse direct requests; enable FlareSolverr or the proxy for it in Options > Scrapers): %v", siteID, err)
 		} else {
 			upcoming := parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL)
 			if scraperID == "vrbangers" {
-				// VRBangers releases one scene every Friday and announces them in order, without dates
-				fillWeeklyDates(upcoming, time.Friday, models.LatestReleaseDate(scraperID), time.Now())
+				fillWeeklyDates(upcoming, vrbangersRelease, models.LatestReleaseDate(scraperID), time.Now())
 			}
 			emitUpcoming(scraperID, upcoming, out)
 		}
@@ -251,8 +251,20 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 }
 
 // parseVRBangersUpcoming reads the "upcoming" block of the site's home page builder.
+// VRBangers publishes one scene every Friday at 09:01 Paris time (its API's publishedAt values) and announces them undated
+var vrbangersRelease = weeklyRelease{Day: time.Friday, Hour: 9, Minute: 1, Location: mustLoadLocation("Europe/Paris")}
+
+func mustLoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}
+
 func parseVRBangersUpcoming(builderJSON string, scraperID string, siteID string, siteURL string, contentBaseURL string) []models.ScrapedScene {
 	var scenes []models.ScrapedScene
+	var order []int64
 	gjson.Get(builderJSON, "data.homePageBuilder.upcomingScenes").ForEach(func(_, item gjson.Result) bool {
 		title := strings.TrimSpace(html.UnescapeString(item.Get("text").String()))
 		if title == "" || (item.Get("isActive").Exists() && !item.Get("isActive").Bool()) {
@@ -280,9 +292,20 @@ func parseVRBangersUpcoming(builderJSON string, scraperID string, siteID string,
 			}
 		}
 		scenes = append(scenes, sc)
+		order = append(order, item.Get("sort").Int())
 		return true
 	})
-	return scenes
+	// the page shows announcements by their "sort" value, which is also their release order
+	idx := make([]int, len(scenes))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool { return order[idx[a]] < order[idx[b]] })
+	sorted := make([]models.ScrapedScene, len(scenes))
+	for i, k := range idx {
+		sorted[i] = scenes[k]
+	}
+	return sorted
 }
 
 func VRBangers(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string, limitScraping bool) error {

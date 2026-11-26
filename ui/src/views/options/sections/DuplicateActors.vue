@@ -3,7 +3,7 @@
     <div class="dup-head">
       <div>
         <strong>{{ $t('Duplicate actors') }}</strong>
-        <span class="dup-sub" v-if="!loading">{{ pairs.length }} possible {{ pairs.length === 1 ? 'pair' : 'pairs' }}</span>
+        <span class="dup-sub" v-if="!loading">{{ $t('{n} possible pair | {n} possible pairs', { n: pairs.length }, pairs.length) }}</span>
       </div>
       <div class="dup-tools" v-if="pairs.length">
         <span class="dup-tools-label">{{ $t('Select') }}</span>
@@ -12,14 +12,14 @@
         <button type="button" class="dup-chip" @click="selectFrom(90)">≥ 90% <small>{{ countFrom(90) }}</small></button>
         <button type="button" class="dup-chip" @click="selected = {}">{{ $t('None') }}</button>
         <b-button type="is-primary" size="is-small" :disabled="!selectedCount" :loading="merging" @click="confirmMerge">
-          Merge selected ({{ selectedCount }})
+          {{ $t('Merge selected ({n})', { n: selectedCount }) }}
         </b-button>
       </div>
     </div>
 
-    <p class="dup-help">
-      {{ $t('The actor marked') }} <b>{{ $t('Keep') }}</b> {{ $t('stays; the other one is merged into it (scenes, links, aliases and empty profile fields move over, its name becomes an alias). Click the arrow to swap. Scrapers keep using the kept actor.') }}
-    </p>
+    <i18n-t keypath="The actor marked {keep} stays; the other one is merged into it (scenes, links, aliases and empty profile fields move over, its name becomes an alias). Click the arrow to swap. Scrapers keep using the kept actor." tag="p" class="dup-help">
+      <template #keep><b>{{ $t('Keep') }}</b></template>
+    </i18n-t>
 
     <b-loading :is-full-page="false" :model-value="loading"/>
     <p v-if="!loading && !pairs.length" class="dup-empty">{{ $t('No duplicates found.') }}</p>
@@ -33,9 +33,9 @@
           <img :src="img(p.a.image_url)" alt="" loading="lazy"/>
           <div class="dup-name">
             <span class="dup-n" :title="p.a.name">{{ p.a.name }}</span>
-            <small>{{ p.a.count }} scenes<template v-if="p.a.stash"> {{ $t('· StashDB') }}</template></small>
+            <small>{{ $t('{n} scene | {n} scenes', { n: p.a.count }, p.a.count) }}<template v-if="p.a.stash"> {{ $t('· StashDB') }}</template></small>
           </div>
-          <span class="dup-role">{{ keepOf(p) === p.a.id ? 'Keep' : 'Merge' }}</span>
+          <span class="dup-role">{{ keepOf(p) === p.a.id ? $t('Keep') : $t('Merge') }}</span>
         </div>
         <button type="button" class="dup-swap" :title="$t('Swap which actor is kept')" @click="swap(p)">
           <b-icon pack="mdi" :icon="keepOf(p) === p.a.id ? 'arrow-left' : 'arrow-right'" size="is-small"/>
@@ -44,9 +44,9 @@
           <img :src="img(p.b.image_url)" alt="" loading="lazy"/>
           <div class="dup-name">
             <span class="dup-n" :title="p.b.name">{{ p.b.name }}</span>
-            <small>{{ p.b.count }} scenes<template v-if="p.b.stash"> {{ $t('· StashDB') }}</template></small>
+            <small>{{ $t('{n} scene | {n} scenes', { n: p.b.count }, p.b.count) }}<template v-if="p.b.stash"> {{ $t('· StashDB') }}</template></small>
           </div>
-          <span class="dup-role">{{ keepOf(p) === p.b.id ? 'Keep' : 'Merge' }}</span>
+          <span class="dup-role">{{ keepOf(p) === p.b.id ? $t('Keep') : $t('Merge') }}</span>
         </div>
         <div class="dup-score">
           <span class="dup-pct" :class="scoreClass(p.score)">{{ p.score }}%</span>
@@ -128,8 +128,8 @@ export default defineComponent({
       const n = this.selectedCount
       this.$buefy.dialog.confirm({
         title: this.$t('Merge actors'),
-        message: `Merge <b>${n}</b> ${n === 1 ? 'pair' : 'pairs'}? Each merged actor is folded into the one marked Keep and then deleted. This cannot be undone.`,
-        confirmText: `Merge ${n}`,
+        message: this.$t('Merge {n} pair? Each merged actor is folded into the one marked Keep and then deleted. This cannot be undone. | Merge {n} pairs? Each merged actor is folded into the one marked Keep and then deleted. This cannot be undone.', { n: `<b>${n}</b>` }, n),
+        confirmText: this.$t('Merge {n}', { n }),
         type: 'is-warning',
         hasIcon: true,
         onConfirm: () => this.merge()
@@ -144,8 +144,9 @@ export default defineComponent({
       try {
         const res = await ky.post('/api/actor/merge', { json: { pairs }, timeout: 300000 }).json()
         const errs = (res.errors || []).length
+        const merged = this.$t('Merged {n} actor | Merged {n} actors', { n: res.merged }, res.merged)
         this.$buefy.toast.open({
-          message: `Merged ${res.merged} ${res.merged === 1 ? 'actor' : 'actors'}` + (errs ? `, ${errs} skipped` : ''),
+          message: errs ? this.$t('{merged}, {n} skipped', { merged, n: errs }) : merged,
           type: errs ? 'is-warning' : 'is-success'
         })
         this.$emit('merged')

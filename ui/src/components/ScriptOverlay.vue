@@ -1,7 +1,7 @@
 <template>
   <div v-if="url" class="script-overlay" @pointerdown.stop @pointerup.stop @click.stop @dblclick.stop>
     <button type="button" class="script-toggle" :class="{ 'is-on': enabled }"
-            :title="enabled ? 'Hide script overlay' : 'Show script overlay'" @click="toggle">
+            :title="enabled ? $t('Hide script overlay') : $t('Show script overlay')" @click="toggle">
       <b-icon pack="mdi" icon="pulse" size="is-small"/>
     </button>
 
@@ -9,7 +9,7 @@
          :style="panelStyle">
       <div class="script-head" @pointerdown="dragStart">
         <b-icon pack="mdi" icon="drag" size="is-small" class="grip"/>
-        <span class="script-title">{{ lanes.length > 1 ? 'Compare' : 'Script' }}</span>
+        <span class="script-title">{{ lanes.length > 1 ? $t('Compare') : $t('Script') }}</span>
         <b-icon v-if="lanes.length === 1 && lanes[0].ai" pack="mdi" icon="robot-outline" size="is-small" class="script-ai" :title="$t('AI script')"/>
         <span v-if="lanes.length === 1 && options.length > 1" class="script-name" :title="lanes[0].name">{{ lanes[0].label }}</span>
         <span class="script-state">{{ status }}</span>
@@ -30,7 +30,7 @@
             <b-icon v-if="o.ai" pack="mdi" icon="robot-outline" custom-size="mdi-14px" class="script-ai" :title="$t('AI script')"/>
           </label>
           <button type="button" class="script-star" :class="{ 'is-main': o.selected }"
-                  :title="o.selected ? 'Selected script for this scene' : 'Use as the scene\'s selected script'"
+                  :title="o.selected ? $t('Selected script for this scene') : $t('Use as the scene\'s selected script')"
                   @click="!o.selected && $emit('select', o.id)">
             <b-icon pack="mdi" :icon="o.selected ? 'star' : 'star-outline'" custom-size="mdi-14px"/>
           </button>
@@ -124,7 +124,7 @@ export default defineComponent({
         // generator + version when the script names it ("AutoScript v1.0"), else the distinguishing part of the name
         let label = rest
         if (x.gen) label = `${x.gen.name} v${x.gen.version}`
-        else if (!rest || /^ai\d*$/i.test(rest)) label = x.ai ? 'AI' + rest.slice(2) : 'Original'
+        else if (!rest || /^ai\d*$/i.test(rest)) label = x.ai ? 'AI' + rest.slice(2) : this.$t('Original')
         return { ...x, label }
       })
     },

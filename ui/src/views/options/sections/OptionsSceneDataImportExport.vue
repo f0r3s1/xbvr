@@ -10,7 +10,7 @@
             <b-tab-item :label="$t('Actor Data')"/>
             <b-tab-item :label="$t('Settings/Misc Data')"/>
         </b-tabs>
-      <h4 v-if="activeSubTab==0" class="options-subtitle">{{ isImport ? "Import Scene Data" : "Export Scene Data"}}</h4>
+      <h4 v-if="activeSubTab==0" class="options-subtitle">{{ isImport ? $t('Import Scene Data') : $t('Export Scene Data') }}</h4>
       <b-field grouped v-if="activeSubTab == 0">
           <b-tooltip
             :label="$t('Select which studios are considered')"
@@ -88,7 +88,7 @@
       </div>
       <hr />
       <div v-if="activeSubTab==1">
-        <h4 class="options-subtitle">{{ isImport ? "Import Actor Data" : "Export Actor Data"}}</h4>
+        <h4 class="options-subtitle">{{ isImport ? $t('Import Actor Data') : $t('Export Actor Data') }}</h4>
         <b-field>
           <b-tooltip
             :label="$t('Includes Actors (note new actors are not created, New/Existing will apply to the fields on an existing actor record.)')"
@@ -112,7 +112,7 @@
         </b-field>
         <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleActorIncludes()">{{ $t('Toggle Includes') }}</b-button>
       </div>
-      <h4 v-if="activeSubTab==2" class="options-subtitle">{{ isImport ? "Import Settings" : "Export Settings"}}</h4>
+      <h4 v-if="activeSubTab==2" class="options-subtitle">{{ isImport ? $t('Import Settings') : $t('Export Settings') }}</h4>
       <div class="block" v-if="activeSubTab == 2">
         <b-field>
           <b-tooltip
@@ -168,7 +168,7 @@
         </div>
         <b-field>
           <b-tooltip
-            :label="isImport ? 'Requires restarting XBVR once complete. Include XBVR Configuration Settings. Preview setting, task schedules, etc.' : 'Includes passowrds/access tokens. Includes XBVR Configuration Settings. Preview settings, task schedules, etc.'"  
+            :label="isImport ? $t('Requires restarting XBVR once complete. Include XBVR Configuration Settings. Preview setting, task schedules, etc.') : $t('Includes passowrds/access tokens. Includes XBVR Configuration Settings. Preview settings, task schedules, etc.')"  
             size="is-large" :type="isImport ? 'is-warning is-light' : 'is-danger is-light'" multilined :delay="300" >
             <b-switch v-model="includeConfig">{{ $t('Include Config Settings') }}</b-switch>
           </b-tooltip>
@@ -180,7 +180,7 @@
         <b-tooltip
           :label="$t('Select if import source is a file or url. Large bundle files should be imported via a url.')"
           size="is-large" type="is-primary is-light" multilined :delay="1000">
-          <b-switch v-model="fileBundleSource"><p>{{ fileBundleSource ? 'Import bundle from file' : 'Import bundle from url' }}</p></b-switch>
+          <b-switch v-model="fileBundleSource"><p>{{ fileBundleSource ? $t('Import bundle from file') : $t('Import bundle from url') }}</p></b-switch>
         </b-tooltip>
         <b-tooltip
           :label="$t('Activate to overwite existing data, otherwise only new records will be added')"
@@ -308,38 +308,38 @@ export default defineComponent({
               this.uploadData = JSON.stringify(JSON.parse(event.target.result))
               this.restoreContent()
           } catch (error) {
-            this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
+            this.$buefy.toast.open({message: this.$t('Error: {message}', { message: error.message }), type: 'is-danger', duration: 30000})    
           }
           }
           reader.readAsText(this.file)
         }
       } catch (error) {        
-        this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
+        this.$buefy.toast.open({message: this.$t('Error: {message}', { message: error.message }), type: 'is-danger', duration: 30000})    
       }
     },
     testfile: function () {
       try {
         this.$buefy.toast.open({message: this.$t('Loading: ') + this.testfile.name, type: 'is-primary', duration: 30000})
         if (this.testfile != null) {
-          this.progressMsg = "Uploading " + this.testfile.name
+          this.progressMsg = this.$t('Uploading {name}', { name: this.testfile.name })
           const reader = new FileReader()
           reader.onload = (event) => {
             try {
-              this.progressMsg = "File uploaded, converting to Json " + this.testfile.name
+              this.progressMsg = this.$t('File uploaded, converting to Json {name}', { name: this.testfile.name })
               this.uploadData = JSON.stringify(JSON.parse(event.target.result))          
               this.progressMsg = ""
               this.$buefy.toast.open({message: this.$t('Success Loading: ') + this.testfile.name, type: 'is-success', duration: 5000})
           } catch (error) {
-            this.progressMsg = "Error: " + error.message            
-            this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
+            this.progressMsg = this.$t('Error: {message}', { message: error.message })            
+            this.$buefy.toast.open({message: this.$t('Error: {message}', { message: error.message }), type: 'is-danger', duration: 30000})    
           }
 
           }
           reader.readAsText(this.testfile)
         }      
       } catch (error) {        
-        this.progressMsg = "Error: " + error.message
-        this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    
+        this.progressMsg = this.$t('Error: {message}', { message: error.message })
+        this.$buefy.toast.open({message: this.$t('Error: {message}', { message: error.message }), type: 'is-danger', duration: 30000})    
       }
     }
   },
@@ -355,7 +355,7 @@ export default defineComponent({
         }else{
           url=this.bundleUrl
         }
-        this.$store.state.messages.lastScrapeMessage = 'Starting restore'
+        this.$store.state.messages.lastScrapeMessage = this.$t('Starting restore')
         ky.post('/api/task/bundle/restore', {
           json: { allSites: this.allSites == "true", onlyIncludeOfficalSites: this.onlyIncludeOfficalSites, inclScenes: this.includeScenes, inclHistory: this.includeHistory, 
           inclLinks: this.includeFileLinks, inclCuepoints: this.includeCuepoints, inclActions: this.includeActions, inclPlaylists: this.includePlaylists, inclActorAkas: this.includeActorAkas, inclTagGroups: this.includeTagGroups, 
@@ -403,7 +403,7 @@ export default defineComponent({
         new URL(decodedUrl);
         this.urlError = '';
       } catch {
-        this.urlError = 'Please enter a valid URL.';
+        this.urlError = this.$t('Please enter a valid URL.');
       }
     },
   },

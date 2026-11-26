@@ -1,7 +1,9 @@
 package imgcache
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"image"
 	"image/jpeg"
 	"io"
@@ -14,7 +16,11 @@ import (
 	"willnorris.com/go/imageproxy"
 )
 
-const defaultQuality = 80
+const (
+	defaultQuality = 80
+	// cards asked for 1200 px wide covers before 0.4.40.7; those cached copies still serve smaller sizes
+	largerCachedWidth = 1200
+)
 
 // Passthrough handles width-only resizes (what cards ask for) itself: an image that is already narrow enough
 // is served as is, others are scaled with CatmullRom, which costs far less than imageproxy's Lanczos.
@@ -27,36 +33,28 @@ type Passthrough struct {
 var decodeSlots = make(chan struct{}, max(1, runtime.NumCPU()/2))
 
 func (t *Passthrough) RoundTrip(req *http.Request) (*http.Response, error) {
+	// the work continues when the browser gives up, so a slow cover is cached for the next visit instead of redone
+	req = req.Clone(context.WithoutCancel(req.Context()))
 	opt := imageproxy.ParseOptions(req.URL.Fragment)
 	key := req.URL.String()
-	widthOnly := opt.Width >= 1 && opt == imageproxy.Options{Width: opt.Width, Quality: opt.Quality}
-	if !widthOnly || t.Cache.Has(key) {
+	sizeOnly := (opt.Width >= 1) != (opt.Height >= 1) && opt == imageproxy.Options{Width: opt.Width, Height: opt.Height, Quality: opt.Quality}
+	if !sizeOnly || t.Cache.Has(key) {
 		return t.Next.RoundTrip(req)
 	}
 
-	orig := req.Clone(req.Context())
-	u := *req.URL
-	u.Fragment = ""
-	orig.URL = &u
-	resp, err := t.Next.RoundTrip(orig)
+	source, header, err := t.source(req, opt)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+	if source == nil {
 		return t.Next.RoundTrip(req)
 	}
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := scaleToWidth(body, int(opt.Width), opt.Quality)
+	out, err := scaleTo(source, int(opt.Width), int(opt.Height), opt.Quality)
 	if err != nil {
 		return t.Next.RoundTrip(req) // the original is cached now, imageproxy takes it from there
 	}
 
+	resp := &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1, Header: header, Request: req}
 	resp.Header.Del("X-From-Cache")
 	resp.Header.Set("Content-Type", "image/jpeg")
 	resp.Header.Set("Content-Length", strconv.Itoa(len(out)))
@@ -66,15 +64,52 @@ func (t *Passthrough) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.Cache.Set(key, dump)
 	}
 	resp.Body = io.NopCloser(bytes.NewReader(out))
-	resp.Request = req
 	return resp, nil
 }
 
-// scaleToWidth returns a JPEG no wider than width: a narrow enough JPEG unchanged, anything else scaled.
-func scaleToWidth(body []byte, width int, quality int) ([]byte, error) {
+// source is a larger cached copy of the picture when there is one, else the original (nil when unusable).
+func (t *Passthrough) source(req *http.Request, opt imageproxy.Options) ([]byte, http.Header, error) {
+	u := *req.URL
+	u.Fragment = ""
+	if opt.Width > 0 && opt.Width < largerCachedWidth {
+		larger := u
+		larger.Fragment = imageproxy.Options{Width: largerCachedWidth, Quality: defaultQuality}.String()
+		if dump, ok := t.Cache.Get(larger.String()); ok {
+			if resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(dump)), nil); err == nil {
+				body, err := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				if err == nil && resp.StatusCode == http.StatusOK {
+					return body, resp.Header, nil
+				}
+			}
+		}
+	}
+
+	orig := req.Clone(req.Context())
+	orig.URL = &u
+	resp, err := t.Next.RoundTrip(orig)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, nil
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	return body, resp.Header, nil
+}
+
+// scaleTo returns a JPEG fitting the width or the height (one of them is 0): a small enough JPEG unchanged, anything else scaled.
+func scaleTo(body []byte, width, height int, quality int) ([]byte, error) {
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(body))
 	if err != nil {
 		return nil, err
+	}
+	if width == 0 {
+		width = cfg.Width * height / max(cfg.Height, 1)
 	}
 	if format == "jpeg" && cfg.Width <= width {
 		return body, nil

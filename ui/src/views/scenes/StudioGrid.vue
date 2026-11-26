@@ -8,10 +8,10 @@
       </span>
       <span class="studio-body">
         <span class="studio-name">{{ site.name }}</span>
-        <span class="studio-meta">{{ site.scene_count.toLocaleString() }} scenes<template v-if="site.available"> · {{ site.available.toLocaleString() }} available</template></span>
+        <span class="studio-meta">{{ $t('{n} scene | {n} scenes', { n: site.scene_count.toLocaleString() }, site.scene_count) }}<template v-if="site.available"> · {{ $t('{n} available', { n: site.available.toLocaleString() }) }}</template></span>
         <span class="studio-foot">
-          <span v-if="site.latest_release">Latest {{ site.latest_release }}</span>
-          <span v-if="site.upcoming" class="studio-upcoming">{{ site.upcoming }} upcoming</span>
+          <span v-if="site.latest_release">{{ $t('Latest {date}', { date: site.latest_release }) }}</span>
+          <span v-if="site.upcoming" class="studio-upcoming">{{ $t('{n} upcoming', { n: site.upcoming }) }}</span>
         </span>
       </span>
     </button>

@@ -28,7 +28,7 @@
       <b-navbar-item v-if="health.running" tag="router-link" :to="{ path: './options', query: { tab: 'health' } }"
                      class="health-indicator" :title="healthTitle">
         <span class="health-dot"></span>
-        <span class="health-label">{{ health.background ? 'Background check' : 'Health check' }}</span>
+        <span class="health-label">{{ health.background ? $t('Background check') : $t('Health check') }}</span>
       </b-navbar-item>
       <b-navbar-item v-if="hasStatusMessages" tag="div" class="task-status">
         <div v-if="Object.keys(lastRescanMessage).length !== 0" class="task-row">
@@ -84,8 +84,8 @@ export default defineComponent({
     },
     healthTitle () {
       const h = this.health
-      const step = h.step && h.step !== 'done' ? ` · step ${h.step_num}/${h.total_steps}: ${h.step}` : ''
-      return (h.background ? 'Library Health is checking in the background at low power (max ~20% of one core)' : 'Library Health check running') + step
+      const step = h.step && h.step !== 'done' ? ` · ${this.$t('step {n}/{total}: {step}', { n: h.step_num, total: h.total_steps, step: h.step })}` : ''
+      return (h.background ? this.$t('Library Health is checking in the background at low power (max ~20% of one core)') : this.$t('Library Health check running')) + step
     },
     lockRescan () {
       return this.$store.state.messages.lockRescan
@@ -136,7 +136,7 @@ export default defineComponent({
 
       if (data.update_notify && this.currentVersion !== 'CURRENT') {
         this.$buefy.snackbar.open({
-          message: `Version ${this.latestVersion} available!`,
+          message: this.$t('Version {version} available!', { version: this.latestVersion }),
           type: 'is-warning',
           position: 'is-bottom-right',
           actionText: this.$t('Download now'),
