@@ -251,7 +251,7 @@ jobs:
           sha256sum -- * > checksums.txt
           gh release upload "$TAG" ./* --clobber
 
-  # Keeps only the image just released ("latest" points at it); older versions and their platform layers are deleted
+  # Keeps only the newest image (tagged with its version and "latest"); older versions and their platform layers are deleted
   cleanup-images:
     runs-on: ubuntu-latest
     needs: github-release
@@ -261,7 +261,6 @@ jobs:
       - uses: dataaxiom/ghcr-cleanup-action@v1.2.2
         with:
           keep-n-tagged: 1
-          exclude-tags: latest
           delete-untagged: true
           delete-partial-images: true
           validate: true
