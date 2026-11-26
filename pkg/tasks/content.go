@@ -384,6 +384,7 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 			ReapplyEdits()
 
 			IndexScrapedScenes(&processedScenes)
+			go WarmScrapedCovers(processedScenes)
 			if config.Config.Advanced.LinkScenesAfterSceneScraping {
 				MatchAlternateSources()
 			}

@@ -68,3 +68,26 @@ func TestParseVRSpyUpcoming(t *testing.T) {
 		t.Errorf("cast: %v", sc.Cast)
 	}
 }
+
+func TestFillWeeklyDates(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, 11, d, 9, 0, 0, 0, time.UTC) }
+	scenes := []models.ScrapedScene{{Title: "a"}, {Title: "b", Released: "2026-12-24"}, {Title: "c"}}
+	// Thursday 26th, last release Friday 20th: next Friday is the 27th
+	fillWeeklyDates(scenes, time.Friday, day(20), day(26))
+	if scenes[0].Released != "2026-11-27" || scenes[1].Released != "2026-12-24" || scenes[2].Released != "2026-12-04" {
+		t.Errorf("got %s %s %s", scenes[0].Released, scenes[1].Released, scenes[2].Released)
+	}
+	// on release Friday itself, before that scene is out, today is the first date
+	more := []models.ScrapedScene{{Title: "d"}}
+	fillWeeklyDates(more, time.Friday, day(20), day(27))
+	if more[0].Released != "2026-11-27" {
+		t.Errorf("release day: got %s", more[0].Released)
+	}
+	// once today's scene is stored, the next announcement moves a week on
+	fillWeeklyDates(more[:0], time.Friday, day(27), day(27))
+	later := []models.ScrapedScene{{Title: "e"}}
+	fillWeeklyDates(later, time.Friday, day(27), day(27))
+	if later[0].Released != "2026-12-04" {
+		t.Errorf("after release: got %s", later[0].Released)
+	}
+}

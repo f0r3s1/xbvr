@@ -234,7 +234,12 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 		if err != nil || gjson.Get(builder, "status.message").String() != "Ok" {
 			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
 		} else {
-			emitUpcoming(scraperID, parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL), out)
+			upcoming := parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL)
+			if scraperID == "vrbangers" {
+				// VRBangers releases one scene every Friday and announces them in order, without dates
+				fillWeeklyDates(upcoming, time.Friday, models.LatestReleaseDate(scraperID), time.Now())
+			}
+			emitUpcoming(scraperID, upcoming, out)
 		}
 	}
 

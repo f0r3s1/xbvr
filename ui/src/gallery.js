@@ -12,7 +12,9 @@ export default {
       fullscreenImageLoaded: false,
       fullscreenImageInfo: null,
       fullscreenZoomed: false,
-      fullscreenCanZoom: false
+      fullscreenCanZoom: false,
+      // images the server could not fetch, loaded from their own site instead (index -> true)
+      directImages: {}
     }
   },
 
@@ -128,12 +130,13 @@ export default {
       this.fullscreenIndex = (this.fullscreenIndex - 1 + this.images.length) % this.images.length
     },
     getCarouselImageURL (url, index) {
+      if (this.directImages[index]) return url
       const key = this.carouselImageKeys[index] || 0
       const baseUrl = this.getImageURL(url, '1200x')
       return key > 0 ? baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_retry=' + key : baseUrl
     },
     getFullscreenImageURL (url) {
-      return this.getImageURL(url, '0x0')
+      return this.directImages[this.fullscreenIndex] ? url : this.getImageURL(url, '0x0')
     },
     handleImageClick (event) {
       if (!this.fullscreenCanZoom) return
@@ -164,13 +167,24 @@ export default {
         })
       }
     },
+    // a site that refuses our server usually serves the browser: try the original once, then give up
     onCarouselImageError (index) {
-      const retries = this.carouselImageRetries[index] || 0
-      if (retries < 3) {
-        this.retryCarouselImage(index)
+      if (!this.directImages[index] && this.originalAt(index).startsWith('http')) {
+        this.directImages[index] = true
       } else {
         this.carouselImagesLoaded[index] = true
       }
+    },
+    onFullscreenImageError () {
+      if (!this.directImages[this.fullscreenIndex] && this.originalAt(this.fullscreenIndex).startsWith('http')) {
+        this.directImages[this.fullscreenIndex] = true
+      } else {
+        this.fullscreenImageLoaded = true
+      }
+    },
+    originalAt (index) {
+      const img = this.images[index]
+      return (typeof img === 'string' ? img : img?.url) || ''
     },
     onFullscreenImageLoad () {
       this.fullscreenImageLoaded = true

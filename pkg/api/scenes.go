@@ -19,6 +19,7 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-test/deep"
 	"github.com/jinzhu/gorm"
+	"github.com/markphelps/optional"
 	"github.com/mozillazg/go-slugify"
 
 	"github.com/xbapps/xbvr/pkg/models"
@@ -117,6 +118,9 @@ func (i SceneResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/sites").To(i.getSites).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes([]SceneSite{}))
+
+	ws.Route(ws.POST("/changes").To(i.getSceneChanges).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.POST("/list").To(i.getScenes).
 		Param(ws.PathParameter("file-id", "File ID").DataType("int")).
@@ -480,6 +484,44 @@ func (i SceneResource) getScenes(req *restful.Request, resp *restful.Response) {
 		list.Scenes[idx] = sceneListItem{Scene: s, CuepointCount: cuepoints[s.ID], Slim: true}
 	}
 	resp.WriteHeaderAndEntity(http.StatusOK, list)
+}
+
+type requestSceneChanges struct {
+	models.RequestSceneList
+	IDs []uint `json:"ids"`
+}
+
+type responseSceneChanges struct {
+	Positions map[uint]int    `json:"positions"`
+	Scenes    []sceneListItem `json:"scenes"`
+	models.ResponseSceneList
+}
+
+// getSceneChanges tells a live list where changed scenes now belong under its filters and sort.
+func (i SceneResource) getSceneChanges(req *restful.Request, resp *restful.Response) {
+	var r requestSceneChanges
+	if err := req.ReadEntity(&r); err != nil {
+		resp.WriteErrorString(http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(r.IDs) > 500 {
+		r.IDs = r.IDs[:500]
+	}
+	positions := models.SceneListPositions(r.RequestSceneList, r.IDs)
+	matched := make([]uint, 0, len(positions))
+	for id := range positions {
+		matched = append(matched, id)
+	}
+	scenes, cuepoints := models.SceneCards(matched)
+
+	counts := r.RequestSceneList
+	counts.Limit = optional.NewInt(0)
+	out := responseSceneChanges{Positions: positions, Scenes: make([]sceneListItem, len(scenes))}
+	out.ResponseSceneList, _ = models.QuerySceneCards(counts)
+	for idx, s := range scenes {
+		out.Scenes[idx] = sceneListItem{Scene: s, CuepointCount: cuepoints[s.ID], Slim: true}
+	}
+	resp.WriteHeaderAndEntity(http.StatusOK, out)
 }
 
 // sceneListItem drops what cards never show; the details overlay loads the full scene (slim marks that).

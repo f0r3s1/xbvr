@@ -39,8 +39,8 @@
                         <span class="al image" style="width:max-content;">
                           <vue-load-image>
                             <template #image><img :src="getIndicatorURL(props.i)" style="height:85px;"/></template>
-                            <template #preloader><img :src="getImageURL('https://i.stack.imgur.com/kOnzy.gif')" style="height:25px;"/></template>
-                            <template #error><img src="/ui/images/actor_placeholder.svg" style="height:85px;"/></template>
+                            <template #preloader><img src="/ui/images/blank.png" style="height:85px;"/></template>
+                            <template #error><img :src="originalAt(props.i) || '/ui/images/actor_placeholder.svg'" @error="$event.target.src = '/ui/images/actor_placeholder.svg'" style="height:85px;"/></template>
                           </vue-load-image>
                         </span>
                     </template>
@@ -285,6 +285,7 @@
         class="fullscreen-image"
         :class="{ 'is-loaded': fullscreenImageLoaded, 'is-zoomed': fullscreenZoomed, 'can-zoom': fullscreenCanZoom }"
         @load="onFullscreenImageLoad"
+        @error="onFullscreenImageError"
         @click="handleImageClick($event)"
       />
       <div v-if="!fullscreenImageLoaded" class="fullscreen-loader">
@@ -440,6 +441,7 @@ export default defineComponent({
         this.carouselImagesLoaded = {}
         this.photoRatios = {}
         this.carouselImageRetries = {}
+        this.directImages = {}
         this.carouselImageKeys = {}
         this.carouselSlide = 0
       },

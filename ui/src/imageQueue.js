@@ -1,6 +1,6 @@
 // Card images load at most 4 at a time and only near the screen, leaving the browser's ~6 http connections free for API calls.
 const MAX_ACTIVE = 4
-const STUCK_MS = 15000
+const SLOW_MS = 12000
 let active = 0
 const waiting = []
 const jobs = new WeakMap()
@@ -13,7 +13,17 @@ function finish (job) {
   pump()
 }
 
-// an image that scrolled away (or never answers) gives its slot back; it is queued again when visible
+// a hanging request holds one of the browser's few connections: cancel it, let the card load the original ("queue-slow"), retry once
+function slow (job) {
+  abort(job)
+  job.el.dispatchEvent(new CustomEvent('queue-slow'))
+  if (!job.retried) {
+    job.retried = true
+    enqueue(job)
+  }
+}
+
+// an image that scrolled away gives its slot back and is queued again when visible
 function abort (job) {
   if (!job.inFlight) return
   job.el.removeAttribute('src')
@@ -27,7 +37,7 @@ function pump () {
     if (!job.el.isConnected) continue
     job.inFlight = true
     active++
-    job.timer = setTimeout(() => abort(job), STUCK_MS)
+    job.timer = setTimeout(() => slow(job), SLOW_MS)
     job.el.src = job.src
   }
 }
@@ -69,6 +79,7 @@ function setSource (el, src) {
   dequeue(job)
   abort(job)
   job.src = src
+  job.retried = false
   if (!src) {
     el.removeAttribute('src')
   } else if (!isOwnServer(src) || !observer) {
@@ -83,7 +94,7 @@ export default {
   mounted (el, binding) {
     const job = { el, src: null, queued: false, inFlight: false, visible: false, loadedSrc: null }
     const done = () => {
-      if (job.inFlight) job.loadedSrc = job.src
+      if (el.getAttribute('src') === job.src) job.loadedSrc = job.src
       finish(job)
     }
     el.addEventListener('load', done)

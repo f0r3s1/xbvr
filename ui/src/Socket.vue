@@ -127,6 +127,10 @@ export default defineComponent({
         this.$store.commit('health/setProgress', eventData.argsDict)
       })
 
+      await ws.subscribe('scenes.changed', (eventData) => {
+        this.$store.dispatch('sceneList/applySceneChanges', eventData.argsDict || {}).catch(() => {})
+      })
+
       await ws.subscribe('remote.state', (eventData) => {
         this.$store.dispatch('remote/processMessage', eventData.argsDict)
       })

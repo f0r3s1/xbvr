@@ -8,7 +8,10 @@ import (
 	"github.com/xbapps/xbvr/pkg/scrape"
 )
 
-const siteMetaMaxAge = 30 * 24 * time.Hour
+const (
+	siteMetaMaxAge = 30 * 24 * time.Hour
+	siteMetaRetry  = 24 * time.Hour
+)
 
 // RefreshSiteMetadata fetches logo, description and homepage for sites with scenes whose info is missing or older than 30 days.
 func RefreshSiteMetadata() { refreshSiteMetadata(false) }
@@ -44,6 +47,7 @@ func refreshSiteMetadata(force bool) {
 			m, err := scrape.FetchSiteMeta(id)
 			if err != nil {
 				log.WithField("task", "site-metadata").Debugf("%s: %v", id, err)
+				m.Failed = true
 			}
 			if m.Logo != "" && !scrape.ValidLogo(m.Logo) {
 				m.Logo = "" // keep the stored logo rather than save a dead or non-image URL
@@ -79,7 +83,11 @@ func refreshSiteMetadata(force bool) {
 
 func saveSiteMetadata(id string, m scrape.SiteMeta) {
 	// only non-empty values are written, so a failed or partial fetch never erases existing info
-	fields := map[string]interface{}{"meta_updated_at": time.Now()}
+	stamp := time.Now()
+	if m.Failed || m.Logo == "" {
+		stamp = stamp.Add(siteMetaRetry - siteMetaMaxAge) // looks due again after a day instead of a month
+	}
+	fields := map[string]interface{}{"meta_updated_at": stamp}
 	for col, v := range map[string]string{"logo_url": m.Logo, "description": m.Description, "homepage_url": m.Homepage} {
 		if v != "" {
 			fields[col] = v

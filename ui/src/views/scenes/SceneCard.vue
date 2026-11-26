@@ -1,5 +1,5 @@
 <template>
-  <div class="scene-card" 
+  <div class="scene-card" :class="{ 'is-fresh': item.fresh }"
        @mouseenter="hovering = true; startPreview()" 
        @mouseleave="hovering = demo; stopPreview()"
        @click="!demo && showDetails(item)">
@@ -12,15 +12,19 @@
 
     <div class="thumbnail-wrapper" :style="{ aspectRatio: sceneCardAspectRatioValue }">
       <div class="thumbnail-img" :style='{ opacity: item.is_available ? 1.0 : isAvailOpactiy }'>
-        <img decoding="async"
+        <img v-if="!imageFailed" decoding="async"
           ref="coverImage"
           v-queued-src="coverImageSrc"
-          @error="onImageError"
+          @error="onImageError" @queue-slow="onImageSlow"
           @load="onImageLoad"
           class="cover-image"
           :class="{ 'is-loaded': imageLoaded }"
           :style="{ objectFit: sceneCardScaleToFit ? 'contain' : 'cover' }"
         />
+        <span v-if="item.cover_url && !imageLoaded && !imageFailed" class="cover-loading skeleton-block" aria-hidden="true"></span>
+        <span v-if="imageFailed || !item.cover_url" class="cover-missing" :title="$t('No image')">
+          <b-icon pack="mdi" icon="image-off-outline"/>
+        </span>
       </div>
       
       <div class="tags-overlay">
@@ -115,11 +119,15 @@
       </div>
       <div class="meta-row">
         <span class="site-link">
-          <vue-load-image v-if="siteIconUrl && showSiteLogo">
+          <vue-load-image v-if="siteIconUrl && showSiteLogo" :key="siteIconUrl">
             <template #image><img loading="lazy" decoding="async" :src="siteIconUrl" class="site-icon" alt=""/></template>
             <template #preloader><span class="site-icon site-icon-placeholder"></span></template>
-            <template #error><span class="site-icon site-icon-placeholder"></span></template>
+            <template #error>
+              <img v-if="!siteIconFailed" :src="siteIconOriginal" class="site-icon" alt="" @error="siteIconFailed = true"/>
+              <span v-else class="site-icon site-initial" aria-hidden="true">{{ siteInitial }}</span>
+            </template>
           </vue-load-image>
+          <span v-else-if="showSiteLogo && item.site" class="site-icon site-initial" aria-hidden="true">{{ siteInitial }}</span>
           <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop>
             <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
           </a>
@@ -167,6 +175,8 @@ export default defineComponent({
       alternateSources: [],
       stashLinkExists: false,
       loadDirect: false,
+      imageFailed: false,
+      siteIconFailed: false,
       imageLoaded: false,
     }
   },
@@ -239,12 +249,16 @@ export default defineComponent({
     dateFormat () {
       return this.$store.state.optionsWeb.web.dateFormat || 'yyyy-MM-dd'
     },
-    siteIconUrl () {
+    siteIconOriginal () {
       const sites = this.$store.state.optionsSites.items
-      if (!sites || !sites.length) return null
-      const site = sites.find(s => s.id === this.item.scraper_id)
-      if (!site || !site.avatar_url) return null
-      return this.getImageURL(site.avatar_url, '64x') // 16px icon, 64px stays sharp on retina
+      const site = sites && sites.find(s => s.id === this.item.scraper_id)
+      return (site && (site.avatar_url || site.logo_url)) || null
+    },
+    siteIconUrl () {
+      return this.siteIconOriginal && this.getImageURL(this.siteIconOriginal, '64x') // 16px icon, 64px stays sharp on retina
+    },
+    siteInitial () {
+      return (this.item.site || '?').trim().charAt(0).toUpperCase()
     },
     // "Upcoming in 5 days"; sites without a date only say "Upcoming"
     upcomingLabel () {
@@ -273,14 +287,27 @@ export default defineComponent({
     }
   },
 
+  beforeUnmount () {
+    clearTimeout(this.directTimer)
+  },
+
   methods: {
-    onImageError () {
+    // our server is slow on this cover: load the original from its site instead of waiting
+    onImageSlow () {
+      this.fallBack()
+    },
+    onImageError (event) {
+      if (!event?.target?.getAttribute('src')) return // cancelled by the image queue, not a real failure
+      this.fallBack()
+    },
+    fallBack () {
       // some sites refuse server-side fetches but serve the browser, so load the original directly
       if (!this.loadDirect && this.item.cover_url?.startsWith('http')) {
         this.loadDirect = true
         this.imageLoaded = false
+        this.directTimer = setTimeout(() => { if (!this.imageLoaded) this.imageFailed = true }, 20000)
       } else {
-        this.imageLoaded = true
+        this.imageFailed = true
         if (this.item && this.item.id) {
           fetch('/api/health/image-error', {
             method: 'POST',
@@ -378,6 +405,15 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.scene-card.is-fresh {
+  animation: fresh-in 2.5s ease-out;
+}
+@keyframes fresh-in {
+  0% { opacity: 0; transform: translateY(-6px); box-shadow: 0 0 0 2px #7957d5; }
+  15% { opacity: 1; transform: none; box-shadow: 0 0 0 2px #7957d5; }
+  100% { box-shadow: 0 0 0 2px transparent; }
+}
+
 .scene-card:hover .upcoming-badge {
   opacity: 0;
 }
@@ -457,12 +493,30 @@ export default defineComponent({
   object-fit: cover;
   object-position: center center;
   display: block;
-  transition: filter 0.5s ease;
+  transition: filter 0.5s ease, opacity 0.3s ease;
   filter: blur(15px);
 }
 
 .thumbnail-img .cover-image.is-loaded {
   filter: blur(0);
+  opacity: 1;
+}
+.thumbnail-img .cover-image:not(.is-loaded) {
+  opacity: 0;
+}
+.cover-loading {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+.cover-missing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  opacity: 0.35;
 }
 
 
@@ -893,6 +947,16 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
   align-items: center;
   flex-shrink: 0;
   line-height: 0;
+}
+.site-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: #7957d5;
 }
 .site-icon {
   width: 16px;

@@ -801,22 +801,27 @@ func QuerySceneCards(r RequestSceneList) (ResponseSceneList, map[uint]int) {
 	countScenes(preCountTx, r, &out)
 	finalTx.Preload("Files").Find(&out.Scenes)
 
-	cuepoints := map[uint]int{}
-	if len(out.Scenes) > 0 {
-		ids := make([]uint, len(out.Scenes))
-		for i := range out.Scenes {
-			ids[i] = out.Scenes[i].ID
-		}
-		var rows []struct {
-			SceneID uint
-			Count   int
-		}
-		db.Model(&SceneCuepoint{}).Select("scene_id, count(*) as count").Where("scene_id IN (?)", ids).Group("scene_id").Scan(&rows)
-		for _, row := range rows {
-			cuepoints[row.SceneID] = row.Count
-		}
+	ids := make([]uint, len(out.Scenes))
+	for i := range out.Scenes {
+		ids[i] = out.Scenes[i].ID
 	}
-	return out, cuepoints
+	return out, cuepointCounts(db, ids)
+}
+
+func cuepointCounts(db *gorm.DB, ids []uint) map[uint]int {
+	counts := map[uint]int{}
+	if len(ids) == 0 {
+		return counts
+	}
+	var rows []struct {
+		SceneID uint
+		Count   int
+	}
+	db.Model(&SceneCuepoint{}).Select("scene_id, count(*) as count").Where("scene_id IN (?)", ids).Group("scene_id").Scan(&rows)
+	for _, row := range rows {
+		counts[row.SceneID] = row.Count
+	}
+	return counts
 }
 
 // countScenes fills the result total and every dlState tab count in one scan.
@@ -879,6 +884,8 @@ func QuerySceneSummaries(r RequestSceneList) []SceneSummary {
 }
 
 const altSceneLinks = "scenes.id in (select internal_db_id from external_reference_links where internal_db_id is not null and external_source like 'alternate scene %'"
+
+const undatedUpcomingFirst = "(case when scenes.is_upcoming and scenes.release_date < '1901-01-01' then 1 else 0 end)"
 
 func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 	// get config, can't reference config directly due to circular package references
@@ -1236,10 +1243,11 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 		tx = tx.Order("added_date desc")
 	case "added_asc":
 		tx = tx.Order("added_date asc")
+	// announced scenes without a date (some sites give none) count as the newest instead of sinking to year 1
 	case "release_desc":
-		tx = tx.Order("release_date desc")
+		tx = tx.Order(undatedUpcomingFirst + " desc").Order("release_date desc")
 	case "release_asc":
-		tx = tx.Order("release_date asc")
+		tx = tx.Order(undatedUpcomingFirst + " asc").Order("release_date asc")
 	case "title_desc":
 		switch tx.Dialect().GetName() {
 		case "mysql":

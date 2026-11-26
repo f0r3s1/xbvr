@@ -38,6 +38,10 @@
     <template v-else>
     <SiteHeader/>
 
+    <button v-if="pendingNew > 0" class="new-scenes-pill" @click="$store.dispatch('sceneList/showPendingNew')">
+      <b-icon pack="mdi" icon="arrow-up" size="is-small"/>
+      {{ $t('{n} new scenes', { n: pendingNew }, pendingNew) }}
+    </button>
     <div class="columns is-multiline list-grid">
       <div :class="['column', 'is-multiline', 'card-column', cardSizeClass]"
            v-for="item in (showSkeleton ? [] : items)" :key="item.id">
@@ -197,6 +201,9 @@ export default defineComponent({
     skeletonAspect () {
       return (this.$store.state.optionsWeb.web.sceneCardAspectRatio || '16:9').replace(':', ' / ')
     },
+    pendingNew () {
+      return this.$store.state.sceneList.pendingNew.length
+    },
     items () {
       return this.$store.state.sceneList.items
     },
@@ -290,6 +297,28 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.new-scenes-pill {
+  position: fixed;
+  top: calc(3.25rem + var(--list-head-h, 48px) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #7957d5;
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  animation: pill-in 0.25s ease-out;
+}
+@keyframes pill-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+
 /* off-screen cards skip layout and paint, so a long list stays as fast as the first page */
 .card-column {
   content-visibility: auto;

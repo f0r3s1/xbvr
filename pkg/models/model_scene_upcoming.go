@@ -156,6 +156,7 @@ func deleteScenes(db *gorm.DB, ids []uint) error {
 			return err
 		}
 	}
+	NotifySceneChanged(ids...)
 	return nil
 }
 
@@ -238,4 +239,12 @@ func PruneUpcoming(scraperID string, listedSceneURLs []string) {
 	if err := deleteScenes(db, ids); err != nil {
 		log.Errorf("Could not prune upcoming scenes of %v: %v", scraperID, err)
 	}
+}
+
+// LatestReleaseDate is the newest release date of a scraper's released scenes (zero when it has none).
+func LatestReleaseDate(scraperID string) time.Time {
+	db, _ := GetCommonDB()
+	var s Scene
+	db.Select("release_date").Where("scraper_id = ? AND is_upcoming = ?", scraperID, false).Order("release_date desc").First(&s)
+	return s.ReleaseDate
 }

@@ -48,7 +48,7 @@
                           <vue-load-image>
                             <template #image><img :src="getIndicatorURL(props.i)" style="height:40px;"/></template>
                             <template #preloader><img src="/ui/images/blank.png" style="height:40px;"/></template>
-                            <template #error><img src="/ui/images/blank.png" style="height:40px;"/></template>
+                            <template #error><img :src="originalAt(props.i) || '/ui/images/blank.png'" @error="$event.target.src = '/ui/images/blank.png'" style="height:40px;"/></template>
                           </vue-load-image>
                         </span>
                     </template>
@@ -442,6 +442,7 @@
         class="fullscreen-image"
         :class="{ 'is-loaded': fullscreenImageLoaded, 'is-zoomed': fullscreenZoomed, 'can-zoom': fullscreenCanZoom }"
         @load="onFullscreenImageLoad"
+        @error="onFullscreenImageError"
         @click="handleImageClick($event)"
       />
       <div v-if="!fullscreenImageLoaded" class="fullscreen-loader">
@@ -780,6 +781,7 @@ watch:{
     handler () {
       this.carouselImagesLoaded = {}
       this.carouselImageRetries = {}
+      this.directImages = {}
       this.carouselImageKeys = {}
       this.scenePalette = null
     },

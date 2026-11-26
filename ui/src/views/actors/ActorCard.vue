@@ -2,9 +2,11 @@
   <div class="actor-card" @click="showDetails(actor)" @mouseenter="hovering = true" @mouseleave="hovering = false">
     <div class="thumbnail-wrapper" :style="{ aspectRatio: actorCardAspectRatio }">
       <div class="thumbnail-img" :class="{ 'is-contain': actorCardScale === 'contain' }"
-           :style="{ opacity: isAvailable(actor) ? 1.0 : isAvailOpacity, '--actor-img': `url(${imageURL})` }">
-        <img decoding="async" v-queued-src="imageURL" class="cover-image" :class="{ 'is-loaded': imageLoaded }"
-             :style="{ objectFit: actorCardScale }" alt="" @load="imageLoaded = true" @error="imageLoaded = true"/>
+           :style="{ opacity: isAvailable(actor) ? 1.0 : isAvailOpacity, '--actor-img': imageLoaded ? `url(${imageURL})` : 'none' }">
+        <img v-if="!imageFailed" decoding="async" v-queued-src="imageURL" class="cover-image" :class="{ 'is-loaded': imageLoaded }"
+             :style="{ objectFit: actorCardScale }" alt="" @load="imageLoaded = true" @error="onImageError" @queue-slow="onImageSlow"/>
+        <span v-if="!imageLoaded && !imageFailed" class="cover-loading skeleton-block" aria-hidden="true"></span>
+        <img v-if="imageFailed" src="/ui/images/actor_placeholder.svg" class="cover-image is-loaded" alt=""/>
       </div>
 
       <div class="top-right-tags">
@@ -71,12 +73,18 @@ export default defineComponent({
     return {
       hovering: false,
       imageLoaded: false,
+      imageFailed: false,
+      loadDirect: false,
     }
   },
 
   watch: {
     imageURL () {
       this.imageLoaded = false
+    },
+    'actor.image_url' () {
+      this.imageFailed = false
+      this.loadDirect = false
     },
   },
 
@@ -85,7 +93,8 @@ export default defineComponent({
       return this.actor.slim ? this.actor.scene_count : (this.actor.scenes || []).length
     },
     imageURL () {
-      return this.getImageURL(this.actor.image_url)
+      const u = this.actor.image_url
+      return this.loadDirect && u?.startsWith('http') ? u : this.getImageURL(u)
     },
     age () {
       const b = this.actor.birth_date
@@ -121,7 +130,29 @@ export default defineComponent({
     },
   },
 
+  beforeUnmount () {
+    clearTimeout(this.directTimer)
+  },
+
   methods: {
+    // our server is slow on this cover: load the original from its site instead of waiting
+    onImageSlow () {
+      this.fallBack()
+    },
+    onImageError (event) {
+      if (!event?.target?.getAttribute('src')) return // cancelled by the image queue, not a real failure
+      this.fallBack()
+    },
+    fallBack () {
+      // the site may refuse our server but serve the browser: try the original once, then show the placeholder
+      if (!this.loadDirect && this.actor.image_url?.startsWith('http')) {
+        this.loadDirect = true
+        this.imageLoaded = false
+        this.directTimer = setTimeout(() => { if (!this.imageLoaded) this.imageFailed = true }, 20000)
+      } else {
+        this.imageFailed = true
+      }
+    },
     getImageURL (u) {
       if (u=='' || u == undefined) {
         return "/ui/images/actor_placeholder.svg"
@@ -207,6 +238,14 @@ export default defineComponent({
 }
 .cover-image.is-loaded {
   filter: blur(0);
+}
+.cover-image:not(.is-loaded) {
+  opacity: 0;
+}
+.cover-loading {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
 }
 
 .top-right-tags {

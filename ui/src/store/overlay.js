@@ -188,7 +188,7 @@ const actions = {
       commit('showDetails', { scene })
       return
     }
-    const full = await ky.get(`/api/scene/${scene.id}`).json()
+    const full = await ky.get(`/api/scene/${scene.id}`, { priority: 'high' }).json()
     if (request === latestDetailsRequest && full.id) commit('showDetails', { scene: full })
   }
 }

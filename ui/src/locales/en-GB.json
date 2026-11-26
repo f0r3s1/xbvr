@@ -679,5 +679,10 @@
   "Dismiss": "Dismiss",
   "Log out": "Log out",
   "Stop": "Stop",
-  "Stopping…": "Stopping…"
+  "Stopping…": "Stopping…",
+  "No image": "No image",
+  "{n} new scenes": "{n} new scene | {n} new scenes",
+  "Prepare all covers": "Prepare all covers",
+  "Preparing covers in the background": "Preparing covers in the background",
+  "Downloads and resizes every card cover in the background, one at a time, so cards open instantly": "Downloads and resizes every card cover in the background, one at a time, so cards open instantly"
 }

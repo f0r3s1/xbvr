@@ -86,6 +86,9 @@ func (i TaskResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/refresh-site-metadata").To(i.refreshSiteMetadata).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.GET("/warm-covers").To(i.warmCovers).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.GET("/index").To(i.index).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -138,6 +141,10 @@ func (i TaskResource) cleanTags(req *restful.Request, resp *restful.Response) {
 
 func (i TaskResource) refreshSiteMetadata(req *restful.Request, resp *restful.Response) {
 	go tasks.ForceRefreshSiteMetadata()
+}
+
+func (i TaskResource) warmCovers(req *restful.Request, resp *restful.Response) {
+	go tasks.WarmAllCovers()
 }
 
 func (i TaskResource) index(req *restful.Request, resp *restful.Response) {

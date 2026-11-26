@@ -13,6 +13,7 @@
             <p class="control"><span class="button is-static is-small">{{ $t('GB') }}</span></p>
           </b-field>
           <b-button size="is-small" @click="resetCache('images')">{{ $t('Reset') }}</b-button>
+          <b-button size="is-small" :title="$t('Downloads and resizes every card cover in the background, one at a time, so cards open instantly')" @click="warmCovers">{{ $t('Prepare all covers') }}</b-button>
         </div>
       </div>
       <div class="settings-row">
@@ -111,6 +112,10 @@ export default defineComponent({
   },
 
   methods: {
+    warmCovers () {
+      ky.get('/api/task/warm-covers')
+      this.$buefy.toast.open({ message: this.$t('Preparing covers in the background'), type: 'is-info' })
+    },
     async loadState () {
       this.isLoading = true
       await getOptionsState()

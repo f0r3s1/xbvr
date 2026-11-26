@@ -27,6 +27,7 @@ type SiteMeta struct {
 	Logo        string
 	Description string
 	Homepage    string
+	Failed      bool // the site could not be reached, so the refresh is retried sooner
 }
 
 const siteMetaMaxBody = 2 << 20
