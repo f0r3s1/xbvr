@@ -19,6 +19,8 @@ const defaultFilterState = {
   sort: 'release_desc'
 }
 
+const pristineFilters = JSON.stringify(defaultFilterState)
+
 const state = {
   items: [],
   playlists: [],
@@ -123,6 +125,9 @@ const mutations = {
         state.filters[k] = v
       }
     } catch { /* ignore malformed JSON from persisted state */ }
+  },
+  resetFilters (state) {
+    state.filters = { ...JSON.parse(pristineFilters), cardSize: state.filters.cardSize }
   },
   stateFromQuery (state, payload) {
     try {

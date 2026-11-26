@@ -17,71 +17,59 @@
         <b-tabs position="is-centered" :animated="false">
 
           <b-tab-item :label="$t('Information')">
-            <b-field grouped group-multiline style="margin-bottom: 2em;">
-              <b-field :label="$t('Nationality')" label-position="on-border" class="field-extra">
-                <b-taginput v-model="countries" autocomplete :data="filteredCountries" @typing="getFilteredCountries" maxtags="1" :open-on-focus=true :has-counter="false">
+            <div class="info-grid">
+              <b-field :label="$t('Nationality')" label-position="on-border">
+                <b-taginput v-model="countries" autocomplete :data="filteredCountries" @typing="getFilteredCountries" maxtags="1" :open-on-focus="true" :has-counter="false">
                   <template v-slot="props">{{ props.option }}</template>
                   <template #empty>{{ $t('No matching country') }}</template>
-                  <template #selected="props">
-                      <b-tag v-for="(tag, index) in props.tags"                
-                        :key="tag+index" :tabstop="false" closable @close="countries=countries.filter(e => e !== tag)" >
-                          {{tag}}
-                      </b-tag>
-                  </template>
                 </b-taginput>
-              </b-field>              
+              </b-field>
               <b-field :label="$t('Ethnicity')" label-position="on-border">
                 <b-input type="text" v-model="actor.ethnicity" @blur="blur('ethnicity')"/>
               </b-field>
-               <b-datepicker v-model="birthdate" icon="calendar-today" @blur="blur('birth_date')">
-                 <b-button :label="$t('Clear')" type="is-danger" icon-left="close" outlined @click="birthdate = null" />
-               </b-datepicker>
-            </b-field>
-            <b-field grouped group-multiline style="margin-bottom: 2em;">
+              <b-field :label="$t('Birth date')" label-position="on-border">
+                <b-datepicker v-model="birthdate" icon="calendar-today" :placeholder="$t('Unknown')" @blur="blur('birth_date')">
+                  <b-button :label="$t('Clear')" type="is-danger" icon-left="close" outlined @click="birthdate = null"/>
+                </b-datepicker>
+              </b-field>
+              <b-field :label="$t('Breast Type')" label-position="on-border">
+                <b-input type="text" v-model="actor.breast_type" placeholder="eg Fake, Natural" @blur="blur('breast_type')"/>
+              </b-field>
               <b-field :label="$t('Eye Color')" label-position="on-border">
                 <b-input type="text" v-model="actor.eye_color" @blur="blur('eye_color')"/>
               </b-field>
               <b-field :label="$t('Hair Color')" label-position="on-border">
                 <b-input type="text" v-model="actor.hair_color" @blur="blur('hair_color')"/>
               </b-field>
-            </b-field>
-            <b-field grouped group-multiline style="margin-bottom: 2em;">
               <b-field v-if="useImperialEntry" :label="$t('Weight in lbs')" label-position="on-border">
-                <b-input type="number" v-model.number="actor.lbs" :placeholder="$t('Enter Weight in lbs')"  @blur="blur('weight')"/>                 
+                <b-input type="number" v-model.number="actor.lbs" min="0" @blur="blur('weight')"/>
               </b-field>
-              <b-field v-if="!useImperialEntry" :label="$t('Weight')" label-position="on-border">
-                <b-input type="number" v-model.number="actor.weight" :placeholder="$t('Enter Weight in kg')"  @blur="blur('weight')"/>                 
+              <b-field v-else :label="$t('Weight')" label-position="on-border">
+                <b-input type="number" v-model.number="actor.weight" min="0" placeholder="kg" @blur="blur('weight')"/>
               </b-field>
-              <b-field>
-              <b-field v-if="useImperialEntry" :label="$t('Height feet/inches')" label-position="on-border">
-                <b-input type="number" v-model.number="actor.feet" min="0" max="10" placeholder="Height in feet" @blur="blur('height')" style="width: 5em;"/>
-                <b-input type="number" v-model.number="actor.inches" min="0" max="12" placeholder="Height in inches" @blur="blur('height')" style="width: 5em;"/>
+              <b-field v-if="useImperialEntry" :label="$t('Height feet/inches')" label-position="on-border" grouped>
+                <b-input type="number" v-model.number="actor.feet" min="0" max="10" placeholder="ft" @blur="blur('height')" expanded/>
+                <b-input type="number" v-model.number="actor.inches" min="0" max="12" placeholder="in" @blur="blur('height')" expanded/>
               </b-field>
+              <b-field v-else :label="$t('Height')" label-position="on-border">
+                <b-input type="number" v-model.number="actor.height" min="0" placeholder="cm" @blur="blur('height')"/>
               </b-field>
-              <b-field v-if="!useImperialEntry" :label="$t('Height')" label-position="on-border">
-                <b-input type="number" v-model.number="actor.height"  placeholder="Height in cm" @blur="blur('height')"/>
-              </b-field>
-            </b-field>
-            <b-field grouped group-multiline style="margin-bottom: 2em;">
               <b-field :label="$t('Measurements')" label-position="on-border">
                 <b-input type="text" v-model="actor.measurements" placeholder="eg 36C-24-36" pattern="(^(\d{2})?([A-Za-z]{0,2})-(\d{2})?-(\d{2}$)?)|^[A-Z]{0,2}$" validation-message="use the format 99A-99-99"
                   @blur="blur('measurements')"/>
               </b-field>
-              <b-field :label="$t('Breast Type')" label-position="on-border">
-                <b-input type="text" v-model="actor.breast_type" placeholder="eg Fake, Natural" @blur="blur('breast_type')"/>
+              <div class="year-pair">
+                <b-field :label="$t('Active From')" label-position="on-border">
+                  <b-input type="number" v-model.number="actor.start_year" :max="currentYear" placeholder="year" @blur="blur('start_year')"/>
+                </b-field>
+                <b-field :label="$t('Active To')" label-position="on-border">
+                  <b-input type="number" v-model.number="actor.end_year" :max="currentYear" placeholder="year" @blur="blur('end_year')"/>
+                </b-field>
+              </div>
+              <b-field :label="$t('Biography')" label-position="on-border" class="is-wide">
+                <b-input type="textarea" v-model="actor.biography" @blur="blur('biography')"/>
               </b-field>
-            </b-field>
-            <b-field grouped group-multiline style="margin-bottom: 2em;">
-              <b-field :label="$t('Active From')" label-position="on-border">
-                <b-input type="number" v-model.number="actor.start_year" :max="new Date().getFullYear()" pattern="^[1-2]\d{1,3}$|^0$|^$"  validation-message="Up to the current year" @blur="blur('start_year')"/>
-              </b-field>
-              <b-field :label="$t('Active To')" label-position="on-border">
-                <b-input type="number" v-model.number="actor.end_year" :max="new Date().getFullYear()" pattern="^[1-2]\d{1,3}$|^0$|^$"  validation-message="Up to the current year" @blur="blur('end_year')"/>
-              </b-field>
-            </b-field>
-            <b-field :label="$t('Biography')" label-position="on-border">
-              <b-input type="textarea" v-model="actor.biography" @blur="blur('biography')"/>
-            </b-field>
+            </div>
           </b-tab-item>
 
           <b-tab-item :label="$t('Aliases')">
@@ -111,7 +99,7 @@
       <footer class="modal-card-foot">
         <b-field>
           <b-button type="is-primary" @click="save">{{ $t('Save Details') }}</b-button>
-          <b-button v-if="actor.scenes.length == 0 && !actor.name.startsWith('aka:')" type="is-danger" outlined @click="deleteactor">{{ $t('Delete Actor') }}</b-button>
+          <b-button v-if="!(actor.slim ? actor.scene_count : actor.scenes.length) && !actor.name.startsWith('aka:')" type="is-danger" outlined @click="deleteactor">{{ $t('Delete Actor') }}</b-button>
         </b-field>
       </footer>
     </div>
@@ -153,7 +141,9 @@ export default defineComponent({
     } catch {
       actor.piercingArray = []
     }
-    actor.measurements = Math.round(actor.band_size / 2.54) + actor.cup_size + '-' + Math.round(actor.waist_size / 2.54) + '-' + Math.round(actor.hip_size / 2.54)
+    actor.measurements = actor.band_size || actor.waist_size || actor.hip_size || actor.cup_size
+      ? Math.round(actor.band_size / 2.54) + actor.cup_size + '-' + Math.round(actor.waist_size / 2.54) + '-' + Math.round(actor.hip_size / 2.54)
+      : ''
     this.convertCountryCodeToName()
     let urls;
     try {
@@ -167,9 +157,12 @@ export default defineComponent({
     const  feet = Math.floor(totalInches / 12)
     const inches =  Math.round(totalInches - (feet*12))      
     const lbs = Math.round(actor.weight * 220462 / 100000);
-    actor.feet = feet
-    actor.inches = inches
-    actor.lbs = lbs
+    actor.feet = actor.height ? feet : null
+    actor.inches = actor.height ? inches : null
+    actor.lbs = lbs || null
+    for (const f of ['height', 'weight', 'start_year', 'end_year']) {
+      if (!actor[f]) actor[f] = null
+    }
 
     return {
       actor,
@@ -189,9 +182,7 @@ export default defineComponent({
   computed: {
     birthdate: {
       get () {        
-        if (this.actor.birth_date=='0001-01-01T00:00:00Z') {
-          return new Date()
-        }
+        if (!this.actor.birth_date || this.actor.birth_date.startsWith('0001-01-01')) return null
         return new Date(this.actor.birth_date)
       },
       set (value) {        
@@ -203,6 +194,9 @@ export default defineComponent({
         this.actor.birth_date = adjustedDate.toISOString().split('.')[0] + 'Z'        
         }
       }
+    },
+    currentYear () {
+      return new Date().getFullYear()
     },
     useImperialEntry () {
       return this.$store.state.optionsAdvanced.advanced.useImperialEntry
@@ -248,8 +242,8 @@ export default defineComponent({
     async save () {
       this.$store.state.actorList.isLoading = true
       if (this.useImperialEntry) {
-        this.actor.height = Math.round(((this.actor.feet * 12) + this.actor.inches) * 2.54)
-        this.actor.weight = Math.round(this.actor.lbs * 453592 / 1000000);
+        this.actor.height = Math.round((((this.actor.feet || 0) * 12) + (this.actor.inches || 0)) * 2.54)
+        this.actor.weight = Math.round((this.actor.lbs || 0) * 453592 / 1000000)
       }
       this.actor.aliases = JSON.stringify(this.actor.aliasArray)      
       this.actor.tattoos = JSON.stringify(this.actor.tattooArray)         
@@ -276,10 +270,9 @@ export default defineComponent({
           })
         })
       }
-      this.actor.height = parseInt(this.actor.height)
-      this.actor.weight = parseInt(this.actor.weight)
-      this.actor.start_year = parseInt(this.actor.start_year)
-      this.actor.end_year = parseInt(this.actor.end_year)
+      for (const f of ['height', 'weight', 'start_year', 'end_year']) {
+        this.actor[f] = parseInt(this.actor[f]) || 0
+      }
 
       this.actor.urls = JSON.stringify(dataArray)
 
@@ -354,12 +347,6 @@ export default defineComponent({
       this.filteredCountries=[]
       filtered.forEach(item => this.filteredCountries.push(item.name))      
     },
-    getYear (text) {
-      if (text==0) {
-        return ""
-      }
-      return text
-    },
     convertCountryCodeToName() {      
       if (this.countryList != undefined && this.actor != undefined && this.actor.nationality.length == 2) {
         this.countryList.forEach(country => {
@@ -369,9 +356,9 @@ export default defineComponent({
         })
       }
 
-      if (this.actor != undefined){      
-        this.countries = [this.actor.nationality]
-      }      
+      if (this.actor != undefined) {
+        this.countries = this.actor.nationality ? [this.actor.nationality] : []
+      }
     },
   },
 });
@@ -379,10 +366,33 @@ export default defineComponent({
 
 <style scoped>
 .modal-card {
-  width: 65%;
+  width: min(860px, 94vw);
 }
-
-.tab-item {
-  height: 40vh;
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.4rem 1rem;
+  padding-top: 0.75rem;
+}
+.info-grid > .field,
+.year-pair > .field {
+  margin-bottom: 0;
+}
+.info-grid .is-wide {
+  grid-column: 1 / -1;
+}
+.year-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.info-grid :deep(.datepicker),
+.info-grid :deep(.taginput) {
+  width: 100%;
+}
+@media (max-width: 600px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

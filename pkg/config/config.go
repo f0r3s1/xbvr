@@ -10,8 +10,9 @@ import (
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
+// CronSchedule is one task schedule.
 type CronSchedule struct {
-	Enabled         bool `default:"true" json:"enabled"`
+	Enabled         bool `json:"enabled"`
 	HourInterval    int  `json:"hourInterval"`
 	UseRange        bool `default:"false" json:"useRange"`
 	MinuteStart     int  `default:"0" json:"minuteStart"`
@@ -38,6 +39,7 @@ type ObjectConfig struct {
 		SceneWatched         bool   `default:"false" json:"sceneWatched"`
 		SceneEdit            bool   `default:"false" json:"sceneEdit"`
 		SceneDuration        bool   `default:"false" json:"sceneDuration"`
+		SceneScriptSpeed     bool   `default:"false" json:"sceneScriptSpeed"`
 		SceneCuepoint        bool   `default:"true" json:"sceneCuepoint"`
 		ShowHspFile          bool   `default:"true" json:"showHspFile"`
 		ShowSubtitlesFile    bool   `default:"true" json:"showSubtitlesFile"`
@@ -49,12 +51,15 @@ type ObjectConfig struct {
 		IsAvailOpacity       int    `default:"40" json:"isAvailOpacity"`
 		SceneCardAspectRatio string `default:"16:9" json:"sceneCardAspectRatio"`
 		SceneCardScaleToFit  bool   `default:"false" json:"sceneCardScaleToFit"`
+		CardButtonStyle      string `default:"classic" json:"cardButtonStyle"`
 		ActorCardAspectRatio string `default:"1:1" json:"actorCardAspectRatio"`
 		ActorCardScaleToFit  bool   `default:"true" json:"actorCardScaleToFit"`
 		ShowSiteLogo         bool   `default:"true" json:"showSiteLogo"`
 		DateFormat           string `default:"yyyy-MM-dd" json:"dateFormat"`
 		AccentColorTags      bool   `default:"true" json:"accentColorTags"`
 		Theme                string `default:"auto" json:"theme"`
+		ShowUpcoming         bool   `default:"true" json:"showUpcoming"` // scrape and list scenes sites announce before release
+		UpcomingDays         int    `default:"14" json:"upcomingDays"`   // list upcoming scenes releasing within this many days, 0 = all
 	} `json:"web"`
 	Advanced struct {
 		ShowInternalSceneId          bool      `default:"false" json:"showInternalSceneId"`
@@ -127,62 +132,17 @@ type ObjectConfig struct {
 			Resolution    int     `default:"400" json:"resolution"`
 			ExtraSnippet  bool    `default:"false" json:"extraSnippet"`
 		} `json:"preview"`
+		// max size of the on-disk image cache in GB, 0 = unlimited
+		ImageCacheMaxGB int `default:"10" json:"imageCacheMaxGB"`
 	} `json:"library"`
 	Cron struct {
-		RescrapeSchedule struct {
-			Enabled         bool `default:"true" json:"enabled"`
-			HourInterval    int  `default:"12" json:"hourInterval"`
-			UseRange        bool `default:"false" json:"useRange"`
-			MinuteStart     int  `default:"0" json:"minuteStart"`
-			HourStart       int  `default:"0" json:"hourStart"`
-			HourEnd         int  `default:"23" json:"hourEnd"`
-			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
-		} `json:"rescrapeSchedule"`
-		RescanSchedule struct {
-			Enabled         bool `default:"true" json:"enabled"`
-			HourInterval    int  `default:"2" json:"hourInterval"`
-			UseRange        bool `default:"false" json:"useRange"`
-			MinuteStart     int  `default:"0" json:"minuteStart"`
-			HourStart       int  `default:"0" json:"hourStart"`
-			HourEnd         int  `default:"23" json:"hourEnd"`
-			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
-		} `json:"rescanSchedule"`
-		PreviewSchedule struct {
-			Enabled         bool `default:"false" json:"enabled"`
-			HourInterval    int  `default:"2" json:"hourInterval"`
-			UseRange        bool `default:"false" json:"useRange"`
-			MinuteStart     int  `default:"0" json:"minuteStart"`
-			HourStart       int  `default:"0" json:"hourStart"`
-			HourEnd         int  `default:"23" json:"hourEnd"`
-			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
-		} `json:"previewSchedule"`
-		ActorRescrapeSchedule struct {
-			Enabled         bool `default:"false" json:"enabled"`
-			HourInterval    int  `default:"12" json:"hourInterval"`
-			UseRange        bool `default:"false" json:"useRange"`
-			MinuteStart     int  `default:"0" json:"minuteStart"`
-			HourStart       int  `default:"0" json:"hourStart"`
-			HourEnd         int  `default:"23" json:"hourEnd"`
-			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
-		} `json:"actorRescrapeSchedule"`
-		StashdbRescrapeSchedule struct {
-			Enabled         bool `default:"false" json:"enabled"`
-			HourInterval    int  `default:"12" json:"hourInterval"`
-			UseRange        bool `default:"false" json:"useRange"`
-			MinuteStart     int  `default:"0" json:"minuteStart"`
-			HourStart       int  `default:"0" json:"hourStart"`
-			HourEnd         int  `default:"23" json:"hourEnd"`
-			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
-		} `json:"stashdbRescrapeSchedule"`
-		LinkScenesSchedule struct {
-			Enabled         bool `default:"false" json:"enabled"`
-			HourInterval    int  `default:"12" json:"hourInterval"`
-			UseRange        bool `default:"false" json:"useRange"`
-			MinuteStart     int  `default:"0" json:"minuteStart"`
-			HourStart       int  `default:"0" json:"hourStart"`
-			HourEnd         int  `default:"23" json:"hourEnd"`
-			RunAtStartDelay int  `default:"0" json:"runAtStartDelay"`
-		} `json:"linkScenesSchedule"`
+		RescrapeSchedule        CronSchedule `default:"{\"enabled\":true,\"hourInterval\":12}" json:"rescrapeSchedule"`
+		RescanSchedule          CronSchedule `default:"{\"enabled\":true,\"hourInterval\":2}" json:"rescanSchedule"`
+		PreviewSchedule         CronSchedule `default:"{\"hourInterval\":2}" json:"previewSchedule"`
+		ActorRescrapeSchedule   CronSchedule `default:"{\"hourInterval\":12}" json:"actorRescrapeSchedule"`
+		StashdbRescrapeSchedule CronSchedule `default:"{\"hourInterval\":12}" json:"stashdbRescrapeSchedule"`
+		LinkScenesSchedule      CronSchedule `default:"{\"hourInterval\":12}" json:"linkScenesSchedule"`
+		LibraryHealthSchedule   CronSchedule `default:"{\"enabled\":true,\"hourInterval\":168,\"runAtStartDelay\":0}" json:"libraryHealthSchedule"`
 	} `json:"cron"`
 	Storage struct {
 		MatchOhash bool     `default:"false" json:"match_ohash"`

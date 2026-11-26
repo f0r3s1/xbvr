@@ -19,7 +19,6 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/markphelps/optional"
 	"github.com/tidwall/gjson"
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/text/language"
 	"golang.org/x/text/language/display"
 
@@ -60,6 +59,7 @@ type HeresphereVideo struct {
 	Tags                 []HeresphereTag                `json:"tags,omitempty"`
 	Media                []HeresphereMedia              `json:"media"`
 	AlphaPackedSettings  *HereSphereAlphaPackedSettings `json:"alphaPackedSettings,omitempty"`
+	EventServer          string                         `json:"eventServer,omitempty"`
 	WriteFavorite        bool                           `json:"writeFavorite"`
 	WriteRating          bool                           `json:"writeRating"`
 	WriteTags            bool                           `json:"writeTags"`
@@ -114,18 +114,37 @@ type HereSphereAuthRequest struct {
 	NeedsMediaSource optional.Bool    `json:"needsMediaSource"`
 }
 
-var RequestBody []byte
+const heresphereBodyAttribute = "heresphere.body"
+
+func heresphereRequestBody(req *restful.Request) []byte {
+	if body, ok := req.Attribute(heresphereBodyAttribute).([]byte); ok {
+		return body
+	}
+	body, _ := io.ReadAll(req.Request.Body)
+	req.SetAttribute(heresphereBodyAttribute, body)
+	return body
+}
+
+func heresphereRequestData(req *restful.Request) HereSphereAuthRequest {
+	var requestData HereSphereAuthRequest
+	body := heresphereRequestBody(req)
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &requestData); err != nil {
+			log.Warnf("Error decoding heresphere api POST request: %v %s", err, req.Request.RequestURI)
+		}
+	}
+	return requestData
+}
 
 func HeresphereAuthFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-	RequestBody, _ = io.ReadAll(req.Request.Body)
+	body := heresphereRequestBody(req)
 	if isDeoAuthEnabled() {
 		authState := 0
 		var requestData HereSphereAuthRequest
 
-		if err := json.Unmarshal(RequestBody, &requestData); err == nil {
+		if err := json.Unmarshal(body, &requestData); err == nil {
 			if requestData.Username != "" && requestData.Password != "" {
-				cmpErr := bcrypt.CompareHashAndPassword([]byte(config.Config.Interfaces.DeoVR.Password), []byte(requestData.Password))
-				if requestData.Username == config.Config.Interfaces.DeoVR.Username && cmpErr == nil {
+				if deoCredentialsValid(requestData.Username, requestData.Password) {
 					authState = 1
 				} else {
 					authState = -1
@@ -180,6 +199,12 @@ func (i HeresphereResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(DeoLibrary{}))
 
+	ws.Route(ws.POST("/scan").Filter(HeresphereAuthFilter).To(i.getHeresphereScan).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes(HeresphereScan{}))
+	ws.Route(ws.POST("/events/{scene-id}").To(i.postHeresphereEvent).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.GET("/{scene-id}").Filter(HeresphereAuthFilter).To(i.getHeresphereScene).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(DeoScene{}))
@@ -201,10 +226,7 @@ func (i HeresphereResource) getHeresphereFile(req *restful.Request, resp *restfu
 		return
 	}
 
-	var requestData HereSphereAuthRequest
-	if err := json.Unmarshal(RequestBody, &requestData); err != nil {
-		log.Warnf("Error decoding heresphere api POST request: %v %s", err, req.Request.RequestURI)
-	}
+	requestData := heresphereRequestData(req)
 
 	dnt := ""
 	if !config.Config.Interfaces.DeoVR.TrackWatchTime {
@@ -253,7 +275,7 @@ func (i HeresphereResource) getHeresphereFile(req *restful.Request, resp *restfu
 		DurationMilliseconds: uint(file.VideoDuration * 1000),
 		Media:                media,
 	}
-	if requestData.DeleteFiles != nil && config.Config.Interfaces.Heresphere.AllowFileDeletes {
+	if file.ID != 0 && heresphereWantsDelete(requestData) {
 		log.Infof("Got request by HereSphere to delete file %v", file.Filename)
 		removeFileByFileId(file.ID)
 	}
@@ -266,21 +288,15 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 		return
 	}
 
-	var requestData HereSphereAuthRequest
-
-	if err := json.Unmarshal(RequestBody, &requestData); err != nil {
-		log.Warnf("Error decoding heresphere api POST request: %v %s", err, req.Request.RequestURI)
-	}
+	requestData := heresphereRequestData(req)
 
 	sceneID := req.PathParameter("scene-id")
 	if sceneID == "" {
 		return
 	}
 
-	dnt := ""
-	if !config.Config.Interfaces.DeoVR.TrackWatchTime {
-		dnt = "?dnt=true"
-	}
+	// with watch tracking on, playback events replace file-request tracking
+	dnt := "?dnt=true"
 
 	db, _ := models.GetDB()
 	defer db.Close()
@@ -735,6 +751,10 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 		})
 	}
 
+	var playCount int
+	db.Model(&models.History{}).Where("scene_id = ?", scene.ID).Count(&playCount)
+	tags = append(tags, heresphereTagPlayed(playCount))
+
 	video := HeresphereVideo{
 		Access:               1,
 		Title:                title,
@@ -764,8 +784,15 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 	if scene.HasVideoPreview {
 		video.ThumbnailVideo = fmt.Sprintf("%v://%v/api/dms/preview/%v", getProto(req), req.Request.Host, scene.SceneID)
 	}
+	if config.Config.Interfaces.DeoVR.TrackWatchTime {
+		video.EventServer = fmt.Sprintf("%v/heresphere/events/%v", requestBaseURL(req), scene.ID)
+	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, video)
+}
+
+func heresphereTagPlayed(count int) HeresphereTag {
+	return HeresphereTag{Name: fmt.Sprintf("Played:%d", count)}
 }
 
 func copyVideoSourceResponse(sources models.VideoSourceResponse, media []HeresphereMedia) []HeresphereMedia {
@@ -862,21 +889,17 @@ func ProcessHeresphereUpdates(scene *models.Scene, requestData HereSphereAuthReq
 		lastTrack := -1
 		for _, tag := range *requestData.Tags {
 			if !strings.Contains(tag.Name, ":") || (strings.HasPrefix(tag.Name, "Talent:") && tag.StartMilliseconds != 0 && tag.EndMilliseconds != endpos) {
-				if lastTrack != int(*tag.Track) {
+				if lastTrack != tagTrack(tag) {
 					// adjust track numbers, starting at track 0
-					lastTrack = int(*tag.Track)
+					lastTrack = tagTrack(tag)
 					newTrack += 1
 				}
-				*tag.Track = newTrack
 				if strings.HasPrefix(tag.Name, "Talent:") {
 					// allows users to create a Cuepoint with the Talent: tags, but remove the prefix
 					tag.Name = strings.Replace(tag.Name, "Talent:", "", 1)
 				}
-				if *tag.Track <= firstTrack+1000 {
-					var trackNo uint
-					if tag.Track != nil {
-						trackNo = uint(*tag.Track)
-					}
+				if newTrack <= firstTrack+1000 {
+					trackNo := uint(newTrack)
 					replacementCuepoints = append(replacementCuepoints, models.SceneCuepoint{SceneID: scene.ID, TimeStart: float64(tag.StartMilliseconds) / 1000, Name: tag.Name, Track: &trackNo, TimeEnd: float64(tag.EndMilliseconds) / 1000, Rating: tag.Rating})
 				} else {
 					// allow for multi track, merge into the main cuepoint name
@@ -908,21 +931,25 @@ func ProcessHeresphereUpdates(scene *models.Scene, requestData HereSphereAuthReq
 		}
 	}
 
-	if requestData.DeleteFiles != nil && config.Config.Interfaces.Heresphere.AllowFileDeletes {
+	if heresphereWantsDelete(requestData) {
 		log.Infof("Got request by HereSphere to delete files for scene %v", scene.ID)
 		for _, sceneFile := range scene.Files {
 			removeFileByFileId(sceneFile.ID)
 		}
 	}
 
-	if requestData.Hsp != nil && config.Config.Interfaces.Heresphere.AllowHspData {
+	if requestData.Hsp != nil && config.Config.Interfaces.Heresphere.AllowHspData && videoFile.ID != 0 {
 		hspContent, err := base64.StdEncoding.DecodeString(*requestData.Hsp)
 		if err != nil {
 			log.Errorf("Error decoding heresphere hsp data %v", err)
+			return
 		}
 
-		fName := filepath.Join(scene.Files[0].Path, strings.TrimSuffix(scene.Files[0].Filename, filepath.Ext(videoFile.Filename))+".hsp")
-		os.WriteFile(fName, hspContent, 0644)
+		fName := filepath.Join(videoFile.Path, strings.TrimSuffix(videoFile.Filename, filepath.Ext(videoFile.Filename))+".hsp")
+		if err := os.WriteFile(fName, hspContent, 0644); err != nil {
+			log.Errorf("Error writing heresphere hsp file %v: %v", fName, err)
+			return
+		}
 
 		tasks.ScanLocalHspFile(fName, videoFile.VolumeID, scene.ID)
 	}
@@ -944,15 +971,16 @@ func findTheMainTrack(requestData HereSphereAuthRequest) int {
 	alternateTrack := 9999
 
 	for _, tag := range *requestData.Tags {
+		track := tagTrack(tag)
 		if (tag.StartMilliseconds > 0 || tag.EndMilliseconds < endpos) && !strings.Contains(tag.Name, ":") {
-			return *tag.Track
+			return track
 		}
 
-		if (tag.StartMilliseconds > 0 || tag.EndMilliseconds < endpos) && likelyTrack > *tag.Track {
-			likelyTrack = *tag.Track
+		if (tag.StartMilliseconds > 0 || tag.EndMilliseconds < endpos) && likelyTrack > track {
+			likelyTrack = track
 		}
-		if !strings.Contains(tag.Name, ":") && alternateTrack > *tag.Track {
-			alternateTrack = *tag.Track
+		if !strings.Contains(tag.Name, ":") && alternateTrack > track {
+			alternateTrack = track
 		}
 	}
 
@@ -961,10 +989,21 @@ func findTheMainTrack(requestData HereSphereAuthRequest) int {
 	}
 
 	if alternateTrack < 9999 {
-		return likelyTrack
+		return alternateTrack
 	}
 
 	return -1
+}
+
+func heresphereWantsDelete(requestData HereSphereAuthRequest) bool {
+	return requestData.DeleteFiles != nil && *requestData.DeleteFiles && config.Config.Interfaces.Heresphere.AllowFileDeletes
+}
+
+func tagTrack(tag HeresphereTag) int {
+	if tag.Track == nil {
+		return 0
+	}
+	return *tag.Track
 }
 
 func findEndPos(requestData HereSphereAuthRequest) float64 {

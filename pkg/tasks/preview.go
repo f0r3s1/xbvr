@@ -86,8 +86,11 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, st
 	// "iw/2:ih:iw/4:ih"
 	vfArgs := fmt.Sprintf("crop=%v,scale=%v:%v", crop, resolution, resolution)
 
-	// Prepare snippets
-	interval := (dur - float64(startTime)) / float64(snippetAmount)
+	// Prepare snippets; short clips start at 0 and the last snippet must end before the video does
+	if float64(startTime)*2 >= dur {
+		startTime = 0
+	}
+	interval := (dur - float64(startTime) - snippetLength) / float64(snippetAmount)
 	for i := 1; i <= snippetAmount; i++ {
 		start := time.Duration(float64(i)*interval+float64(startTime)) * time.Second
 		snippetFile := filepath.Join(tmpPath, fmt.Sprintf("%v.mp4", i))

@@ -25,6 +25,7 @@ type SceneIndexed struct {
 	Title       string    `json:"title"`
 	Cast        string    `json:"cast"`
 	Site        string    `json:"site"`
+	Studio      string    `json:"studio"`
 	Id          string    `json:"id"`
 	Released    time.Time `json:"released"`
 	Added       time.Time `json:"added"`
@@ -75,32 +76,30 @@ func (i *Index) Exist(id string) bool {
 	return true
 }
 
-func (i *Index) PutScene(scene models.Scene) error {
-	cast := ""
-	castConcat := ""
+func sceneDocument(scene models.Scene) SceneIndexed {
+	var cast, castConcat strings.Builder
 	for _, c := range scene.Cast {
-		cast = cast + " " + c.Name
-		castConcat = castConcat + " " + strings.Replace(c.Name, " ", "", -1)
+		cast.WriteString(" " + c.Name)
+		castConcat.WriteString(" " + strings.ReplaceAll(c.Name, " ", ""))
 	}
-
-	rd := time.Date(scene.ReleaseDate.Year(), scene.ReleaseDate.Month(), scene.ReleaseDate.Day(), 0, 0, 0, 0, &time.Location{})
-	si := SceneIndexed{
-		Title:       fmt.Sprintf("%v", scene.Title),
-		Description: fmt.Sprintf("%v", scene.Synopsis),
-		Cast:        fmt.Sprintf("%v %v", cast, castConcat),
-		Site:        fmt.Sprintf("%v", scene.Site),
-		Id:          fmt.Sprintf("%v", scene.SceneID),
-		Released:    rd,                                       // only index the date, not the time
-		Added:       scene.CreatedAt.Truncate(24 * time.Hour), // only index the date, not the time
+	return SceneIndexed{
+		Title:       scene.Title,
+		Description: scene.Synopsis,
+		Cast:        cast.String() + " " + castConcat.String(),
+		Site:        scene.Site,
+		Studio:      scene.Studio,
+		Id:          scene.SceneID,
+		Released:    time.Date(scene.ReleaseDate.Year(), scene.ReleaseDate.Month(), scene.ReleaseDate.Day(), 0, 0, 0, 0, time.UTC),
+		Added:       scene.CreatedAt.Truncate(24 * time.Hour),
 		Duration:    scene.Duration,
 	}
-
-	if err := i.Bleve.Index(scene.SceneID, si); err != nil {
-		return err
-	}
-
-	return nil
 }
+
+func (i *Index) PutScene(scene models.Scene) error {
+	return i.Bleve.Index(scene.SceneID, sceneDocument(scene))
+}
+
+const indexBatchSize = 500
 
 func SearchIndex() {
 	if !models.CheckLock("index") {
@@ -120,29 +119,32 @@ func SearchIndex() {
 		defer db.Close()
 
 		total := 0
-		offset := 0
 		current := 0
-		var scenes []models.Scene
-		tx := db.Model(models.Scene{}).Preload("Cast").Preload("Tags")
-		tx.Count(&total)
+		var lastID uint
+		db.Model(&models.Scene{}).Count(&total)
 
 		tlog.Infof("Building search index...")
 
 		for {
-			tx.Offset(offset).Limit(100).Find(&scenes)
+			var scenes []models.Scene
+			db.Preload("Cast").Where("id > ?", lastID).Order("id").Limit(indexBatchSize).Find(&scenes)
 			if len(scenes) == 0 {
 				break
 			}
+			lastID = scenes[len(scenes)-1].ID
 
+			batch := idx.Bleve.NewBatch()
 			for i := range scenes {
 				if !idx.Exist(scenes[i].SceneID) {
-					err := idx.PutScene(scenes[i])
-					if err != nil {
+					if err := batch.Index(scenes[i].SceneID, sceneDocument(scenes[i])); err != nil {
 						log.Error(err)
 					}
 				}
-				current = current + 1
 			}
+			if err := idx.Bleve.Batch(batch); err != nil {
+				log.Error(err)
+			}
+			current += len(scenes)
 			tlog.Infof("Indexed %v/%v scenes", current, total)
 
 			// Update migration status if migration is running
@@ -151,7 +153,6 @@ func SearchIndex() {
 				config.UpdateMigrationStatus(config.State.Migration.Current, current, total, msg)
 			}
 
-			offset = offset + 100
 		}
 
 		idx.Bleve.Close()
@@ -182,25 +183,24 @@ func IndexScenes(scenes *[]models.Scene) {
 		tlog.Infof("Adding scraped scenes to search index...")
 
 		total := 0
-		lastMessage := time.Now()
+		batch := idx.Bleve.NewBatch()
 		for i := range *scenes {
-			if time.Since(lastMessage) > time.Duration(config.Config.Advanced.ProgressTimeInterval)*time.Second {
-				tlog.Infof("Indexed %v of %v scenes", total, len(*scenes))
-				lastMessage = time.Now()
-			}
 			scene := (*scenes)[i]
-			if idx.Exist(scene.SceneID) {
-				// Remove old index, as data may have been updated
-				idx.Bleve.Delete(scene.SceneID)
-			}
-
-			err := idx.PutScene(scene)
-			if err != nil {
+			if err := batch.Index(scene.SceneID, sceneDocument(scene)); err != nil {
 				log.Error(err)
-			} else {
-				// log.Debugln("Indexed " + scene.SceneID)
-				total += 1
+				continue
 			}
+			total++
+			if batch.Size() >= indexBatchSize {
+				if err := idx.Bleve.Batch(batch); err != nil {
+					log.Error(err)
+				}
+				batch.Reset()
+				tlog.Infof("Indexed %v of %v scenes", total, len(*scenes))
+			}
+		}
+		if err := idx.Bleve.Batch(batch); err != nil {
+			log.Error(err)
 		}
 
 		idx.Bleve.Close()

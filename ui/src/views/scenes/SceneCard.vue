@@ -1,8 +1,8 @@
 <template>
   <div class="scene-card" 
        @mouseenter="hovering = true; startPreview()" 
-       @mouseleave="hovering = false; stopPreview()"
-       @click="showDetails(item)">
+       @mouseleave="hovering = demo; stopPreview()"
+       @click="!demo && showDetails(item)">
     
     <!-- Video Preview Overlay - covers entire card -->
     <transition name="fade">
@@ -49,11 +49,17 @@
         </b-tag>
       </div>
 
+      <!-- Upcoming: announced by the site, not released yet -->
+      <span v-if="upcomingLabel" class="upcoming-badge">{{ upcomingLabel }}</span>
+
       <!-- Top Right: Duration & Rating -->
       <div class="top-right-tags">
         <b-tag type="is-warning" v-if="item.star_rating > 0" class="mini-tag star-tag">
           <b-icon pack="mdi" icon="star" size="is-small"/>
           {{item.star_rating}}
+        </b-tag>
+        <b-tag v-if="scriptSpeed && $store.state.optionsWeb.web.sceneScriptSpeed" class="mini-tag duration-tag" title="Average speed of the selected script">
+          {{ scriptSpeed }} avg
         </b-tag>
         <b-tag v-if="item.duration > 0 && this.$store.state.optionsWeb.web.sceneDuration" class="mini-tag duration-tag">
           {{item.duration}}m
@@ -69,7 +75,7 @@
 
 
       <!-- Hover Actions - anchored inside thumbnail -->
-      <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview }" @click.stop>
+      <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
         <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
         <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
         <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
@@ -156,13 +162,13 @@ import { isAiScript } from '@/scripts'
 
 export default defineComponent({
   name: 'SceneCard',
-  props: { item: Object, reRead: Boolean },
+  props: { item: Object, reRead: Boolean, demo: Boolean },
   components: { WatchlistButton, FavouriteButton, WishlistButton, WatchedButton, EditButton, LinkStashdbButton, TrailerlistButton, HiddenButton, VueLoadImage },
 
   data () {
     return {
       preview: false,
-      hovering: false,
+      hovering: this.demo,
       format,
       parseISO,
       alternateSources: [],
@@ -178,6 +184,11 @@ export default defineComponent({
   },
 
   computed: {
+    scriptSpeed () {
+      const scripts = (this.item.file || []).filter(f => f.type === 'script' && f.script_avg_speed > 0)
+      const script = scripts.find(f => f.is_selected_script) || scripts[0]
+      return script ? Math.round(script.script_avg_speed) : 0
+    },
     videoFilesCount () {
       if (this.item.file == null) { return 0 }
       return this.item.file.filter(obj => obj.type === 'video').length
@@ -240,6 +251,19 @@ export default defineComponent({
       const site = sites.find(s => s.id === this.item.scraper_id)
       if (!site || !site.avatar_url) return null
       return this.getImageURL(site.avatar_url, '64x') // 16px icon, 64px stays sharp on retina
+    },
+    // "Upcoming in 5 days"; sites without a date only say "Upcoming"
+    upcomingLabel () {
+      if (!this.item.is_upcoming) return ''
+      const d = this.item.release_date
+      if (!d || d.startsWith('0001-')) return 'Upcoming'
+      const release = parseISO(d.slice(0, 10))
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const days = Math.round((release.setHours(0, 0, 0, 0) - today) / 86400000)
+      if (days < 0) return 'Upcoming'
+      if (days === 0) return 'Upcoming today'
+      return days === 1 ? 'Upcoming tomorrow' : `Upcoming in ${days} days`
     },
     hasActiveStatus () {
       return this.item.is_hidden || this.item.favourite || this.item.is_watched ||
@@ -376,6 +400,9 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.scene-card:hover .upcoming-badge {
+  opacity: 0;
+}
 /* Card Container - Light UI */
 .scene-card {
   background: #fff;
@@ -383,6 +410,7 @@ export default defineComponent({
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.2s ease;
   cursor: pointer;
+  isolation: isolate;
   position: relative;
 }
 
@@ -401,7 +429,7 @@ export default defineComponent({
   z-index: 20;
   background: #000;
   overflow: hidden;
-  border-radius: 8px 8px 0 0;
+  border-radius: inherit;
 }
 
 .preview-overlay video {
@@ -434,6 +462,7 @@ export default defineComponent({
 }
 
 .thumbnail-img {
+  background: var(--card-placeholder);
   position: absolute;
   top: 0;
   left: 0;
@@ -505,6 +534,22 @@ export default defineComponent({
   color: rgba(0,0,0,0.7) !important;
 }
 
+.upcoming-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 3;
+  pointer-events: none;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(4px);
+}
+
 .mini-tag.duration-tag {
   background: rgba(0, 0, 0, 0.8) !important;
   color: #fff !important;
@@ -542,6 +587,10 @@ export default defineComponent({
   right: 0;
   padding: 0 6px 5px;
   z-index: 3;
+  transition: opacity 0.15s ease;
+}
+.scene-card:hover .heatmap-strip {
+  opacity: 0;
 }
 
 .heatmap-stack {
@@ -675,54 +724,54 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
   color: #363636 !important;
 }
 /* Solid colors — active = full Bulma color, outlined = same color at 70% opacity */
-.hover-actions :deep(.button.is-primary),
-.hover-actions :deep(.button.is-primary.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-primary),
+.hover-actions:not(.is-glass) :deep(.button.is-primary.is-outlined) {
   background: #7957d5 !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-primary.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-primary.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-primary.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-primary.is-outlined:hover) { opacity: 1; }
 
-.hover-actions :deep(.button.is-danger),
-.hover-actions :deep(.button.is-danger.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-danger),
+.hover-actions:not(.is-glass) :deep(.button.is-danger.is-outlined) {
   background: #f14668 !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-danger.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-danger.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-danger.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-danger.is-outlined:hover) { opacity: 1; }
 
-.hover-actions :deep(.button.is-info),
-.hover-actions :deep(.button.is-info.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-info),
+.hover-actions:not(.is-glass) :deep(.button.is-info.is-outlined) {
   background: #3e8ed0 !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-info.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-info.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-info.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-info.is-outlined:hover) { opacity: 1; }
 
-.hover-actions :deep(.button.is-link),
-.hover-actions :deep(.button.is-link.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-link),
+.hover-actions:not(.is-glass) :deep(.button.is-link.is-outlined) {
   background: #485fc7 !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-link.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-link.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-link.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-link.is-outlined:hover) { opacity: 1; }
 
-.hover-actions :deep(.button.is-warning),
-.hover-actions :deep(.button.is-warning.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-warning),
+.hover-actions:not(.is-glass) :deep(.button.is-warning.is-outlined) {
   background: #ffdd57 !important; color: rgba(0,0,0,0.7) !important;
 }
-.hover-actions :deep(.button.is-warning.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-warning.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-warning.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-warning.is-outlined:hover) { opacity: 1; }
 
-.hover-actions :deep(.button.is-success),
-.hover-actions :deep(.button.is-success.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-success),
+.hover-actions:not(.is-glass) :deep(.button.is-success.is-outlined) {
   background: #48c78e !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-success.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-success.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-success.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-success.is-outlined:hover) { opacity: 1; }
 
-.hover-actions :deep(.button.is-dark),
-.hover-actions :deep(.button.is-dark.is-outlined) {
+.hover-actions:not(.is-glass) :deep(.button.is-dark),
+.hover-actions:not(.is-glass) :deep(.button.is-dark.is-outlined) {
   background: #363636 !important; color: #fff !important;
 }
-.hover-actions :deep(.button.is-dark.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-dark.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-dark.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-dark.is-outlined:hover) { opacity: 1; }
 
 .hover-actions :deep(.button .icon) {
   margin: 0 !important;
@@ -757,7 +806,7 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
   box-sizing: border-box;
 }
 .alt-link:hover {
-  background: #e8e8e8;
+  background: rgba(127, 127, 127, 0.18);
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
@@ -787,6 +836,7 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
   box-sizing: border-box;
   transition: background 0.2s ease, color 0.2s ease;
   background: transparent;
+  border-radius: 0 0 8px 8px;
 }
 .info-section:has(.status-icon:hover) {
   z-index: 50;
@@ -859,6 +909,13 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
   overflow: hidden;
 }
 
+.site-link > div,
+.site-link .stashdb-link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
 .site-icon {
   width: 16px;
   height: 16px;

@@ -161,7 +161,7 @@ require (
 	github.com/tkuchiki/go-timezone v0.2.3 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect
 	go.etcd.io/bbolt v1.5.0 // indirect
-	golang.org/x/image v0.48.0 // indirect
+	golang.org/x/image v0.48.0
 	golang.org/x/term v0.48.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect

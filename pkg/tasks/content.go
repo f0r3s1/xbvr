@@ -128,12 +128,18 @@ func runScrapers(knownScenes []string, toScrape string, updateSite bool, collect
 	}
 	if len(sites) > 0 {
 		for _, site := range sites {
+			if scrape.ScrapeCancelled() {
+				break
+			}
 			for _, scraper := range scrapers {
 				if site.ID == scraper.ID {
 					wg.Add(1)
 					go func(scraper models.Scraper) {
 						limitScraping := site.LimitScraping || forceLimit
 						scraper.Scrape(&wg, updateSite, knownScenes, collectedScenes, singleSceneURL, singeScrapeAdditionalInfo, limitScraping)
+						if scrape.ScrapeCancelled() {
+							return
+						}
 						var site models.Site
 						err := site.GetIfExist(scraper.ID)
 						if err != nil {
@@ -307,7 +313,11 @@ func ScrapeSingleScene(toScrape string, singleSceneURL string, singeScrapeAdditi
 func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo string, forceLimit bool) {
 	if !models.CheckLock("scrape") {
 		models.CreateLock("scrape")
-		defer models.RemoveLock("scrape")
+		scrape.SetScrapeCancelled(false)
+		defer func() {
+			scrape.SetScrapeCancelled(false)
+			models.RemoveLock("scrape")
+		}()
 		t0 := time.Now()
 		tlog := log.WithField("task", "scrape")
 		tlog.Infof("Scraping started at %s", t0.Format("Mon Jan _2 15:04:05 2006"))
@@ -324,7 +334,8 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 
 		var knownScenes []string
 		for i := range scenes {
-			if !scenes[i].NeedsUpdate {
+			// upcoming scenes stay unknown so the scrape after their release fills them in
+			if !scenes[i].NeedsUpdate && !scenes[i].IsUpcoming {
 				knownScenes = append(knownScenes, scenes[i].SceneURL)
 			}
 		}
@@ -380,6 +391,7 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 			tlog.Infof("Scraped %v new scenes in %s",
 				sceneCount,
 				time.Since(t0).Round(time.Second))
+			go RefreshSiteMetadata()
 			// Return scraper memory to OS after large batch
 			debug.FreeOSMemory()
 		}
@@ -563,7 +575,7 @@ func ImportBundleV1(bundleData ContentBundle) {
 		tlog.Infof("Importing %v of %v scenes", i+1, len(bundleData.Scenes))
 		models.SceneCreateUpdateFromExternal(db, bundleData.Scenes[i])
 	}
-
+	SearchIndex()
 }
 
 func BackupBundle(inclAllSites bool, onlyIncludeOfficalSites bool, inclScenes bool, inclFileLinks bool, inclCuepoints bool, inclHistory bool, inclPlaylists bool, InclActorAkas bool, inclTagGroups bool, inclVolumes bool, inclSites bool, inclActions bool, inclExtRefs bool, inclActors bool, inclActorActions bool, inclConfig bool, extRefSubset string, playlistId string, outputBundleFilename string, version string) string {

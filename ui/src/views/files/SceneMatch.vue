@@ -187,7 +187,7 @@ export default {
     },
     getImageURL (u) {
       if (u.startsWith('http')) {
-        return '/img/120x/' + u.replace('://', ':/')
+        return '/img/200x/' + u.replace('://', ':/')
       } else {
         return u
       }

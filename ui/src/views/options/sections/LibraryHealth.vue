@@ -1,14 +1,12 @@
 <template>
-  <div class="container">
+  <OptionsSection :title="$t('Library Health')">
     <div class="content">
-      <h3>{{ $t("Library Health") }}</h3>
-      <hr/>
 
       <!-- No report yet, not running -->
       <div v-if="!report && !isRunning">
         <p>
-          Your library is checked automatically in the background (about 10 minutes after XBVR starts, then every
-          6 hours) for data integrity issues, duplicate actors, orphaned records, missing files and stale metadata.
+          Your library is checked automatically in the background once a week (change or turn it off in Task Schedules)
+          for data integrity issues, duplicate actors, orphaned records, missing files and stale metadata.
         </p>
         <b-button type="is-primary" @click="startScan">
           Check now
@@ -104,10 +102,11 @@
         </div>
       </div>
     </div>
-  </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import { defineComponent } from 'vue';
 import { formatDistanceToNow, parseISO } from 'date-fns'
@@ -115,7 +114,7 @@ import DuplicateActors from './DuplicateActors.vue'
 
 export default defineComponent({
   name: 'LibraryHealth',
-  components: { DuplicateActors },
+  components: { OptionsSection, DuplicateActors },
 
   data () {
     return {
@@ -296,14 +295,11 @@ export default defineComponent({
 .health-dups {
   margin-bottom: 1rem;
 }
-.progress-section {
-  max-width: 500px;
-}
 .health-stat-card {
   text-align: center;
   padding: 0.5rem 1.2rem;
-  border: 1px solid #dbdbdb;
-  border-radius: 4px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 8px;
   min-width: 80px;
 }
 .stat-number {
@@ -313,12 +309,12 @@ export default defineComponent({
 }
 .stat-label {
   font-size: 0.75rem;
-  color: #888;
+  opacity: 0.6;
   text-transform: uppercase;
 }
 .health-issue {
-  border: 1px solid #dbdbdb;
-  border-radius: 4px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 8px;
   margin-bottom: 0.5rem;
   overflow: hidden;
 }
@@ -330,11 +326,7 @@ export default defineComponent({
   user-select: none;
 }
 .health-issue-header:hover {
-  background: #f5f5f5;
-}
-
-html[data-theme="dark"] .health-issue-header:hover {
-  background: #222230 !important;
+  background: rgba(127, 127, 127, 0.08);
 }
 .health-issue-icon {
   flex-shrink: 0;
@@ -356,11 +348,11 @@ html[data-theme="dark"] .health-issue-header:hover {
 .health-issue-detail {
   padding: 0 0.8rem 0.4rem 2.4rem;
   font-size: 0.85rem;
-  color: #666;
+  opacity: 0.7;
   font-style: italic;
 }
 .health-issue-items {
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(127, 127, 127, 0.2);
   max-height: 250px;
   overflow-y: auto;
 }

@@ -41,9 +41,11 @@ prod: ## Build and run production image
 	DOCKER_BUILDKIT=1 docker compose up --build
 
 .PHONY: prod-build
+BUILD_VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+
 prod-build: ## Production build - stateless, no cache mounts (CI-safe)
 	DOCKER_BUILDKIT=1 docker build \
-		--build-arg VERSION=$$(git describe --tags --always 2>/dev/null || echo "dev") \
+		--build-arg VERSION=$(BUILD_VERSION) \
 		--build-arg COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		--build-arg DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
 		-t xbvr:latest .
@@ -211,6 +213,7 @@ LOCAL_MEDIA  ?= xbvr-local-media
 local: local-up local-seed ## Build, run and seed a local instance on http://localhost:9999
 
 .PHONY: local-up
+local-up: BUILD_VERSION = latest
 local-up: prod-build ## Build the prod image and (re)start the local instance
 	@docker rm -f $(LOCAL_NAME) >/dev/null 2>&1 || true
 	@docker run -d --name $(LOCAL_NAME) -p 9999:9999 -p 9998:9998 \
@@ -221,7 +224,7 @@ local-up: prod-build ## Build the prod image and (re)start the local instance
 .PHONY: local-seed
 local-seed: ## Load SFW dummy scenes, sample videos and funscripts into the local instance
 	@docker run --rm -v "$$PWD/scripts":/s:ro -v $(LOCAL_MEDIA):/media \
-		-e SCENES=$${SCENES:-240} oven/bun:latest bun /s/seed-dev-data.mjs
+		-e SCENES=$${SCENES:-240} -e PEOPLE=$${PEOPLE:-48} oven/bun:latest bun /s/seed-dev-data.mjs
 
 .PHONY: local-logs
 local-logs: ## Tail the local instance logs

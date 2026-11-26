@@ -212,6 +212,10 @@ func createCallbacks(c *colly.Collector) *colly.Collector {
 			r.Ctx.Put("attempt", 1)
 		}
 
+		if ScrapeCancelled() {
+			r.Abort()
+			return
+		}
 		log.Infoln("visiting", r.URL.String())
 	})
 
@@ -293,12 +297,15 @@ func unCache(URL string, cacheDir string) {
 	hash := hex.EncodeToString(sum[:])
 	dir := path.Join(cacheDir, hash[:2])
 	filename := path.Join(dir, hash)
-	if err := os.Remove(filename); err != nil {
-		log.Fatal(err)
+	if err := os.Remove(filename); err != nil && !os.IsNotExist(err) {
+		log.Warn(err)
 	}
 }
 
 func updateSiteLastUpdate(id string) {
+	if ScrapeCancelled() {
+		return
+	}
 	var site models.Site
 	err := site.GetIfExist(id)
 	if err != nil {
@@ -341,7 +348,8 @@ func getFilenameFromURL(u string) string {
 func getTextFromHTMLWithSelector(data string, sel string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(data))
 	if err != nil {
-		log.Fatal(err)
+		log.Warn(err)
+		return ""
 	}
 	return strings.TrimSpace(doc.Find(sel).Text())
 }

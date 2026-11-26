@@ -23,7 +23,6 @@ const PAUSED = 1
 const FINISHED = 2
 
 var DeoPlayerHost = ""
-var DeoRequestHost = ""
 
 func DeoRemote() {
 	for {

@@ -5,7 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 	"github.com/mozillazg/go-slugify"
 	"github.com/nleeper/goment"
@@ -188,12 +190,61 @@ func CzechVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out cha
 		siteCollector.Visit("https://www.czechvrnetwork.com/vr-porn-videos&sort=date&sites=" + nwID)
 	}
 
+	if singleSceneURL == "" && scraperID != "" && config.Config.Web.ShowUpcoming {
+		if page, err := fetchURLWithFlareSolverr("https://www.czechvrnetwork.com/", "czechvrnetwork.com"); err != nil {
+			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+		} else {
+			emitUpcoming(scraperID, parseCzechVRUpcoming(page, scraperID, siteID), out)
+		}
+	}
+
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
 	}
 	logScrapeFinished(scraperID, siteID)
 
 	return nil
+}
+
+// parseCzechVRUpcoming reads the "Upcoming Video" block of the network home page for one studio.
+func parseCzechVRUpcoming(homeHTML string, scraperID string, siteID string) []models.ScrapedScene {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(homeHTML))
+	if err != nil {
+		return nil
+	}
+	var scenes []models.ScrapedScene
+	doc.Find("div.upcoming div.postTag").Each(func(_ int, item *goquery.Selection) {
+		if !item.Find("div.ruzek").HasClass(scraperID) {
+			return
+		}
+		parts := strings.SplitN(strings.TrimSpace(item.Find("div.nazev h2").Text()), " - ", 2)
+		linkID := strings.TrimPrefix(item.Find("div.foto").AttrOr("id", ""), "Preview")
+		if len(parts) != 2 || linkID == "" {
+			return
+		}
+		sc := models.ScrapedScene{
+			ScraperID:   scraperID,
+			SceneType:   "VR",
+			Studio:      "CzechVR",
+			Site:        siteID,
+			SiteID:      parts[0],
+			SceneID:     slugify.Slugify(siteID) + "-" + parts[0],
+			Title:       parts[1],
+			HomepageURL: "https://www.czechvrnetwork.com/detail-" + linkID + "-" + slugify.Slugify(parts[1]),
+			Upcoming:    true,
+		}
+		if cover := item.Find("img.imgvid").AttrOr("data-src", ""); cover != "" {
+			sc.Covers = []string{"https://www.czechvrnetwork.com/" + strings.TrimPrefix(cover, "./")}
+		}
+		if d, err := time.Parse("2 Jan, 2006", strings.TrimSpace(item.Find("div.datum").Text())); err == nil {
+			sc.Released = d.Format("2006-01-02")
+		}
+		item.Find("div.featuring a").Each(func(_ int, a *goquery.Selection) {
+			sc.Cast = append(sc.Cast, strings.TrimSpace(a.Text()))
+		})
+		scenes = append(scenes, sc)
+	})
+	return scenes
 }
 
 func addCZVRScraper(id string, name string, nwid string, avatarURL string) {

@@ -1,112 +1,62 @@
 <template>
-  <div class="container">
-    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
-    <div class="content">
-      <h3>{{$t("Previews")}}</h3>
-      <hr/>
-      <div class="columns">
-        <div class="column">
-          <section>
-            <b-field label="Start time">
-              <div class="columns">
-                <div class="column is-two-thirds">
-                  <b-slider :min="5" :max="60" :step="5" :tooltip="false" v-model="startTime"></b-slider>
-                </div>
-                <div class="column">
-                  <div class="content">{{startTime}}sec</div>
-                </div>
-              </div>
-            </b-field>
-            <b-field label="Snippet length">
-              <div class="columns">
-                <div class="column is-two-thirds">
-                  <b-slider :min="0.2" :max="5" :step="0.2" :tooltip="false" v-model="snippetLength"></b-slider>
-                </div>
-                <div class="column">
-                  <div class="content">{{snippetLength}}sec</div>
-                </div>
-              </div>
-            </b-field>
-            <b-field label="Number of snippets">
-              <div class="columns">
-                <div class="column is-two-thirds">
-                  <b-slider :min="2" :max="40" :step="1" :tooltip="false" v-model="snippetAmount"></b-slider>
-                </div>
-                <div class="column">
-                  <div class="content">{{snippetAmount}}</div>
-                </div>
-              </div>
-            </b-field>
-            <b-field>
-              <b-checkbox v-model="extraSnippet">Grab extra snippet from the end of video</b-checkbox>
-            </b-field>
-            <b-field label="Preview resolution">
-              <div class="columns">
-                <div class="column is-two-thirds">
-                  <b-slider :min="300" :max="800" :step="20" :tooltip="false" v-model="resolution"></b-slider>
-                </div>
-                <div class="column">
-                  <div class="content">{{resolution}}px</div>
-                </div>
-              </div>
-            </b-field>
-            <b-field grouped>
-              <b-button type="is-primary" @click="saveSettings" style="margin-right:1em">Save settings</b-button>
-              <b-button @click="testSettings">Test settings</b-button>
-            </b-field>
-          </section>
-          <hr/>
-          <section>
-            <p>
-              Once you picked preview settings, you should start generating them.
-            </p>
-            <p>
-              BETA NOTE: Please note this is CPU-heavy process and once started, it could be stopped only by closing the
-              app.
-            </p>
-            <b-field>
-              <b-button type="is-primary" @click="startGenerating">Start generating previews</b-button>
-            </b-field>
-          </section>
-        </div>
-        <div class="column">
-          <video v-if="isPreviewReady" :src="`/api/dms/preview/${previewFn}`" autoplay loop></video>
-          <div v-if="generatingPreview">
-            <div style="display: flex; flex-wrap: wrap;">
-              <div class="bbox">
-                <b-icon pack="mdi" icon="sync" custom-class="mdi-spin"></b-icon>
-              </div>
-            </div>
-          </div>
+  <OptionsSection :title="$t('Previews')" :loading="isLoading" :value="preview" :save-label="$t('Save settings')" @save="saveSettings">
+    <div class="columns">
+      <div class="column">
+        <b-field v-for="s in sliders" :key="s.key" :label="s.label" class="slider-row">
+          <b-slider :min="s.min" :max="s.max" :step="s.step" :tooltip="false" v-model="preview[s.key]"></b-slider>
+          <span class="slider-value">{{ preview[s.key] }}{{ s.unit }}</span>
+        </b-field>
+        <b-field>
+          <b-checkbox v-model="preview.extraSnippet">Grab extra snippet from the end of video</b-checkbox>
+        </b-field>
+      </div>
+      <div class="column">
+        <video v-if="isPreviewReady" :src="`/api/dms/preview/${previewFn}`" autoplay loop muted></video>
+        <div v-else-if="generatingPreview" class="preview-pending">
+          <b-icon pack="mdi" icon="sync" custom-class="mdi-spin"></b-icon>
         </div>
       </div>
     </div>
-  </div>
+
+    <template #footer>
+      <b-button @click="testSettings">Test settings</b-button>
+    </template>
+
+    <div class="generate">
+      <p>Once you picked preview settings, start generating them. This is a CPU-heavy process; once started it can only be stopped by closing the app.</p>
+      <b-button type="is-primary" outlined @click="startGenerating">Start generating previews</b-button>
+    </div>
+  </OptionsSection>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
-
+import { defineComponent } from 'vue'
 import ky from 'ky'
 import { getOptionsState } from '@/api'
-import prettyBytes from 'pretty-bytes'
+import OptionsSection from '../OptionsSection.vue'
 
 export default defineComponent({
   name: 'Previews',
+  components: { OptionsSection },
 
   data () {
     return {
       isLoading: true,
-      startTime: 5,
-      snippetLength: 0.2,
-      snippetAmount: 2,
-      resolution: 300,
-      extraSnippet: false
+      preview: { startTime: 5, snippetLength: 0.2, snippetAmount: 2, resolution: 300, extraSnippet: false },
+      sliders: [
+        { key: 'startTime', label: 'Start time', min: 5, max: 60, step: 5, unit: 's' },
+        { key: 'snippetLength', label: 'Snippet length', min: 0.2, max: 5, step: 0.2, unit: 's' },
+        { key: 'snippetAmount', label: 'Number of snippets', min: 2, max: 40, step: 1, unit: '' },
+        { key: 'resolution', label: 'Preview resolution', min: 300, max: 800, step: 20, unit: 'px' }
+      ]
     }
   },
 
   async mounted () {
-    await this.loadState()
+    const data = await getOptionsState()
+    const p = data.config.library.preview
+    this.preview = { startTime: p.startTime, snippetLength: p.snippetLength, snippetAmount: p.snippetAmount, resolution: p.resolution, extraSnippet: p.extraSnippet }
+    this.isLoading = false
   },
 
   computed: {
@@ -122,76 +72,54 @@ export default defineComponent({
   },
 
   methods: {
-    async loadState () {
-      this.isLoading = true
-      await getOptionsState()
-        .then(data => {
-          this.startTime = data.config.library.preview.startTime
-          this.snippetLength = data.config.library.preview.snippetLength
-          this.snippetAmount = data.config.library.preview.snippetAmount
-          this.resolution = data.config.library.preview.resolution
-          this.extraSnippet = data.config.library.preview.extraSnippet
-          this.isLoading = false
-        })
+    saveSettings () {
+      return ky.put('/api/options/previews', { json: this.preview }).json()
     },
-    async saveSettings () {
-      this.isLoading = true
-      await ky.put('/api/options/previews', {
-        json: {
-          startTime: this.startTime,
-          snippetLength: this.snippetLength,
-          snippetAmount: this.snippetAmount,
-          resolution: this.resolution,
-          extraSnippet: this.extraSnippet
-        }
-      })
-        .json()
-        .then(() => {
-          this.isLoading = false
-        })
-    },
-    async testSettings () {
+    testSettings () {
       this.$store.commit('optionsPreviews/hidePreview')
-      await ky.post('/api/options/previews/test', {
-        json: {
-          startTime: this.startTime,
-          snippetLength: this.snippetLength,
-          snippetAmount: this.snippetAmount,
-          resolution: this.resolution,
-          extraSnippet: this.extraSnippet
-        }
-      })
+      return ky.post('/api/options/previews/test', { json: this.preview })
     },
-    async startGenerating () {
-      await ky.get('/api/task/preview/generate')
-    },
-    prettyBytes
-  },
-});
+    startGenerating () {
+      return ky.get('/api/task/preview/generate')
+    }
+  }
+})
 </script>
 
 <style scoped>
-  video {
-    width: 100%;
-  }
-
-  .bbox {
-    flex: 1 0 calc(25% - 10px);
-    margin: 5px;
-    background: #f0f0f0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .bbox:after {
-    content: '';
-    display: block;
-    padding-bottom: 100%;
-  }
-
-  html[data-theme="dark"] .bbox {
-    background: #222230 !important;
-  }
+.slider-row :deep(.field-body > .field),
+.slider-row :deep(> .control) {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.slider-row :deep(.b-slider) {
+  flex: 1;
+}
+.slider-value {
+  min-width: 4em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+video {
+  width: 100%;
+  border-radius: 8px;
+}
+.preview-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  max-width: 240px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.12);
+}
+.generate {
+  margin-top: 1.5rem;
+}
+.generate p {
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
 </style>

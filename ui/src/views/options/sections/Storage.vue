@@ -1,13 +1,9 @@
 <template>
+  <OptionsSection :title="$t('Storage')">
+    <template #actions>
+      <b-button type="is-primary" size="is-small" @click="taskRescan">{{ $t('Rescan all folders') }}</b-button>
+    </template>
   <div class="content">
-    <div class="columns">
-      <div class="column">
-        <h3 class="title">{{$t('Storage')}}</h3>
-      </div>
-      <div class="column buttons" align="right">
-        <a class="button is-primary" v-on:click="taskRescan">{{ $t('Rescan all folders') }}</a>
-      </div>
-    </div>
     <div v-if="items.length > 0">
       <b-table :data="items"
                ref="table" default-sort="is_available" default-sort-direction="desc">
@@ -79,7 +75,7 @@
 
     <div class="columns">
       <div class="column">
-        <h3 class="title">{{ $t('Add local folder') }}</h3>
+        <h4 class="options-subtitle">{{ $t('Add local folder') }}</h4>
         <div class="field">
           <label class="label">{{ $t('Path to folder with content') }}</label>
           <div class="control">
@@ -91,7 +87,7 @@
         </div>
       </div>
       <div class="column">
-        <h3 class="title">{{ $t('Add cloud storage') }}</h3>
+        <h4 class="options-subtitle">{{ $t('Add cloud storage') }}</h4>
         <b-field grouped>
           <b-field :label="$t('Service')">
             <b-select placeholder="Select one" v-model="serviceSelected">
@@ -115,7 +111,7 @@
     <hr/>
 
   <div>
-    <h3 class="title">{{ $t('Options') }}</h3>
+    <h4 class="options-subtitle">{{ $t('Options') }}</h4>
     <b-field>
       <b-switch v-model="match_ohash" type="is-default">
         Match StashDB Hashes
@@ -143,15 +139,18 @@
     </b-field>
   </div>
   </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import prettyBytes from 'pretty-bytes'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 
 export default {
   name: 'Storage',
+  components: { OptionsSection },
   data () {
     return {
       volumes: [],

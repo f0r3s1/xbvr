@@ -12,6 +12,7 @@ import (
 	"github.com/mozillazg/go-slugify"
 	"github.com/thoas/go-funk"
 	"github.com/tidwall/gjson"
+	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
@@ -228,11 +229,61 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 		}
 	}
 
+	if singleSceneURL == "" && config.Config.Web.ShowUpcoming {
+		builder, err := fetchURLWithFlareSolverr(contentBaseURL+"/api/content/v1/home-page-builder", siteName)
+		if err != nil || gjson.Get(builder, "status.message").String() != "Ok" {
+			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+		} else {
+			upcoming := parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL)
+			var listed []string
+			for _, sc := range upcoming {
+				listed = append(listed, sc.HomepageURL)
+				out <- sc
+			}
+			models.PruneUpcoming(scraperID, listed)
+		}
+	}
+
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
 	}
 	logScrapeFinished(scraperID, siteID)
 	return nil
+}
+
+// parseVRBangersUpcoming reads the "upcoming" block of the site's home page builder.
+func parseVRBangersUpcoming(builderJSON string, scraperID string, siteID string, siteURL string, contentBaseURL string) []models.ScrapedScene {
+	var scenes []models.ScrapedScene
+	gjson.Get(builderJSON, "data.homePageBuilder.upcomingScenes").ForEach(func(_, item gjson.Result) bool {
+		title := strings.TrimSpace(html.UnescapeString(item.Get("text").String()))
+		if title == "" || (item.Get("isActive").Exists() && !item.Get("isActive").Bool()) {
+			return true
+		}
+		sc := models.ScrapedScene{
+			ScraperID:   scraperID,
+			SceneType:   "VR",
+			Studio:      "VRBangers",
+			Site:        siteID,
+			Title:       title,
+			SceneID:     models.UpcomingPlaceholderID(scraperID, title),
+			HomepageURL: siteURL + "#upcoming-" + slugify.Slugify(title),
+			Upcoming:    true,
+		}
+		if cover := item.Get("image.permalink").String(); cover != "" {
+			sc.Covers = []string{contentBaseURL + cover}
+		}
+		if released := item.Get("releaseDate").Int(); released > 0 {
+			sc.Released = time.Unix(released, 0).Format("2006-01-02")
+		}
+		for _, name := range strings.Split(item.Get("starring").String(), ",") {
+			if name = strings.TrimSpace(name); name != "" {
+				sc.Cast = append(sc.Cast, name)
+			}
+		}
+		scenes = append(scenes, sc)
+		return true
+	})
+	return scenes
 }
 
 func VRBangers(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string, limitScraping bool) error {

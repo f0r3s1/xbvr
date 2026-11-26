@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-resty/resty/v2"
 	"github.com/gocolly/colly/v2"
 	"github.com/nleeper/goment"
@@ -153,6 +154,14 @@ func FuckPassVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out 
 		siteCollector.Visit("https://www.fuckpassvr.com/destination")
 	}
 
+	if singleSceneURL == "" && config.Config.Web.ShowUpcoming {
+		if page, err := fetchURLWithFlareSolverr("https://www.fuckpassvr.com/", "fuckpassvr.com"); err != nil {
+			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+		} else {
+			emitUpcoming(scraperID, parseFuckPassVRUpcoming(page, time.Now()), out)
+		}
+	}
+
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
 	}
@@ -233,6 +242,56 @@ func warmImageCache(client *resty.Client, base string, urls []string) {
 		}(u)
 	}
 	wg.Wait()
+}
+
+var fpvrMonthDayRe = regexp.MustCompile(`([A-Z][a-z]{2}) (\d{1,2})$`)
+
+// parseFuckPassVRUpcoming reads the "Coming Soon" block of the home page.
+func parseFuckPassVRUpcoming(homeHTML string, now time.Time) []models.ScrapedScene {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(homeHTML))
+	if err != nil {
+		return nil
+	}
+	var scenes []models.ScrapedScene
+	add := func(item *goquery.Selection, title, cast, date string) {
+		cover := item.Find("img").First().AttrOr("src", "")
+		code := fpvrSiteIDRegex.FindStringSubmatch(cover)
+		if code == nil || title == "" {
+			return
+		}
+		sc := models.ScrapedScene{
+			ScraperID:   "fuckpassvr-native",
+			SceneType:   "VR",
+			Studio:      "FuckPassVR",
+			Site:        "FuckPassVR",
+			SiteID:      code[1],
+			SceneID:     "fpvr-" + code[1],
+			Title:       title,
+			HomepageURL: "https://www.fuckpassvr.com/#upcoming-fpvr" + code[1],
+			Covers:      []string{cover},
+			Upcoming:    true,
+		}
+		if cast != "" {
+			sc.Cast = []string{cast}
+		}
+		if md := fpvrMonthDayRe.FindStringSubmatch(strings.TrimSpace(date)); md != nil {
+			if d, err := time.Parse("Jan 2 2006", md[1]+" "+md[2]+" "+strconv.Itoa(now.Year())); err == nil {
+				if d.Before(now.AddDate(0, 0, -60)) {
+					d = d.AddDate(1, 0, 0)
+				}
+				sc.Released = d.Format("2006-01-02")
+			}
+		}
+		scenes = append(scenes, sc)
+	}
+	feature := doc.Find(".fpvr-coming__feature")
+	add(feature, strings.TrimSpace(feature.Find(".fpvr-coming__featTitle").Text()),
+		strings.TrimSpace(feature.Find(".fpvr-coming__featMeta strong").Text()),
+		feature.Find(".fpvr-coming__featDate").Text())
+	doc.Find(".fpvr-coming__mini").Each(func(_ int, mini *goquery.Selection) {
+		add(mini, strings.TrimSpace(mini.Find(".fpvr-coming__miniTitle").Text()), "", mini.Find(".fpvr-coming__miniBadge").Text())
+	})
+	return scenes
 }
 
 func init() {

@@ -1,11 +1,11 @@
 <template>
-    <b-modal :active="isModalActive"           
+    <b-modal :modelValue="isModalActive" @update:modelValue="v => { if (!v) close() }"
            has-modal-card
            trap-focus
            aria-role="dialog"
            @cancel="close"
            aria-modal
-           can-cancel>
+           :can-cancel="['escape', 'outside']">
     
     <GlobalEvents
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
@@ -26,7 +26,7 @@
             <b-input v-model="queryString" placeholder="Find actor..." @update:modelValue="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
           </b-field>
     
-        <b-table :data="searchResults" @click="onRowSelected" >
+        <b-table v-if="searchResults.length" :data="searchResults" @click="onRowSelected" >
           <b-table-column field="Name" >
             <template v-slot="props">
               <div class="media">
@@ -38,7 +38,7 @@
                   >
                     <b-carousel-item v-for="(image, index) in props.row.ImageUrl" :key="index">
                           <vue-load-image height="50px">
-                            <template #image><img :src="image && image.length ? getImageURL(image) : '/ui/images/blank_female_profile.png'" width="100"  @mouseover="setShowTooltipImage(image, props.row.Id)" @mouseout="setShowTooltipImage('','')"/></template>
+                            <template #image><img :src="image && image.length ? getImageURL(image) : '/ui/images/actor_placeholder.svg'" width="100"  @mouseover="setShowTooltipImage(image, props.row.Id)" @mouseout="setShowTooltipImage('','')"/></template>
                             <template #preloader><img src="/ui/images/blank.png" width="100"/></template>
                             <template #error><img src="/ui/images/blank.png" width="100"/></template>
                           </vue-load-image>
@@ -176,7 +176,7 @@ export default defineComponent({
     },    
     getImageURL (u) {        
       if (u != undefined && u.startsWith('http')) {
-        return '/img/120x/' + u.replace('://', ':/')
+        return '/img/200x/' + u.replace('://', ':/')
       } else {
         return u
       }
@@ -237,7 +237,7 @@ export default defineComponent({
   position: absolute;
   z-index: 1;
   width: 350;
-  background-color: white;
+  background-color: rgba(20, 20, 28, 0.92);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: center;

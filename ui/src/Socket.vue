@@ -3,6 +3,7 @@
 </template>
 
 <script>
+import ky from 'ky'
 import { defineComponent } from 'vue';
 
 import { Wampy } from 'wampy'
@@ -12,7 +13,8 @@ export default defineComponent({
 
   data () {
     return {
-      wsStatus: ''
+      wsStatus: '',
+      clearTimers: {}
     }
   },
 
@@ -50,7 +52,24 @@ export default defineComponent({
       await this._subscribe(ws)
     },
 
+    async loadTaskStatus () {
+      const status = await ky.get('/api/task/status').json().catch(() => null)
+      if (!status) return
+      const messages = this.$store.state.messages
+      messages.lockScrape = status.lockScrape
+      messages.lockRescan = status.lockRescan
+      messages.runningScrapers = status.runningScrapers || []
+      if (status.lockScrape && status.lastScrapeMessage) messages.lastScrapeMessage = status.lastScrapeMessage
+      if (status.lockRescan && status.lastRescanMessage) messages.lastRescanMessage = status.lastRescanMessage
+    },
+    clearWhenDone (lock, message) {
+      clearTimeout(this.clearTimers[lock])
+      this.clearTimers[lock] = setTimeout(() => {
+        if (!this.$store.state.messages[lock]) this.$store.state.messages[message] = {}
+      }, 8000)
+    },
     async _subscribe (ws) {
+      this.loadTaskStatus()
       await ws.subscribe('service.log', (eventData) => {
         if (eventData.argsDict.level == 'debug') {
           console.debug(eventData.argsDict.message)
@@ -86,9 +105,11 @@ export default defineComponent({
       await ws.subscribe('lock.change', (eventData) => {
         if (eventData.argsDict.name === 'scrape') {
           this.$store.state.messages.lockScrape = eventData.argsDict.locked
+          if (!eventData.argsDict.locked) this.clearWhenDone('lockScrape', 'lastScrapeMessage')
         }
         if (eventData.argsDict.name === 'rescan') {
           this.$store.state.messages.lockRescan = eventData.argsDict.locked
+          if (!eventData.argsDict.locked) this.clearWhenDone('lockRescan', 'lastRescanMessage')
         }
       })
 

@@ -1,32 +1,38 @@
 <template>
   <div class="filter-panel">
-    <div class="is-divider" data-content="Saved searches" style="margin-top:0.8em;"></div>
+    <div class="is-divider" data-content="Saved searches"></div>
 
      <SavedSearch/> 
 
     <div class="is-divider" data-content="Properties"></div>
 
-    <div class="columns is-multiline is-gapless">
-      <div class="column is-half">
-        <b-checkbox-button v-model="lists" native-value="watchlist" type="is-primary">
+    <div class="columns is-mobile is-gapless property-filters">
+      <div class="column" :title="$t('Watchlist')">
+        <b-checkbox-button name="actor-lists" v-model="lists" native-value="watchlist" type="is-primary">
           <b-icon pack="mdi" icon="calendar-check"/>
           <span>{{ $t('Watchlist') }}</span>
         </b-checkbox-button>
       </div>
-      <div class="column is-half">
-        <b-checkbox-button v-model="lists" native-value="favourite" type="is-danger">
+      <div class="column" :title="$t('Favourite')">
+        <b-checkbox-button name="actor-lists" v-model="lists" native-value="favourite" type="is-danger">
           <b-icon pack="mdi" icon="heart"/>
           <span>{{ $t('Favourite') }}</span>
+        </b-checkbox-button>
+      </div>
+      <div class="column" :title="$t('Actors with scenes in your library')">
+        <b-checkbox-button name="actor-lists" v-model="collection" native-value="collection" type="is-success">
+          <b-icon pack="mdi" icon="folder-check"/>
+          <span>{{ $t('Collection') }}</span>
         </b-checkbox-button>
       </div>
     </div>
 
     <div class="is-divider" data-content="Sorting"></div>
 
-    <b-field :label="$t('Sort by')" label-position="on-border" :addons="true" class="field-extra">
+    <b-field :label="$t('Sort by')" label-for="actor-filter-sort" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
-          <select v-model="sort">
+          <select id="actor-filter-sort" v-model="sort">
             <option value="name_asc">↑ {{ $t("Name") }}</option>
             <option value="name_desc">↓ {{ $t("Name") }}</option>
             <option value="birthday_desc">↓ {{ $t("Birthdate") }}</option>
@@ -52,8 +58,8 @@
     <div class="is-divider" data-content="Actor Filters"></div>
 
     <div v-if="Object.keys(filters).length !== 0">
-      <b-field :label="$t('Cast')" label-position="on-border" class="field-extra">
-        <b-taginput v-model="cast" autocomplete :data="filteredCast" @typing="getFilteredCast">
+      <b-field :label="$t('Cast')" label-for="actor-filter-cast" label-position="on-border" class="field-extra">
+        <b-taginput v-field-id="'actor-filter-cast'" v-model="cast" autocomplete :data="filteredCast" @typing="getFilteredCast">
           <template v-slot="props">{{ props.option }}</template>
           <template #empty>{{ $t("No matching cast") }}</template>
           <template #selected="props">
@@ -70,8 +76,8 @@
         </b-taginput>
       </b-field>
 
-      <b-field :label="$t('Site')" label-position="on-border" class="field-extra">
-        <b-taginput v-model="sites" autocomplete :data="filteredSites" @typing="getFilteredSites">
+      <b-field :label="$t('Site')" label-for="actor-filter-sites" label-position="on-border" class="field-extra">
+        <b-taginput v-field-id="'actor-filter-sites'" v-model="sites" autocomplete :data="filteredSites" @typing="getFilteredSites">
           <template v-slot="props">{{ props.option }}</template>
           <template #empty>{{ $t("No matching sites") }}No matching sites</template>
           <template #selected="props">
@@ -88,8 +94,8 @@
       </b-field>
 
       <b-tooltip position="is-top" :label="$t('Allows searching a variety of attributes such as: Possible Aka actors, Cup Size, Eye/Hair Color, Has Tattoo, Has Piercing, Breast Type, Nationailty, Ethnicity, Aka, Has Images')" multilined :delay="1000" style="width:100%">
-        <b-field :label="$t('Attributes')" label-position="on-border" class="field-extra">
-          <b-taginput v-model="attributes" autocomplete :data="filteredAttributes" @typing="getFilteredAttributes">
+        <b-field :label="$t('Attributes')" label-for="actor-filter-attributes" label-position="on-border" class="field-extra">
+          <b-taginput v-field-id="'actor-filter-attributes'" v-model="attributes" autocomplete :data="filteredAttributes" @typing="getFilteredAttributes">
             <template v-slot="props">{{ props.option }}</template>
             <template #empty>{{ $t("No matching attributes") }}</template>
             <template #selected="props">
@@ -223,30 +229,34 @@ export default defineComponent({
         }
       })
     },
+    // capped: thousands of actors must not render thousands of dropdown rows
+    matchOptions (options, text, selected) {
+      const q = (text || '').toLowerCase()
+      const taken = new Set(selected.map(e => this.removeConditionPrefix(e.toString())))
+      const starts = []
+      const contains = []
+      for (const option of options) {
+        const name = option.toString()
+        if (taken.has(name)) continue
+        const lower = name.toLowerCase()
+        const at = lower.indexOf(q)
+        if (at === 0 || lower.startsWith('aka:' + q)) {
+          starts.push(option)
+          if (starts.length >= 50) break
+        } else if (at > 0 && contains.length < 50) {
+          contains.push(option)
+        }
+      }
+      return starts.concat(contains).slice(0, 50)
+    },
     getFilteredCast (text) {
-      // Load cast matching at the start 
-      let startWithText = this.filters.cast.filter(option => (
-        (option.toString().toLowerCase().indexOf(text.toLowerCase()) == 0 || option.toString().toLowerCase().indexOf("aka:" + text.toLowerCase()) == 0 ) &&
-        !this.cast.some(entry => this.removeConditionPrefix(entry.toString()) === option.toString())
-      ))
-      // Now load actors containing the text
-      let containsText = this.filters.cast.filter(option => (
-        option.toString().toLowerCase().indexOf(text.toLowerCase()) > 0 &&
-        !this.cast.some(entry => this.removeConditionPrefix(entry.toString()) === option.toString())
-      ))
-      this.filteredCast = startWithText.concat(containsText)
+      this.filteredCast = this.matchOptions(this.filters.cast, text, this.cast)
     },
     getFilteredSites (text) {
-      this.filteredSites = this.filters.sites.filter(option => (
-        option.toString().toLowerCase().indexOf(text.toLowerCase()) >= 0 &&
-        !this.sites.some(entry => this.removeConditionPrefix(entry.toString()) === option.toString())
-      ))
+      this.filteredSites = this.matchOptions(this.filters.sites, text, this.sites)
     },
     getFilteredAttributes (text) {
-      this.filteredAttributes = this.filters.attributes.filter(option => (
-        option.toString().toLowerCase().indexOf(text.toLowerCase()) >= 0 &&
-        !this.attributes.some(entry => this.removeConditionPrefix(entry.toString()) === option.toString())
-      ))
+      this.filteredAttributes = this.matchOptions(this.filters.attributes, text, this.attributes)
     },
     createAkaGroup () {
       this.$store.state.actorList.isLoading = true
@@ -452,6 +462,14 @@ export default defineComponent({
         }
       }
     },
+    collection: {
+      get () {
+        return this.$store.state.actorList.filters.min_avail > 0 ? ['collection'] : []
+      },
+      set (value) {
+        this.avails = [value.length ? 1 : 0, this.$store.state.actorList.filters.max_avail]
+      }
+    },
     avails: {
       get () {
         return [this.$store.state.actorList.filters.min_avail, this.$store.state.actorList.filters.max_avail]
@@ -574,7 +592,7 @@ export default defineComponent({
 .is-divider {
   position: relative;
   display: block;
-  border-top: 0.1rem solid #dbdbdb;
+  border-top: 0.1rem solid rgba(127, 127, 127, 0.25);
   height: 0.1rem;
   margin: 1.5rem 0;
   text-align: center;

@@ -4,9 +4,13 @@ import (
 	"io/fs"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/config"
+	"github.com/xbapps/xbvr/pkg/imgcache"
+	"github.com/xbapps/xbvr/pkg/models"
 	"github.com/xbapps/xbvr/ui"
 )
 
@@ -39,7 +43,13 @@ func UpdateState() {
 	config.SaveState()
 }
 
+var imageEvictMu sync.Mutex
+
 func CalculateCacheSizes() {
+	if maxGB := config.Config.Library.ImageCacheMaxGB; maxGB > 0 && imageEvictMu.TryLock() {
+		imgcache.Evict(common.ImgDir, int64(maxGB)<<30, 100*time.Millisecond, legacyImagesEvictable())
+		imageEvictMu.Unlock()
+	}
 	imgSize, _ := common.DirSize(common.ImgDir)
 	heatmapThumbSize, _ := common.DirSize(common.HeatmapThumbnailDir)
 	// Combine both image caches (imageproxy + heatmap thumbnails)
@@ -48,4 +58,18 @@ func CalculateCacheSizes() {
 	config.State.CacheSize.SearchIndex, _ = common.DirSize(common.IndexDirV2)
 
 	config.SaveState()
+}
+
+// legacyImagesEvictable is true 14 days after this cache version first ran, so images in use are promoted to variants before old files become evictable.
+func legacyImagesEvictable() bool {
+	db, _ := models.GetDB()
+	defer db.Close()
+
+	var kv models.KV
+	if db.Where(&models.KV{Key: "imgcache_v2_since"}).First(&kv).Error != nil {
+		kv = models.KV{Key: "imgcache_v2_since", Value: time.Now().Format(time.RFC3339)}
+		kv.Save()
+	}
+	since, err := time.Parse(time.RFC3339, kv.Value)
+	return err == nil && time.Since(since) > 14*24*time.Hour
 }

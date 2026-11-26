@@ -1,5 +1,5 @@
 <template>
-  <div class="modal is-active">
+  <SplitModal :body-style="paletteStyle" @close="close">
     <GlobalEvents
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
       @keyup.esc="handleEscape"
@@ -19,13 +19,7 @@
       @keydown="onZeroKey"
     />
 
-    <div class="modal-background" @click="close"></div>
-
-    <div class="modal-card">
-      <section class="modal-card-body" :style="paletteStyle">
-        <div class="columns">
-
-          <div class="column is-half">
+    <template #media>
             <b-tabs v-model="activeMedia" position="is-centered" :animated="false" class="media-tabs">
 
               <b-tab-item label="Gallery">
@@ -44,6 +38,9 @@
                           style="cursor: pointer;"
                         />
                         <span class="carousel-type-tag" v-if="carouselImageInfo[i]">{{ carouselImageInfo[i] }}</span>
+                        <button class="fullscreen-btn" @click.stop="openFullscreenGallery(i)" title="Fullscreen (G)">
+                          <b-icon pack="mdi" icon="fullscreen" size="is-small"></b-icon>
+                        </button>
                       </div>
                     </b-carousel-item>
                     <template #indicators="props">
@@ -56,16 +53,13 @@
                         </span>
                     </template>
                   </b-carousel>
-                  <button class="fullscreen-btn" @click="openFullscreenGallery(carouselSlide)" title="Fullscreen (G)">
-                    <b-icon pack="mdi" icon="fullscreen" size="is-small"></b-icon>
-                  </button>
                 </div>
               </b-tab-item>
 
               <b-tab-item label="Player" v-if="!displayingAlternateSource && fileCount > 0">
                 <!-- keyed per scene: each scene gets a fresh player -->
                 <div class="player-wrapper" :key="'player-' + item.scene_id">
-                  <VrPlayer ref="player" aspect-ratio="1 / 1" :script="playerScriptURL" :scripts="playerScripts" @select-script="id => selectScript({ id })"/>
+                  <VrPlayer ref="player" aspect-ratio="16 / 9" :script="playerScriptURL" :scripts="playerScripts" @select-script="id => selectScript({ id })"/>
                 </div>
                 <div class="skip-controls">
                   <div class="skip-group">
@@ -92,9 +86,9 @@
 
             </b-tabs>
 
-          </div>
+    </template>
 
-          <div class="column is-half">
+    <template #details>
 
             <div class="detail-header">
               <!-- Title -->
@@ -167,22 +161,23 @@
             </div>
 
             <!-- Cast -->
-            <div class="cast-section" v-if="activeTab != 1 && !displayingAlternateSource && castimages.length > 0">
+            <div class="cast-section" v-if="!displayingAlternateSource && castimages.length > 0">
               <div class="cast-row">
                 <div v-for="(image, idx) in castimages" :key="idx" class="cast-item"
                      :data-tooltip="image.actor_label"
                      @click='showActorDetail([image.actor_id])'>
                   <vue-load-image>
                     <template #image><img :src="getImageURL(image.src)" class="cast-thumb"/></template>
-                    <template #preloader><img src="/ui/images/blank_female_profile.png" class="cast-thumb"/></template>
-                    <template #error><img src="/ui/images/blank_female_profile.png" class="cast-thumb"/></template>
+                    <template #preloader><img src="/ui/images/actor_placeholder.svg" class="cast-thumb"/></template>
+                    <template #error><img src="/ui/images/actor_placeholder.svg" class="cast-thumb"/></template>
                   </vue-load-image>
+                  <span class="cast-caption">{{ image.first_name }}<span v-if="image.age != null" class="cast-age"> · {{ image.age }}</span></span>
                 </div>
               </div>
             </div>
 
             <!-- Tags: content only (cast shown above, site in meta) -->
-            <div class="tags-section" :class="{ 'no-accent': !accentColorTags }" v-if="activeTab != 1 && item.tags && item.tags.length > 0">
+            <div class="tags-section" :class="{ 'no-accent': !accentColorTags }" v-if="item.tags && item.tags.length > 0">
               <div class="tag-group" :ref="watchTagGroup" :class="{ 'is-collapsed': tagsOverflow && !tagsExpanded }">
                 <a v-for="(tag, idx) in item.tags" :key="'tag' + idx"
                    @click='showTagScenes([tag.name])' class="tag is-info is-small tag-pill">
@@ -193,61 +188,16 @@
               </div>
               <button v-if="tagsOverflow" type="button" class="tags-toggle" @click="tagsExpanded = !tagsExpanded">
                 <b-icon pack="mdi" :icon="tagsExpanded ? 'chevron-up' : 'chevron-down'" size="is-small"/>
-                <span>{{ tagsExpanded ? 'Show less' : `Show all ${item.tags.length}` }}</span>
+                <span>{{ tagsExpanded ? 'Show less' : `+${hiddenTags} more` }}</span>
               </button>
             </div>
-
-            <div class="block-tags block" v-if="activeTab == 1">
-             <b-taglist>
-              <b-tooltip  type="is-danger" :label="disableSaveMsg()" position="is-right" :delay=250 :active="disableSaveButtons()">
-                <b-button @click="updateCuepoint(false)" class="tag is-info is-small is-warning" accesskey="a" :disabled="disableSaveButtons()" >
-                  <u>A</u>dd New
-                </b-button>
-              </b-tooltip>
-                <b-button @click="vidPosition = new Date(0,0,0,0,0, 0, player.currentTime() * 1000)" class="tag is-info is-small is-warning" accesskey="t">Current <u>T</u>ime</b-button>
-              <b-tooltip type="is-danger" :label="$t(disableSaveMsg())" position="is-right" :delay=250 :active="disableSaveButtons()">
-                <b-button v-if="currentCuepointId > 0" @click="updateCuepoint(true)" class="tag is-info is-small is-warning" accesskey="s"
-                  :disabled="disableSaveButtons()" >
-                  <u>S</u>ave Edit
-                </b-button>
-              </b-tooltip>
-                <b-button v-if="cuepointName!=''" @click='cuepointName=""' class="tag is-info is-small is-warning" >Clear Cuepoint Name</b-button>
-                <b-button v-if="tagAct!=''" @click='setCuepointName("")' class="tag is-info is-small is-warning" accesskey="c"><u>C</u>lear Action</b-button>
-              </b-taglist>
-            </div>
-
-            <div class="is-divider" data-content="Cuepoint Positions" v-if="activeTab == 1"></div>
-            <div class="block-tags block" v-if="activeTab == 1">
-              <b-taglist>
-                <b-button v-for="(c, idx) in cuepointPositionTags.slice(1)" :key="'pos' + idx" @click='setCuepointName([c])' class="tag is-info is-small">{{c}}</b-button>
-              </b-taglist>
-            </div>
-            <div class="is-divider" data-content="Default Cuepoint Actions" v-if="activeTab == 1"></div>
-            <div class="block-tags block" v-if="activeTab == 1">
-              <b-taglist>
-                <b-button v-for="(c, idx) in cuepointActTags.slice(1)" :key="'action' + idx" @click='setCuepointName([c])' class="tag is-info is-small">{{c}}</b-button>
-              </b-taglist>
-            </div>
-            <div class="is-divider" data-content="Cast Cuepoints" v-if="activeTab == 1"></div>
-            <div class="block-tags block" v-if="activeTab == 1">
-              <b-taglist>
-                <b-button v-for="(c, idx) in item.cast" :key="'cast' + idx" @click='setCuepointName([c.name])' class="tag is-info is-small">{{c.name}}</b-button>
-              </b-taglist>
-            </div>
-            <div class="is-divider" data-content="Scene Tag Cuepoints" v-if="activeTab == 1"></div>
-            <div class="block-tags block" v-if="activeTab == 1">
-              <b-taglist>
-                <b-button v-for="(tag, idx) in item.tags" :key="'tag' + idx" @click='setCuepointName([tag.name])'
-                   class="tag is-info is-small">{{ tag.name }}</b-button>
-              </b-taglist>
-            </div>
-
 
             <div class="block-opts block">
               <b-tabs v-model="activeTab" :animated="false">
 
                 <b-tab-item :label="`Files (${fileCount})`" v-if="!displayingAlternateSource">
                   <div class="block-tab-content block">
+                    <p class="tab-empty" v-if="!filesByType.length">{{ $t('No files for this scene') }}</p>
                     <div class="content media is-small" v-for="(f, idx) in filesByType" :key="idx">
                       <div class="media-left">
                         <button rounded class="button is-success is-small" @click='playFile(f)'
@@ -315,6 +265,52 @@
 
                 <b-tab-item :label="`Cuepoints (${sortedCuepoints.length})`" v-if="!displayingAlternateSource">
                   <div class="block-tab-content block">
+                  <div class="cuepoint-editor">
+                  <div class="block-tags block">
+                   <b-taglist>
+                    <b-tooltip  type="is-danger" :label="disableSaveMsg()" position="is-right" :delay=250 :active="disableSaveButtons()">
+                      <b-button @click="updateCuepoint(false)" class="tag is-info is-small is-warning" accesskey="a" :disabled="disableSaveButtons()" >
+                        <u>A</u>dd New
+                      </b-button>
+                    </b-tooltip>
+                      <b-button @click="vidPosition = new Date(0,0,0,0,0, 0, player.currentTime() * 1000)" class="tag is-info is-small is-warning" accesskey="t">Current <u>T</u>ime</b-button>
+                    <b-tooltip type="is-danger" :label="$t(disableSaveMsg())" position="is-right" :delay=250 :active="disableSaveButtons()">
+                      <b-button v-if="currentCuepointId > 0" @click="updateCuepoint(true)" class="tag is-info is-small is-warning" accesskey="s"
+                        :disabled="disableSaveButtons()" >
+                        <u>S</u>ave Edit
+                      </b-button>
+                    </b-tooltip>
+                      <b-button v-if="cuepointName!=''" @click='cuepointName=""' class="tag is-info is-small is-warning" >Clear Cuepoint Name</b-button>
+                      <b-button v-if="tagAct!=''" @click='setCuepointName("")' class="tag is-info is-small is-warning" accesskey="c"><u>C</u>lear Action</b-button>
+                    </b-taglist>
+                  </div>
+
+                  <div class="is-divider" data-content="Cuepoint Positions"></div>
+                  <div class="block-tags block">
+                    <b-taglist>
+                      <b-button v-for="(c, idx) in cuepointPositionTags.slice(1)" :key="'pos' + idx" @click='setCuepointName([c])' class="tag is-info is-small">{{c}}</b-button>
+                    </b-taglist>
+                  </div>
+                  <div class="is-divider" data-content="Default Cuepoint Actions"></div>
+                  <div class="block-tags block">
+                    <b-taglist>
+                      <b-button v-for="(c, idx) in cuepointActTags.slice(1)" :key="'action' + idx" @click='setCuepointName([c])' class="tag is-info is-small">{{c}}</b-button>
+                    </b-taglist>
+                  </div>
+                  <div class="is-divider" data-content="Cast Cuepoints"></div>
+                  <div class="block-tags block">
+                    <b-taglist>
+                      <b-button v-for="(c, idx) in item.cast" :key="'cast' + idx" @click='setCuepointName([c.name])' class="tag is-info is-small">{{c.name}}</b-button>
+                    </b-taglist>
+                  </div>
+                  <div class="is-divider" data-content="Scene Tag Cuepoints"></div>
+                  <div class="block-tags block">
+                    <b-taglist>
+                      <b-button v-for="(tag, idx) in item.tags" :key="'tag' + idx" @click='setCuepointName([tag.name])'
+                         class="tag is-info is-small">{{ tag.name }}</b-button>
+                    </b-taglist>
+                  </div>
+                  </div>
                     <div class="block" >
                       <div class="columns">
                         <div class="column is-2">
@@ -351,7 +347,7 @@
                     </div>
                     <div>
                       <!-- :sort-multiple="sortMultiple" :sort-multiple-data="cuepointSorting" -->
-                        <b-table :data="sortedCuepoints"  :narrowed=true :per-page=7 focusable striped sticky-header
+                        <b-table :data="sortedCuepoints" :narrowed=true focusable striped
                           @select="cuepointSelected">
                           <!-- paginated  pagination-position="top" :pagination-rounded=true pagination-size="is-small" -->
                           <b-table-column field="track" label="Track" width="7.25em" v-slot="props" >
@@ -416,9 +412,8 @@
               </b-tabs>
             </div>
 
-          </div>
-        </div>
-      </section>
+    </template>
+    <template #footer>
       <div class="scene-id">
         {{ item.scene_id }}
         <span  v-if="this.$store.state.optionsAdvanced.advanced.showInternalSceneId">{{ $t('Internal ID') }}: {{item.id}}</span>
@@ -426,7 +421,7 @@
           <img src="/ui/icons/heresphere_24.png" style="height:15px;"/>
         </a>
       </div>
-    </div>
+    </template>
     <button class="modal-close is-large" aria-label="close" @click="close()"></button>
     <a class="prev" @click="prevScene" v-if="$store.getters['sceneList/prevScene'](item) !== null && !displayingAlternateSource"
        title="Keyboard shortcut: O">&#10094;</a>
@@ -464,13 +459,14 @@
         <span class="fullscreen-type" v-if="fullscreenImageInfo">{{ fullscreenImageInfo }}</span>
       </div>
     </div>
-  </div>
+  </SplitModal>
 </template>
 
 <script>
 import ky from 'ky'
 import { getAlternateSources } from '@/api'
 import VrPlayer from '../../components/VrPlayer.vue'
+import SplitModal from '../../components/SplitModal.vue'
 import { format, formatDistance, parseISO } from 'date-fns'
 import prettyBytes from 'pretty-bytes'
 import VueLoadImage from 'vue-load-image'
@@ -490,11 +486,12 @@ import { isAiScript, scriptGenerator, scriptLicense } from '@/scripts'
 
 export default {
   name: 'SceneDetails',
-  components: { VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
+  components: { SplitModal, VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
   data () {
     return {
       tagsExpanded: false,
       tagsOverflow: false,
+      hiddenTags: 0,
       index: 1,
       activeTab: 0,
       activeMedia: 0,
@@ -574,8 +571,9 @@ export default {
       let imgs = item.cast.map((actor) => {
         let birthdate = parseISO(actor.birth_date)
         let label = actor.name
+        let age = null
         if (birthdate.getFullYear() > 0) {
-          let age = releasedate.getFullYear() - birthdate.getFullYear()
+          age = releasedate.getFullYear() - birthdate.getFullYear()
           if ((releasedate.getMonth() < birthdate.getMonth()) || (releasedate.getMonth() == birthdate.getMonth() && releasedate.getDate() < birthdate.getDate())) {
             age -= 1
           }
@@ -583,19 +581,22 @@ export default {
         }
         let img = actor.image_url
         if (img == "" ){
-          img = "/ui/images/blank_female_profile.png"
+          img = "/ui/images/actor_placeholder.svg"
         }
         if (actor.name.startsWith("aka:")) {
           img = ""
         }
-        return {src: img, visible: false, actor_name: actor.name, actor_label: label, actor_id: actor.id};
+        return { src: img, visible: false, actor_name: actor.name, actor_label: label, actor_id: actor.id, first_name: actor.name.split(' ')[0], age }
       });
 
       this.castimages =  imgs.filter((img) => {
         return img.src !== '';
         });
-      this.getSearchFields(item.id)
       return item
+    },
+    searchFieldsSceneId () {
+      const show = this.$store.state.optionsAdvanced.advanced.showSceneSearchField && !this.displayingAlternateSource
+      return show ? this.item.id : null
     },
     // Properties for gallery
     images () {
@@ -750,6 +751,10 @@ export default {
       })    
 },
 watch:{
+    searchFieldsSceneId: {
+      handler (id) { this.getSearchFields(id) },
+      immediate: true
+    },
   quickFindOverlayState(newVal){
     if (newVal == true) {
       return
@@ -812,8 +817,6 @@ watch:{
     isAiScript,
     scriptGenerator,
     scriptLicense,
-    // Function ref for the tag list: watch its size so the "Show all" toggle only
-    // appears when the tags really run past three rows (also after resize/nav).
     watchTagGroup (el) {
       if (el === this.tagGroupEl) return
       if (this.tagObserver) this.tagObserver.disconnect()
@@ -826,9 +829,10 @@ watch:{
     measureTags () {
       const el = this.tagGroupEl
       if (!el) return
-      // the collapsed height comes from CSS; compare the full height with it
       const limit = parseFloat(getComputedStyle(el).getPropertyValue('--tags-collapsed')) || 80
       this.tagsOverflow = el.scrollHeight > limit + 2
+      const top = el.getBoundingClientRect().top
+      this.hiddenTags = [...el.children].filter(c => c.getBoundingClientRect().top - top >= limit).length
     },
     getCarouselImageURL (url, index) {
       // Add a cache-busting key when retrying
@@ -1627,18 +1631,12 @@ watch:{
     hideTooltip(idx) {
       this.castimages[idx].visible = false;
     },
-    getSearchFields(id) {
-      // load search fields
-      this.searchfields = []      
-      if (this.$store.state.optionsAdvanced.advanced.showSceneSearchField && !this.displayingAlternateSource) {
-        ky.get('/api/scene/searchfields', {
-          searchParams: {
-            q: id
-          },
-          }).json().then(data => {
-            this.searchfields = data
-          })
-      }
+    getSearchFields (id) {
+      this.searchfields = []
+      if (id === null) return
+      ky.get('/api/scene/searchfields', { searchParams: { q: id } }).json().then(data => {
+        if (id === this.searchFieldsSceneId) this.searchfields = data
+      })
     },
     showExtRefScene (altsrc) {      
       const extdata = JSON.parse(altsrc.external_data);      
@@ -1751,6 +1749,12 @@ watch:{
 </script>
 
 <style lang="less" scoped>
+.cuepoint-editor {
+  margin-bottom: 1.5rem;
+}
+.cuepoint-editor .block:last-child {
+  margin-bottom: 0;
+}
 .carousel-image-container {
   width: 100%;
   height: 100%;
@@ -1760,7 +1764,6 @@ watch:{
 }
 
 .carousel-image {
-  border-radius: 8px; /* same radius as cards and the player */
   max-width: 100%;
   max-height: 100%;
   width: auto;
@@ -1787,7 +1790,7 @@ watch:{
 }
 
 .is-1by1 {
-  padding-top: calc(100% - 40px - 1em) !important;
+  padding-top: 56.25% !important;
   background: transparent !important;
 }
 
@@ -1854,20 +1857,32 @@ watch:{
   align-items: center;
   gap: 2px;
 }
-
-.modal-card {
-  width: 85%;
-  max-height: calc(100vh - 40px);
-  margin: 0 auto;
-  transition: background 1.2s ease;
+.skip-group :deep(.button.tag) {
+  height: 1.6rem;
+  min-width: 2.8em;
+  background: transparent !important;
+  border: 1px solid rgba(127, 127, 127, 0.3) !important;
+  color: inherit !important;
+  font-variant-numeric: tabular-nums;
 }
+.skip-group :deep(.button.tag:hover) {
+  border-color: var(--accent, #7957d5) !important;
+  color: var(--accent, #7957d5) !important;
+}
+
+
 
 :deep(.modal-card-body) {
   overflow-y: auto;
   max-height: calc(100vh - 40px);
   scrollbar-width: none;
   border-top: 3px solid var(--accent, #7957d5);
+  border-radius: 8px;
   transition: border-color 0.8s ease;
+}
+.tab-empty {
+  padding: 0.75rem 0;
+  opacity: 0.6;
 }
 
 :deep(.modal-card-body)::-webkit-scrollbar {
@@ -1963,7 +1978,14 @@ watch:{
   flex-shrink: 0;
 }
 
+.detail-rating :deep(.vue-star-rating) {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
 .rating-reset {
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
   opacity: 0.4;
   transition: opacity 0.15s;
@@ -1999,10 +2021,26 @@ watch:{
 .cast-item :deep(> div) {
   line-height: 0;
 }
+.cast-caption {
+  width: 0;
+  min-width: 100%;
+  margin-top: 3px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cast-age {
+  opacity: 0.6;
+}
 
 
 .cast-thumb {
   height: clamp(70px, 6vw, 90px);
+  aspect-ratio: 2 / 3;
+  background: rgba(127, 127, 127, 0.12);
   border-radius: 4px;
   object-fit: cover;
   border: 2px solid transparent;
@@ -2020,7 +2058,7 @@ watch:{
 }
 
 .tag-group {
-  --tags-collapsed: 80px; /* three rows: 3 x 24px tags + 2 x 4px gaps */
+  --tags-collapsed: 52px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -2028,8 +2066,6 @@ watch:{
 .tag-group.is-collapsed {
   max-height: var(--tags-collapsed);
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
 }
 .tags-toggle {
   display: inline-flex;
@@ -2230,15 +2266,6 @@ html[data-theme="dark"] .sp-badge.is-paid {
   margin-left: 5px;  
 }
 
-/* Carousel background — match modal */
-:deep(.carousel) {
-  background: transparent !important;
-}
-:deep(.carousel .carousel-items),
-:deep(.carousel-item) {
-  background: transparent !important;
-}
-
 /* Fullscreen Gallery Styles */
 .carousel-wrapper {
   position: relative;
@@ -2407,46 +2434,6 @@ html[data-theme="dark"] .sp-badge.is-paid {
 }
 
 /* Detail action buttons — match SceneCard size */
-.detail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-}
-
-.detail-actions .button,
-.detail-actions :deep(.button) {
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  min-height: 28px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border-radius: 5px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
-}
-
-.detail-actions :deep(.button .icon) {
-  margin: 0 !important;
-  width: 16px !important;
-  height: 16px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.detail-actions :deep(.button .icon .mdi) {
-  font-size: 16px !important;
-  line-height: 1 !important;
-}
-
-.detail-actions :deep(.button span:not(.icon)) {
-  display: none !important;
-}
-
 /* Instant CSS tooltips for all buttons with data-tooltip */
 [data-tooltip] {
   position: relative;
@@ -2473,6 +2460,10 @@ html[data-theme="dark"] .sp-badge.is-paid {
 
 [data-tooltip]:hover::after {
   opacity: 1;
+}
+.cast-item[data-tooltip]::after {
+  left: 0;
+  right: auto;
 }
 
 /* ── Detail View Dark Mode ── */

@@ -1,5 +1,5 @@
 <template>
-  <div class="modal is-active">
+  <SplitModal @close="close">
     <GlobalEvents
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
       @keyup.esc="handleEscape"
@@ -15,14 +15,8 @@
       @keydown="onZeroKey"
     />
 
-    <div class="modal-background" @click="close"></div>
-
-    <div class="modal-card">
-      <section class="modal-card-body">
-        <div class="columns">
-
-          <div class="column is-half">
-            <b-tabs v-model="activeMedia" position="is-centered" :animated="false">
+    <template #media>
+            <b-tabs v-model="activeMedia" position="is-centered" :animated="false" class="media-tabs">
               <b-tab-item :label="$t('Gallery')">
                 <div class="carousel-wrapper" :style="{ '--photo-ratio': activePhotoRatio }">
                   <b-carousel v-model="carouselSlide" @change="onCarouselChange" :autoplay="false" :indicator-inside="false">
@@ -46,7 +40,7 @@
                           <vue-load-image>
                             <template #image><img :src="getIndicatorURL(props.i)" style="height:85px;"/></template>
                             <template #preloader><img :src="getImageURL('https://i.stack.imgur.com/kOnzy.gif')" style="height:25px;"/></template>
-                            <template #error><img src="/ui/images/blank_female_profile.png" style="height:85px;"/></template>
+                            <template #error><img src="/ui/images/actor_placeholder.svg" style="height:85px;"/></template>
                           </vue-load-image>
                         </span>
                     </template>
@@ -56,14 +50,14 @@
                   </button>
                 </div>
                 <div class="flexcentre">
-                <b-button class="button is-primary is-small" style="display: flex; justify-content: center;" v-on:click="setActorImage()">{{$t('Set Main Image')}}</b-button>
-                <b-button v-if="images.length != 0" class="button is-primary is-small" style="display: flex; justify-content: center;margin-left: 1em;" v-on:click="deleteActorImage()">{{$t('Delete Image')}}</b-button>
+                <b-button size="is-small" outlined v-on:click="setActorImage()">{{$t('Set Main Image')}}</b-button>
+                <b-button v-if="images.length != 0" size="is-small" type="is-danger" outlined class="ml-2" v-on:click="deleteActorImage()">{{$t('Delete Image')}}</b-button>
                 </div>
               </b-tab-item>
             </b-tabs>
-          </div>
+    </template>
 
-          <div class="column is-half">
+    <template #details>
             <div class="block-info block">
               <div class="content">
                 <h3>
@@ -105,10 +99,10 @@
 
                   </div>
                   <div class="column pt-0">
-                    <div class="is-pulled-right">
-                      <actor-favourite-button :actor="actor"/>&nbsp;
-                      <actor-watchlist-button :actor="actor"/>&nbsp;
-                      <actor-edit-button :actor="actor"/>&nbsp;
+                    <div class="detail-actions is-pulled-right">
+                      <actor-favourite-button :actor="actor"/>
+                      <actor-watchlist-button :actor="actor"/>
+                      <actor-edit-button :actor="actor"/>
                       <link-stashdb-button :item="actor" objectType="actor" />
                     </div>
                   </div>
@@ -181,30 +175,30 @@
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
-                    <span class="tab-label">Scenes ({{ actor.scenes.length }})<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" title="Open scenes in a new window" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
+                    <span class="tab-label">Scenes ({{ actorScenes.length || actor.scene_count || 0 }})<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" title="Open scenes in a new window" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
                   </template>
-                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', actor.scenes.length > 6 ? 'scroll' : '']">
-                    <!-- list entries carry scene summaries; cards wait for the full scenes -->
-                    <div :class="['column', 'is-multiline', 'is-one-third']"
-                      v-for="(scene, idx) in (actor.slim ? [] : actor.scenes)" :key="idx" class="image-wrapper">
-                      <SceneCard :item="scene" :reRead=true />
+                  <div v-show="activeTab == 1">
+                    <b-field class="segmented scene-scope">
+                      <b-radio-button v-model="sceneScope" native-value="all" size="is-small">{{ $t('All') }} ({{ actorScenes.length }})</b-radio-button>
+                      <b-radio-button v-model="sceneScope" native-value="downloaded" size="is-small">{{ $t('Downloaded') }} ({{ downloadedScenes.length }})</b-radio-button>
+                    </b-field>
+                    <div class="modal-grid">
+                      <SceneCard v-for="scene in shownScenes" :key="scene.id" :item="scene" :reRead=true />
                     </div>
                   </div>
                 </b-tab-item>
                 <b-tab-item :label="$t('Akas')" :visible="akas.aka_groups != null || akas.actors != null || akas.possible_akas != null">
                   <div v-show="activeTab == 2">
                     <b-field :label="$t('Aka Groups')" v-if="akas.aka_groups != null &&  akas.aka_groups.length!=0">
-                      <div  class="columns is-multiline">
-                        <div :class="['column', 'is-multiline', 'is-one-third']"
-                          v-for="(akaactor, idx) in akas.aka_groups" :key="idx" class="image-wrapper">
+                      <div class="modal-grid">
+                        <div v-for="(akaactor, idx) in akas.aka_groups" :key="idx" class="image-wrapper">
                           <ActorCard :actor="akaactor"/>
                         </div>
                       </div>
                     </b-field>
                     <b-field :label="$t('Other Actors In Groups')" v-if="akas.actors != null &&  akas.actors.length!=0">
-                      <div  class="columns is-multiline">
-                        <div :class="['column', 'is-multiline', 'is-one-third']"
-                          v-for="(akaactor, idx) in akas.actors" :key="idx" class="image-wrapper">
+                      <div class="modal-grid">
+                        <div v-for="(akaactor, idx) in akas.actors" :key="idx" class="image-wrapper">
                           <ActorCard :actor="akaactor"/>
                           <b-tooltip position="is-bottom" :label="$t('Remove Cast from Aka Group. Select the Aka group and Actors to remove in the Cast Filter')" multilined :delay="200">
                             <button class="button is-small is-outlined" @click="removeFromAkaGroup(akaactor.name)" v-if="actor.name.startsWith('aka:')">
@@ -215,9 +209,8 @@
                       </div>
                     </b-field>
                     <b-field :label="$t('Possible Matches')" v-if="akas.possible_akas != null &&  akas.possible_akas.length!=0">
-                      <div class="columns is-multiline">
-                        <div :class="['column', 'is-multiline', 'is-one-third']"
-                          v-for="(akaactor, idx) in akas.possible_akas" :key="idx" class="image-wrapper">
+                      <div class="modal-grid">
+                        <div v-for="(akaactor, idx) in akas.possible_akas" :key="idx" class="image-wrapper">
                           <ActorCard :actor="akaactor"/>
                           <b-tooltip position="is-bottom" :label="$t('Add Cast to Aka Group. Select the Aka group and Actors to add in the Cast Filter')" multilined :delay="200">
                             <button class="button is-small is-outlined" @click="addToAkaGroup(akaactor.name)" v-if='actor.name.startsWith("aka:")'>
@@ -230,11 +223,8 @@
                   </div>
                 </b-tab-item>                
                 <b-tab-item :visible="colleagues.length != 0" :label="`Colleagues (${colleagues.length})`">
-                  <div v-show="activeTab == 3" class="columns is-multiline scroll">
-                    <div :class="['column', 'is-multiline', 'is-one-third']"
-                      v-for="(colleague, idx) in colleagues" :key="idx" class="image-wrapper">
-                      <ActorCard :actor="colleague" :colleague="actor.name" />
-                    </div>
+                  <div v-show="activeTab == 3" class="modal-grid">
+                    <ActorCard v-for="colleague in colleagues" :key="colleague.id" :actor="colleague" :colleague="actor.name" />
                   </div>
                 </b-tab-item>
                 <b-tab-item :label="`Links (${getActorUrls().length})`" :visible="getActorUrls().length != 0">
@@ -272,10 +262,7 @@
               </b-tabs>
             </div>
 
-          </div>
-        </div>
-      </section>
-    </div>
+    </template>
     <button class="modal-close is-large" aria-label="close" @click="close()"></button>
     <a class="prev" @click="prevActor"
        title="Keyboard shortcut: O">&#10094;</a>
@@ -309,7 +296,7 @@
         <span class="fullscreen-type" v-if="fullscreenImageInfo">{{ fullscreenImageInfo }}</span>
       </div>
     </div>
-  </div>
+  </SplitModal>
 </template>
 
 <script>
@@ -325,14 +312,16 @@ import ActorWatchlistButton from '../../components/ActorWatchlistButton'
 import ActorEditButton from '../../components/ActorEditButton'
 import LinkStashdbButton from '../../components/LinkStashdbButton'
 import SceneCard from '../scenes/SceneCard'
+import SplitModal from '../../components/SplitModal.vue'
 import ActorCard from './ActorCard'
 
 export default defineComponent({
   name: 'ActorDetails',
-  components: { VueLoadImage, GlobalEvents, StarRating, ActorWatchlistButton, ActorFavouriteButton, SceneCard, ActorEditButton,  ActorCard, LinkStashdbButton },
+  components: { SplitModal, VueLoadImage, GlobalEvents, StarRating, ActorWatchlistButton, ActorFavouriteButton, SceneCard, ActorEditButton,  ActorCard, LinkStashdbButton },
 
   data () {
     return {
+      sceneScope: 'all',
       index: 1,
       activeTab: 0,
       activeMedia: 0,
@@ -359,6 +348,15 @@ export default defineComponent({
   },
 
   computed: {
+    actorScenes () {
+      return this.actor.slim ? [] : (this.actor.scenes || [])
+    },
+    downloadedScenes () {
+      return this.actorScenes.filter(s => s.is_available)
+    },
+    shownScenes () {
+      return this.sceneScope === 'downloaded' ? this.downloadedScenes : this.actorScenes
+    },
     // height/width of the photo on screen, so the box fits portrait and landscape
     // shots (clamped between 3:2 landscape and 2:3 portrait)
     activePhotoRatio () {
@@ -753,7 +751,7 @@ export default defineComponent({
     if (this.images[idx] !== undefined) {
       return this.getImageURL(this.images[idx], 'x85')
     } else {
-      return '/ui/images/blank_female_profile.png'
+      return '/ui/images/actor_placeholder.svg'
     }
   },
   close () {      
@@ -1088,11 +1086,7 @@ export default defineComponent({
   transition: padding-top 0.25s ease;
 }
 
-.modal-card {
-  width: 85%;
-  max-height: 90vh;
-  overflow-y: auto;
-}
+
 
 @media (max-width: 768px) {
   .modal-card {
@@ -1223,7 +1217,7 @@ span.is-active img {
   right: 100%;
   width: 400px;
   height: 400px;
-  background-color: white;
+  background-color: rgba(20, 20, 28, 0.92);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: center;
@@ -1239,7 +1233,15 @@ div.scroll {
   height: 1000px;
   overflow-x: hidden;
   overflow-y: auto;
-  text-align: center;
+}
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.scene-scope {
+  margin-bottom: 12px;
 }
 /* Scenes tab header: the open-in-new link sits inline, same height as the other tabs */
 .tab-label {
@@ -1257,6 +1259,11 @@ div.scroll {
 }
 .tab-ext:hover {
   opacity: 1;
+}
+.tab-ext :deep(.icon) {
+  width: 14px;
+  height: 14px;
+  margin: 0 !important;
 }
 .tab-ext :deep(.icon) {
   width: 14px;
@@ -1335,6 +1342,7 @@ div.scroll {
 .flexcentre {
   display: flex;
   justify-content: center;
+  margin-top: 10px;
 }
 
 /* Carousel image blur-to-sharp effect */

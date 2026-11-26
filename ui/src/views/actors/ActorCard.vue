@@ -20,7 +20,7 @@
         </b-tooltip>
       </div>
 
-      <div class="hover-actions" :class="{ 'is-visible': hovering }" @click.stop>
+      <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
         <a v-if="colleague != undefined" class="button is-info is-outlined is-small"
            @click="showColleague(actor.name, colleague)" :title="'Show Scenes with ' + actor.name">
           <b-icon pack="mdi" icon="movie-outline" size="is-small"/>
@@ -45,7 +45,7 @@
           <vue-load-image v-if="actor.nationality" class="flag-wrap">
             <template #image><img :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() + '.svg')" class="flag" :title="actor.nationality"/></template>
           </vue-load-image>
-          <span>{{actor.scenes.length}} {{actor.scenes.length == 1 ? 'scene' : 'scenes'}}<template v-if="actor.avail_count > 0"> · {{actor.avail_count}} available</template></span>
+          <span>{{sceneCount}} {{sceneCount == 1 ? 'scene' : 'scenes'}}<template v-if="actor.avail_count > 0"> · {{actor.avail_count}} available</template></span>
         </span>
         <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ age }} yrs</span>
       </div>
@@ -81,6 +81,9 @@ export default defineComponent({
   },
 
   computed: {
+    sceneCount () {
+      return this.actor.slim ? this.actor.scene_count : (this.actor.scenes || []).length
+    },
     imageURL () {
       return this.getImageURL(this.actor.image_url)
     },
@@ -121,7 +124,7 @@ export default defineComponent({
   methods: {
     getImageURL (u) {
       if (u=='' || u == undefined) {
-        return "/ui/images/blank_female_profile.png"
+        return "/ui/images/actor_placeholder.svg"
       }
       if (u.startsWith('http')) {
         return '/img/1200x/' + u.replace('://', ':/')
@@ -133,11 +136,8 @@ export default defineComponent({
       this.$store.commit('overlay/showActorDetails', { actor: actor })
     },
     isAvailable(actor) {
-      let index = actor.scenes.findIndex(scene => scene.is_available == 1);
-      if (index == -1) {
-        return false
-      }
-      return true
+      if (actor.slim) return actor.available_scenes > 0
+      return (actor.scenes || []).some(scene => scene.is_available)
     },
     showColleague (main_actor, colleague) {      
       this.$store.state.sceneList.filters.cast = ["&" + main_actor , "&"+ colleague]
@@ -166,6 +166,7 @@ export default defineComponent({
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.2s ease;
   cursor: pointer;
+  isolation: isolate;
 }
 .actor-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -182,7 +183,7 @@ export default defineComponent({
   inset: 0;
   overflow: hidden;
   border-radius: inherit;
-  background: #e9eaef;
+  background: var(--card-placeholder);
 }
 /* scale-to-fit: fill the letterbox with a soft blurred copy instead of a flat colour */
 .thumbnail-img.is-contain::before {
@@ -272,16 +273,16 @@ export default defineComponent({
   background: #fff !important;
   color: #363636 !important;
 }
-.hover-actions :deep(.button.is-outlined) { opacity: 0.7; }
-.hover-actions :deep(.button.is-outlined:hover) { opacity: 1; }
-.hover-actions :deep(.button.is-primary),
-.hover-actions :deep(.button.is-primary.is-outlined) { background: #7957d5 !important; color: #fff !important; }
-.hover-actions :deep(.button.is-danger),
-.hover-actions :deep(.button.is-danger.is-outlined) { background: #f14668 !important; color: #fff !important; }
-.hover-actions :deep(.button.is-info),
-.hover-actions :deep(.button.is-info.is-outlined) { background: #3e8ed0 !important; color: #fff !important; }
-.hover-actions :deep(.button.is-dark),
-.hover-actions :deep(.button.is-dark.is-outlined) { background: #363636 !important; color: #fff !important; }
+.hover-actions:not(.is-glass) :deep(.button.is-outlined) { opacity: 0.7; }
+.hover-actions:not(.is-glass) :deep(.button.is-outlined:hover) { opacity: 1; }
+.hover-actions:not(.is-glass) :deep(.button.is-primary),
+.hover-actions:not(.is-glass) :deep(.button.is-primary.is-outlined) { background: #7957d5 !important; color: #fff !important; }
+.hover-actions:not(.is-glass) :deep(.button.is-danger),
+.hover-actions:not(.is-glass) :deep(.button.is-danger.is-outlined) { background: #f14668 !important; color: #fff !important; }
+.hover-actions:not(.is-glass) :deep(.button.is-info),
+.hover-actions:not(.is-glass) :deep(.button.is-info.is-outlined) { background: #3e8ed0 !important; color: #fff !important; }
+.hover-actions:not(.is-glass) :deep(.button.is-dark),
+.hover-actions:not(.is-glass) :deep(.button.is-dark.is-outlined) { background: #363636 !important; color: #fff !important; }
 .hover-actions :deep(.button .icon) { margin: 0 !important; }
 .hover-actions :deep(.button .mdi) { font-size: 16px !important; }
 .hover-actions :deep(.button span:not(.icon)) { display: none !important; }
@@ -361,9 +362,7 @@ html[data-theme="dark"] .actor-card {
 html[data-theme="dark"] .actor-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
-html[data-theme="dark"] .thumbnail-img {
-  background: #121218;
-}
+
 html[data-theme="dark"] .actor-name {
   color: #e0e0e4;
 }

@@ -1,34 +1,41 @@
 <template>
   <div style="position: relative; min-height: 200px;">
-    <!-- Same behaviour as the scene list: reloads keep cards on screen as they are
-         under a thin progress bar, more cards load as you scroll. -->
-    <div class="list-progress" v-if="isListReloading" role="progressbar" aria-label="Loading actors"></div>
-
-    <div class="list-toolbar">
-      <strong class="toolbar-total">{{ isListReloading && !actors.length ? $t('Loading…') : total + ' results' }}</strong>
-      <div class="toolbar-size">
-        <b-field>
-          <span class="list-header-label">{{$t('Card size')}}</span>
-          <b-radio-button v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
-        </b-field>
-      </div>
+    <div class="list-toolbar" ref="toolbar">
+      <strong class="toolbar-total">{{ showSkeleton ? $t('Loading…') : total + ' results' }}</strong>
       <nav class="letter-filter" aria-label="Filter by first letter">
         <button v-for="l in letters" :key="l.value" type="button" class="letter"
                 :class="{ 'is-active': jumpTo === l.value, 'is-all': l.value === '' }"
                 :aria-pressed="jumpTo === l.value" @click="jumpTo = l.value">{{ l.label }}</button>
       </nav>
+      <div class="toolbar-size">
+        <b-field>
+          <span class="list-header-label">{{$t('Card size')}}</span>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
+        </b-field>
+      </div>
     </div>
     <span v-show="show_actor_id==='never show, just need the computed show_actor_id to trigger '">{{show_actor_id}}</span>
 
-    <div class="columns is-multiline">
+    <div class="columns is-multiline list-grid">
       <div :class="['column', 'is-multiline', cardSizeClass, 'actor-col']"
-           v-for="actor in actors" :key="actor.id">
+           v-for="actor in (showSkeleton ? [] : actors)" :key="actor.id">
         <ActorCard :actor="actor"/>
       </div>
+      <template v-if="showSkeleton">
+        <div :class="['column', 'is-multiline', cardSizeClass, 'actor-col']" v-for="n in skeletonCount" :key="'sk' + n">
+          <div class="skeleton-card" aria-hidden="true">
+            <div class="skeleton-block skeleton-thumb" :style="{ aspectRatio: skeletonAspect }"></div>
+            <div class="skeleton-info">
+              <div class="skeleton-block skeleton-line"></div>
+              <div class="skeleton-block skeleton-line is-short"></div>
+            </div>
+          </div>
+        </div>
+      </template>
       <div class="column is-full empty-state" v-if="!isLoading && !actors.length">
         {{ jumpTo ? `No actors starting with ${jumpTo}` : 'No actors match these filters' }}
       </div>
@@ -54,6 +61,9 @@ export default defineComponent({
   data () {
     return {
       isLoadingMore: false,
+      lastScrollY: 0,
+      isSlowLoad: false,
+      slowLoadTimer: null,
       letters: [{ value: '', label: 'All' }]
         .concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => ({ value: l, label: l })))
         .concat([{ value: '#', label: '#' }])
@@ -103,6 +113,16 @@ export default defineComponent({
     isListReloading () {
       return this.isLoading && !this.isLoadingMore
     },
+    showSkeleton () {
+      return this.isListReloading && this.isSlowLoad
+    },
+    skeletonCount () {
+      const perRow = { 1: 8, 2: 6, 3: 5, 4: 4, 5: 3 }[this.cardSize] || 6
+      return perRow * 2
+    },
+    skeletonAspect () {
+      return (this.$store.state.optionsWeb.web.actorCardAspectRatio || '1:1').replace(':', ' / ')
+    },
     actors () {
       return this.$store.state.actorList.actors
     },
@@ -131,22 +151,26 @@ export default defineComponent({
       this.isLoadingMore = false
       this.$nextTick(() => this.fillViewport())
     },
-    // load the next batch when the end of the grid comes near (or the first batch
-    // does not even fill the screen)
     fillViewport () {
-      const nearEnd = window.scrollY + window.innerHeight + 800 >= document.documentElement.scrollHeight
-      if (nearEnd) this.loadMore()
+      if (document.documentElement.scrollHeight < window.innerHeight + 400) this.loadMore()
     },
     handleScroll () {
       if (this.scrollTimer) return
       this.scrollTimer = setTimeout(() => {
         this.scrollTimer = null
-        this.fillViewport()
+        const y = window.scrollY
+        const movedDown = y > this.lastScrollY
+        this.lastScrollY = y
+        if (movedDown && y + window.innerHeight + 800 >= document.documentElement.scrollHeight) this.loadMore()
       }, 120)
     },
   },
 
   mounted () {
+    this.toolbarObserver = new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty('--list-head-h', `${entry.target.offsetHeight}px`)
+    })
+    this.toolbarObserver.observe(this.$refs.toolbar)
     this.scrollHandler = () => this.handleScroll()
     window.addEventListener('scroll', this.scrollHandler, { passive: true })
   },
@@ -154,9 +178,17 @@ export default defineComponent({
   beforeUnmount () {
     window.removeEventListener('scroll', this.scrollHandler)
     if (this.scrollTimer) clearTimeout(this.scrollTimer)
+    clearTimeout(this.slowLoadTimer)
+    this.toolbarObserver.disconnect()
+    document.documentElement.style.removeProperty('--list-head-h')
   },
 
   watch: {
+    isListReloading (loading) {
+      clearTimeout(this.slowLoadTimer)
+      this.isSlowLoad = false
+      if (loading) this.slowLoadTimer = setTimeout(() => { this.isSlowLoad = true }, 350)
+    },
     // after a (re)load finishes, keep filling until the screen is full
     '$store.state.actorList.isLoading' (loading) {
       if (!loading && !this.isLoadingMore) this.$nextTick(() => this.fillViewport())
@@ -176,42 +208,27 @@ export default defineComponent({
 </script>
 
 <style scoped>
-  /* Toolbar row: results — pagination — card size */
-  .list-toolbar {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.4rem 0 0;
-    margin-bottom: 0.75rem;
-  }
-  /* Bulma .columns has margin-top: -0.75rem by default, which eats the toolbar's margin-bottom */
-  .columns.is-multiline {
-    margin-top: 0 !important;
-  }
   .toolbar-total {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     white-space: nowrap;
   }
   .toolbar-size {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    display: flex;
+    justify-content: flex-end;
   }
-  /* Remove buefy field's default bottom margin inside toolbar so it doesn't add double space */
   .toolbar-size :deep(.field) {
     margin-bottom: 0 !important;
   }
-
-  /* First-letter filter: one compact row of chips inside the sticky toolbar */
   .letter-filter {
-    flex: 1 0 100%;
+    flex: 0 1 auto;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 2px;
-    padding-bottom: 0.4rem;
+    gap: 1px;
   }
   .letter {
-    min-width: 1.6rem;
+    min-width: 1.4rem;
     height: 1.6rem;
     padding: 0 0.3rem;
     border: none;
@@ -250,31 +267,6 @@ export default defineComponent({
     opacity: 0.6;
   }
 
-  /* Loading states shared with the scene list */
-  .list-progress {
-    position: sticky;
-    top: 3.25rem;
-    z-index: 7;
-    height: 2px;
-    margin-bottom: -2px;
-    overflow: hidden;
-    background: rgba(127, 127, 127, 0.15);
-  }
-  .list-progress::after {
-    content: '';
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 35%;
-    background: var(--bulma-primary, #7957d5);
-    animation: list-progress-slide 1.1s ease-in-out infinite;
-  }
-  @keyframes list-progress-slide {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(290%); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .list-progress::after { animation: none; }
-  }
   .loading-more {
     display: flex;
     align-items: center;
@@ -290,7 +282,4 @@ export default defineComponent({
     min-width: 0;
   }
 
-  .list-header-label {
-    padding-right: 0.5em;
-  }
 </style>

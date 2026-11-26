@@ -1,14 +1,14 @@
 <template>
-  <b-modal :active="isModalActive"           
+  <b-modal :modelValue="isModalActive" @update:modelValue="v => { if (!v) close() }"
            has-modal-card
            trap-focus
            aria-role="dialog"
            @cancel="close"
            aria-modal
-           can-cancel>
+           :can-cancel="['escape', 'outside']">
     
 
-    <div class="modal-card" :style="getOverlayPosition()">
+    <div class="modal-card stashdb-search">
       <header class="modal-card-head">
         <p class="modal-card-title">Search Stashdb Scenes</p>
         <button class="delete" @click="close" aria-label="close"></button>
@@ -16,11 +16,19 @@
 
       <div class="modal-card-body">
                 <div >
-          <b-field label="Find scene...">
-            <b-input v-model="queryString" placeholder="Find scene..." @update:modelValue="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
+          <b-field>
+            <b-input v-model="queryString" placeholder="Search StashDB by title, cast or studio" @update:modelValue="debouncedSearch" :loading="isFetching" icon="magnify" expanded/>
           </b-field>
-    
-        <b-table :data="searchResults" >
+          <b-field>
+            <b-input v-model="manualUrl" placeholder="…or paste a StashDB scene URL" icon="link-variant" expanded/>
+            <p class="control">
+              <b-button :disabled="!manualUrl.includes('stashdb.org/scenes/')" @click="linktoStashdb({ Url: manualUrl.trim() })">Link</b-button>
+            </p>
+          </b-field>
+          <p v-if="isFetching" class="search-state">Searching StashDB…</p>
+          <p v-else-if="statusMessage" class="search-state">{{ statusMessage }}</p>
+
+        <b-table v-if="searchResults.length" :data="searchResults" >
           <b-table-column field="ImageUrl" >
             <template v-slot="props">
               <div class="media">
@@ -87,6 +95,8 @@ export default defineComponent({
     return {
         isModalActive: true,
         stashdbUrl: "",
+        manualUrl: "",
+        statusMessage: "",
         searchResults: [],
         queryString: "",
         isFetching: false,
@@ -111,15 +121,16 @@ export default defineComponent({
     close () {
       this.$store.commit('overlay/hideSearchStashdbScenes')
     },
-    searchStashdb() {
-        this.$buefy.toast.open({message: `Searching scenes`, type: 'is-primary', duration: 5000})
-        ky.get('/api/extref/stashdb/search/' + this.scene.id + "?q=" + this.queryString, {timeout: 6e6}).json().then(data => {
-            this.searchResults = Object.values(data.Results).sort((a, b) => b.Weight - a.Weight)
-            this.isModalActive = true
-            if (data.Status!='') {
-              this.$buefy.toast.open({message: `Warning:  ${data.Status}`, type: 'is-warning', duration: 5000})
-            }
+    searchStashdb () {
+      this.isFetching = true
+      this.statusMessage = ''
+      ky.get('/api/extref/stashdb/search/' + this.scene.id, { searchParams: { q: this.queryString }, timeout: 120000 }).json()
+        .then(data => {
+          this.searchResults = Object.values(data.Results || {}).sort((a, b) => b.Weight - a.Weight)
+          if (!this.searchResults.length) this.statusMessage = data.Status || 'No StashDB scenes found. Try other words or paste the scene URL.'
         })
+        .catch(() => { this.statusMessage = 'StashDB search failed. Check the StashDB API key in Options → Advanced.' })
+        .finally(() => { this.isFetching = false })
     },
     selectScene(option) {
         this.stashdbUrl=option.Url.replace("https://stashdb.org/scenes/","")
@@ -130,7 +141,7 @@ export default defineComponent({
         });
     },    
     linktoStashdb(option) {
-        this.stashdbUrl=option.Url.replace("https://stashdb.org/scenes/","")
+        this.stashdbUrl=option.Url.replace("https://stashdb.org/scenes/","").split(/[?#/]/)[0]
         ky.get('/api/extref/stashdb/link2scene/' + this.scene.id +'/'+this.stashdbUrl ).json().then(data => {          
           this.$store.commit('sceneList/updateScene', data)
           this.$store.commit('overlay/showDetails', { scene: data })
@@ -139,7 +150,7 @@ export default defineComponent({
     },    
     getImageURL (u) {        
       if (u != undefined && u.startsWith('http')) {
-        return '/img/120x/' + u.replace('://', ':/')
+        return '/img/200x/' + u.replace('://', ':/')
       } else {
         return u
       }
@@ -155,13 +166,6 @@ export default defineComponent({
         });
         this.scene = scene
     },
-    getOverlayPosition(){
-      if (this.$store.state.overlay.searchStashDbScenes.scene.synopsis == "") {
-        return "height: 65vh; width: 40vw; left: 20vw; top: 20vh;"
-      } else {
-        return "height: 65vh; width: 40vw; left: -20vw"
-      }
-    },
     showTooltipImage(val){
       this.tooltipImage=val
     },
@@ -174,6 +178,15 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.stashdb-search {
+  width: min(760px, 94vw);
+  height: 80vh;
+}
+.search-state {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
 .b-modal {
   left: -20%;
   width: 40%;
@@ -188,7 +201,7 @@ export default defineComponent({
   position: absolute;
   z-index: 1;
   width: 350;
-  background-color: white;
+  background-color: rgba(20, 20, 28, 0.92);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: center;

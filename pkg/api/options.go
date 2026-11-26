@@ -49,6 +49,7 @@ type RequestSaveOptionsWeb struct {
 	SceneWatched         bool   `json:"sceneWatched"`
 	SceneEdit            bool   `json:"sceneEdit"`
 	SceneDuration        bool   `json:"sceneDuration"`
+	SceneScriptSpeed     bool   `json:"sceneScriptSpeed"`
 	SceneCuepoint        bool   `json:"sceneCuepoint"`
 	ShowHspFile          bool   `json:"showHspFile"`
 	ShowSubtitlesFile    bool   `json:"showSubtitlesFile"`
@@ -60,12 +61,15 @@ type RequestSaveOptionsWeb struct {
 	IsAvailOpacity       int    `json:"isAvailOpacity"`
 	SceneCardAspectRatio string `json:"sceneCardAspectRatio"`
 	SceneCardScaleToFit  bool   `json:"sceneCardScaleToFit"`
+	CardButtonStyle      string `json:"cardButtonStyle"`
 	ActorCardAspectRatio string `json:"actorCardAspectRatio"`
 	ActorCardScaleToFit  bool   `json:"actorCardScaleToFit"`
 	ShowSiteLogo         bool   `json:"showSiteLogo"`
 	DateFormat           string `json:"dateFormat"`
 	AccentColorTags      bool   `json:"accentColorTags"`
 	Theme                string `json:"theme"`
+	ShowUpcoming         bool   `json:"showUpcoming"`
+	UpcomingDays         int    `json:"upcomingDays"`
 }
 
 type RequestSaveOptionsAdvanced struct {
@@ -146,53 +150,43 @@ type GetFunscriptCountResponse struct {
 	Updated int64 `json:"updated"`
 }
 
-type RequestSaveOptionsTaskSchedule struct {
-	RescrapeEnabled      bool `json:"rescrapeEnabled"`
-	RescrapeHourInterval int  `json:"rescrapeHourInterval"`
-	RescrapeUseRange     bool `json:"rescrapeUseRange"`
-	RescrapeMinuteStart  int  `json:"rescrapeMinuteStart"`
-	RescrapeHourStart    int  `json:"rescrapeHourStart"`
-	RescrapeHourEnd      int  `json:"rescrapeHourEnd"`
-	RescrapeStartDelay   int  `json:"rescrapeStartDelay"`
-	RescanEnabled        bool `json:"rescanEnabled"`
-	RescanHourInterval   int  `json:"rescanHourInterval"`
-	RescanUseRange       bool `json:"rescanUseRange"`
-	RescanMinuteStart    int  `json:"rescanMinuteStart"`
-	RescanHourStart      int  `json:"rescanHourStart"`
-	RescanHourEnd        int  `json:"rescanHourEnd"`
-	RescanStartDelay     int  `json:"rescanStartDelay"`
-	PreviewEnabled       bool `json:"previewEnabled"`
-	PreviewHourInterval  int  `json:"previewHourInterval"`
-	PreviewUseRange      bool `json:"previewUseRange"`
-	PreviewMinuteStart   int  `json:"previewMinuteStart"`
-	PreviewHourStart     int  `json:"previewHourStart"`
-	PreviewHourEnd       int  `json:"previewHourEnd"`
-	PreviewStartDelay    int  `json:"previewStartDelay"`
+// RequestSaveOptionsTaskSchedule maps a config.Cron json key (e.g. "rescanSchedule") to its schedule.
+type RequestSaveOptionsTaskSchedule map[string]config.CronSchedule
 
-	ActorRescrapeEnabled      bool `json:"actorRescrapeEnabled"`
-	ActorRescrapeHourInterval int  `json:"actorRescrapeHourInterval"`
-	ActorRescrapeUseRange     bool `json:"actorRescrapeUseRange"`
-	ActorRescrapeMinuteStart  int  `json:"actorRescrapeMinuteStart"`
-	ActorRescrapeHourStart    int  `json:"actorRescrapeHourStart"`
-	ActorRescrapeHourEnd      int  `json:"actorRescrapeHourEnd"`
-	ActorRescrapeStartDelay   int  `json:"actorRescrapeStartDelay"`
-
-	StashdbRescrapeEnabled      bool `json:"stashdbRescrapeEnabled"`
-	StashdbRescrapeHourInterval int  `json:"stashdbRescrapeHourInterval"`
-	StashdbRescrapeUseRange     bool `json:"stashdbRescrapeUseRange"`
-	StashdbRescrapeMinuteStart  int  `json:"stashdbRescrapeMinuteStart"`
-	StashdbRescrapeHourStart    int  `json:"stashdbRescrapeHourStart"`
-	StashdbRescrapeHourEnd      int  `json:"stashdbRescrapeHourEnd"`
-	StashdbRescrapeStartDelay   int  `json:"stashdbRescrapeStartDelay"`
-
-	LinkScenesEnabled      bool `json:"linkScenesEnabled"`
-	LinkScenesHourInterval int  `json:"linkScenesHourInterval"`
-	LinkScenesUseRange     bool `json:"linkScenesUseRange"`
-	LinkScenesMinuteStart  int  `json:"linkScenesMinuteStart"`
-	LinkScenesHourStart    int  `json:"linkScenesHourStart"`
-	LinkScenesHourEnd      int  `json:"linkScenesHourEnd"`
-	LinkScenesStartDelay   int  `json:"linkScenesStartDelay"`
+// TaskScheduleResponse is the saved schedules plus when each enabled one runs next.
+type TaskScheduleResponse struct {
+	Schedules map[string]config.CronSchedule `json:"schedules"`
+	NextRuns  map[string]time.Time           `json:"nextRuns"`
 }
+
+// Set by the server package, which owns the cron instance (it imports api, not the other way).
+var (
+	ReloadTaskSchedules  = func() {}
+	TaskScheduleNextRuns = func() map[string]time.Time { return nil }
+)
+
+// taskSchedules returns pointers to every schedule in the config, by json key.
+func taskSchedules() map[string]*config.CronSchedule {
+	c := &config.Config.Cron
+	return map[string]*config.CronSchedule{
+		"rescrapeSchedule":        &c.RescrapeSchedule,
+		"rescanSchedule":          &c.RescanSchedule,
+		"previewSchedule":         &c.PreviewSchedule,
+		"actorRescrapeSchedule":   &c.ActorRescrapeSchedule,
+		"stashdbRescrapeSchedule": &c.StashdbRescrapeSchedule,
+		"linkScenesSchedule":      &c.LinkScenesSchedule,
+		"libraryHealthSchedule":   &c.LibraryHealthSchedule,
+	}
+}
+
+func taskScheduleResponse() TaskScheduleResponse {
+	out := TaskScheduleResponse{Schedules: map[string]config.CronSchedule{}, NextRuns: TaskScheduleNextRuns()}
+	for k, s := range taskSchedules() {
+		out.Schedules[k] = *s
+	}
+	return out
+}
+
 type RequestSaveSiteMatchParams struct {
 	SiteId      string                   `json:"site"`
 	MatchParams models.AltSrcMatchParams `json:"match_params"`
@@ -322,6 +316,9 @@ func (i ConfigResource) WebService() *restful.WebService {
 		Param(ws.PathParameter("cache", "Cache to reset - possible choices are `images`, `previews`, and `searchIndex`").DataType("string")).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.PUT("/cache/image-max-gb").To(i.saveImageCacheMaxGB).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	// "Previews" section endpoints
 	ws.Route(ws.PUT("/previews").To(i.saveOptionsPreviews).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
@@ -331,6 +328,9 @@ func (i ConfigResource) WebService() *restful.WebService {
 
 	// "Funscripts" section endpoints
 	ws.Route(ws.GET("/funscripts/count").To(i.getFunscriptsCount).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	ws.Route(ws.GET("/task-schedule").To(i.getOptionsTaskSchedule).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.POST("/task-schedule").To(i.saveOptionsTaskSchedule).
@@ -525,6 +525,7 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.SceneWatched = r.SceneWatched
 	config.Config.Web.SceneEdit = r.SceneEdit
 	config.Config.Web.SceneDuration = r.SceneDuration
+	config.Config.Web.SceneScriptSpeed = r.SceneScriptSpeed
 	config.Config.Web.SceneCuepoint = r.SceneCuepoint
 	config.Config.Web.ShowHspFile = r.ShowHspFile
 	config.Config.Web.ShowSubtitlesFile = r.ShowSubtitlesFile
@@ -536,12 +537,15 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.IsAvailOpacity = r.IsAvailOpacity
 	config.Config.Web.SceneCardAspectRatio = r.SceneCardAspectRatio
 	config.Config.Web.SceneCardScaleToFit = r.SceneCardScaleToFit
+	config.Config.Web.CardButtonStyle = r.CardButtonStyle
 	config.Config.Web.ActorCardAspectRatio = r.ActorCardAspectRatio
 	config.Config.Web.ActorCardScaleToFit = r.ActorCardScaleToFit
 	config.Config.Web.ShowSiteLogo = r.ShowSiteLogo
 	config.Config.Web.DateFormat = r.DateFormat
 	config.Config.Web.AccentColorTags = r.AccentColorTags
 	config.Config.Web.Theme = r.Theme
+	config.Config.Web.ShowUpcoming = r.ShowUpcoming
+	config.Config.Web.UpcomingDays = max(r.UpcomingDays, 0)
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
@@ -903,6 +907,23 @@ func (i ConfigResource) saveOptionsDLNA(req *restful.Request, resp *restful.Resp
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
 }
 
+type RequestSaveImageCacheMaxGB struct {
+	MaxGB int `json:"maxGB"`
+}
+
+func (i ConfigResource) saveImageCacheMaxGB(req *restful.Request, resp *restful.Response) {
+	var r RequestSaveImageCacheMaxGB
+	if err := req.ReadEntity(&r); err != nil {
+		log.Error(err)
+		return
+	}
+
+	config.Config.Library.ImageCacheMaxGB = max(r.MaxGB, 0)
+	config.SaveConfig()
+
+	resp.WriteHeaderAndEntity(http.StatusOK, r)
+}
+
 func (i ConfigResource) saveOptionsPreviews(req *restful.Request, resp *restful.Response) {
 	var r RequestSaveOptionsPreviews
 	err := req.ReadEntity(&r)
@@ -994,75 +1015,35 @@ func (i ConfigResource) getFunscriptsCount(req *restful.Request, resp *restful.R
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
 }
 
+func (i ConfigResource) getOptionsTaskSchedule(req *restful.Request, resp *restful.Response) {
+	resp.WriteHeaderAndEntity(http.StatusOK, taskScheduleResponse())
+}
+
 func (i ConfigResource) saveOptionsTaskSchedule(req *restful.Request, resp *restful.Response) {
 	var r RequestSaveOptionsTaskSchedule
-	err := req.ReadEntity(&r)
-	if err != nil {
+	if err := req.ReadEntity(&r); err != nil {
 		log.Error(err)
+		APIError(req, resp, http.StatusBadRequest, err)
 		return
 	}
 
-	if r.RescrapeHourEnd > 23 {
-		r.RescrapeHourEnd -= 24
+	schedules := taskSchedules()
+	for key, s := range r {
+		dst, ok := schedules[key]
+		if !ok {
+			continue
+		}
+		s.HourInterval = max(s.HourInterval, 1)
+		s.HourStart = min(max(s.HourStart, 0), 23)
+		s.HourEnd = min(max(s.HourEnd, 0), 47) % 24 // the UI range slider spans two days
+		s.MinuteStart = min(max(s.MinuteStart, 0), 59)
+		s.RunAtStartDelay = max(s.RunAtStartDelay, 0)
+		*dst = s
 	}
-	if r.RescanHourEnd > 23 {
-		r.RescanHourEnd -= 24
-	}
-	if r.PreviewHourEnd > 23 {
-		r.PreviewHourEnd -= 24
-	}
-
-	config.Config.Cron.RescrapeSchedule.Enabled = r.RescrapeEnabled
-	config.Config.Cron.RescrapeSchedule.HourInterval = r.RescrapeHourInterval
-	config.Config.Cron.RescrapeSchedule.UseRange = r.RescrapeUseRange
-	config.Config.Cron.RescrapeSchedule.MinuteStart = r.RescrapeMinuteStart
-	config.Config.Cron.RescrapeSchedule.HourStart = r.RescrapeHourStart
-	config.Config.Cron.RescrapeSchedule.HourEnd = r.RescrapeHourEnd
-	config.Config.Cron.RescrapeSchedule.RunAtStartDelay = r.RescrapeStartDelay
-
-	config.Config.Cron.RescanSchedule.Enabled = r.RescanEnabled
-	config.Config.Cron.RescanSchedule.HourInterval = r.RescanHourInterval
-	config.Config.Cron.RescanSchedule.UseRange = r.RescanUseRange
-	config.Config.Cron.RescanSchedule.MinuteStart = r.RescanMinuteStart
-	config.Config.Cron.RescanSchedule.HourStart = r.RescanHourStart
-	config.Config.Cron.RescanSchedule.HourEnd = r.RescanHourEnd
-	config.Config.Cron.RescanSchedule.RunAtStartDelay = r.RescanStartDelay
-
-	config.Config.Cron.PreviewSchedule.Enabled = r.PreviewEnabled
-	config.Config.Cron.PreviewSchedule.HourInterval = r.PreviewHourInterval
-	config.Config.Cron.PreviewSchedule.UseRange = r.PreviewUseRange
-	config.Config.Cron.PreviewSchedule.MinuteStart = r.PreviewMinuteStart
-	config.Config.Cron.PreviewSchedule.HourStart = r.PreviewHourStart
-	config.Config.Cron.PreviewSchedule.HourEnd = r.PreviewHourEnd
-	config.Config.Cron.PreviewSchedule.RunAtStartDelay = r.PreviewStartDelay
-
-	config.Config.Cron.ActorRescrapeSchedule.Enabled = r.ActorRescrapeEnabled
-	config.Config.Cron.ActorRescrapeSchedule.HourInterval = r.ActorRescrapeHourInterval
-	config.Config.Cron.ActorRescrapeSchedule.UseRange = r.ActorRescrapeUseRange
-	config.Config.Cron.ActorRescrapeSchedule.MinuteStart = r.ActorRescrapeMinuteStart
-	config.Config.Cron.ActorRescrapeSchedule.HourStart = r.ActorRescrapeHourStart
-	config.Config.Cron.ActorRescrapeSchedule.HourEnd = r.ActorRescrapeHourEnd
-	config.Config.Cron.ActorRescrapeSchedule.RunAtStartDelay = r.ActorRescrapeStartDelay
-
-	config.Config.Cron.StashdbRescrapeSchedule.Enabled = r.StashdbRescrapeEnabled
-	config.Config.Cron.StashdbRescrapeSchedule.HourInterval = r.StashdbRescrapeHourInterval
-	config.Config.Cron.StashdbRescrapeSchedule.UseRange = r.StashdbRescrapeUseRange
-	config.Config.Cron.StashdbRescrapeSchedule.MinuteStart = r.StashdbRescrapeMinuteStart
-	config.Config.Cron.StashdbRescrapeSchedule.HourStart = r.StashdbRescrapeHourStart
-	config.Config.Cron.StashdbRescrapeSchedule.HourEnd = r.StashdbRescrapeHourEnd
-	config.Config.Cron.StashdbRescrapeSchedule.RunAtStartDelay = r.StashdbRescrapeStartDelay
-
-	config.Config.Cron.LinkScenesSchedule.Enabled = r.LinkScenesEnabled
-	config.Config.Cron.LinkScenesSchedule.HourInterval = r.LinkScenesHourInterval
-	config.Config.Cron.LinkScenesSchedule.UseRange = r.LinkScenesUseRange
-	config.Config.Cron.LinkScenesSchedule.MinuteStart = r.LinkScenesMinuteStart
-	config.Config.Cron.LinkScenesSchedule.HourStart = r.LinkScenesHourStart
-	config.Config.Cron.LinkScenesSchedule.HourEnd = r.LinkScenesHourEnd
-	config.Config.Cron.LinkScenesSchedule.RunAtStartDelay = r.LinkScenesStartDelay
-
 	config.SaveConfig()
+	ReloadTaskSchedules()
 
-	resp.WriteHeaderAndEntity(http.StatusOK, r)
+	resp.WriteHeaderAndEntity(http.StatusOK, taskScheduleResponse())
 }
 
 func (i ConfigResource) getDefaultCuepoints(req *restful.Request, resp *restful.Response) {

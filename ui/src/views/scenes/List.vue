@@ -1,51 +1,56 @@
 <template>
   <div ref="scrollContainer" style="position: relative; min-height: 200px;">
-    <!-- Reloads keep the current cards on screen as they are under a thin progress
-         bar; nothing blocks the grid. A first load shows skeleton cards. -->
-    <div class="list-progress" v-if="isListReloading" role="progressbar" aria-label="Loading scenes"></div>
-
-    <div class="list-toolbar">
-      <strong class="toolbar-total">{{ isListReloading && !items.length ? $t('Loading…') : total + ' results' }}</strong>
+    <div class="list-toolbar" ref="toolbar">
+      <strong class="toolbar-total">{{ showStudios ? studioCount + ' studios' : showSkeleton ? $t('Loading…') : total + ' results' }}</strong>
       <div class="toolbar-segment">
-        <b-radio-button v-model="dlState" native-value="any" size="is-small">
+        <b-radio-button name="scene-view" v-model="tab" native-value="any" size="is-small">
           {{$t("Any")}} ({{counts.any}})
         </b-radio-button>
-        <b-radio-button v-model="dlState" native-value="available" size="is-small">
+        <b-radio-button name="scene-view" v-model="tab" native-value="available" size="is-small">
           {{$t("Available right now")}} ({{counts.available}})
         </b-radio-button>
-        <b-radio-button v-model="dlState" native-value="downloaded" size="is-small">
+        <b-radio-button name="scene-view" v-model="tab" native-value="downloaded" size="is-small">
           {{$t("Downloaded")}} ({{counts.downloaded}})
         </b-radio-button>
-        <b-radio-button v-model="dlState" native-value="missing" size="is-small">
+        <b-radio-button name="scene-view" v-model="tab" native-value="missing" size="is-small">
           {{$t("Not downloaded")}} ({{counts.not_downloaded}})
         </b-radio-button>
-        <b-radio-button v-model="dlState" native-value="hidden" size="is-small">
+        <b-radio-button name="scene-view" v-model="tab" native-value="hidden" size="is-small">
           {{$t("Hidden")}} ({{counts.hidden}})
         </b-radio-button>
+        <b-radio-button name="scene-view" v-model="tab" native-value="studios" size="is-small">
+          {{$t("Studios")}} ({{ studioCount }})
+        </b-radio-button>
       </div>
-      <div class="toolbar-size">
+      <div class="toolbar-size" :style="{ visibility: showStudios ? 'hidden' : null }">
         <b-field>
           <span class="list-header-label">{{$t('Card size')}}</span>
-          <b-radio-button v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
-          <b-radio-button v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
+          <b-radio-button name="scene-card-size" v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
+          <b-radio-button name="scene-card-size" v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
+          <b-radio-button name="scene-card-size" v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
+          <b-radio-button name="scene-card-size" v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
+          <b-radio-button name="scene-card-size" v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
         </b-field>
       </div>
     </div>
 
-    <div class="columns is-multiline">
+    <StudioGrid v-if="showStudios"/>
+    <template v-else>
+    <SiteHeader/>
+
+    <div class="columns is-multiline list-grid">
       <div :class="['column', 'is-multiline', cardSizeClass]"
-           v-for="item in items" :key="item.id">
+           v-for="item in (showSkeleton ? [] : items)" :key="item.id">
         <SceneCard :item="item"/>
       </div>
-      <template v-if="isListReloading && !items.length">
+      <template v-if="showSkeleton">
         <div :class="['column', 'is-multiline', cardSizeClass]" v-for="n in skeletonCount" :key="'sk' + n">
           <div class="skeleton-card" aria-hidden="true">
             <div class="skeleton-block skeleton-thumb" :style="{ aspectRatio: skeletonAspect }"></div>
-            <div class="skeleton-block skeleton-line"></div>
-            <div class="skeleton-block skeleton-line is-short"></div>
+            <div class="skeleton-info">
+              <div class="skeleton-block skeleton-line"></div>
+              <div class="skeleton-block skeleton-line is-short"></div>
+            </div>
           </div>
         </div>
       </template>
@@ -58,6 +63,7 @@
     <div class="column is-full" v-if="!infiniteScrollEnabled && items.length < total">
       <b-button type="is-primary" @click="loadMore" :loading="isLoadingMore" expanded>{{$t('Load More')}}</b-button>
     </div>
+    </template>
   </div>
 </template>
 
@@ -65,11 +71,14 @@
 import { defineComponent } from 'vue';
 
 import SceneCard from './SceneCard'
+import SiteHeader from './SiteHeader.vue'
+import StudioGrid from './StudioGrid.vue'
+import { loadSites } from '../../sites'
 import ky from 'ky'
 
 export default defineComponent({
   name: 'List',
-  components: { SceneCard },
+  components: { SceneCard, SiteHeader, StudioGrid },
 
   props: {
     infiniteScrollEnabled: {
@@ -81,6 +90,10 @@ export default defineComponent({
   data() {
     return {
       isLoadingMore: false,
+      lastScrollY: 0,
+      studioCount: 0,
+      isSlowLoad: false,
+      slowLoadTimer: null,
       scrollHandler: null,
       debounceTimeout: null
     }
@@ -110,6 +123,21 @@ export default defineComponent({
           return 'is-half'
         default:
           return 'is-one-fifth'
+      }
+    },
+    showStudios () {
+      return this.$route.query.view === 'studios'
+    },
+    tab: {
+      get () {
+        return this.showStudios ? 'studios' : this.dlState
+      },
+      set (value) {
+        if (value === 'studios') {
+          this.$router.push({ query: { ...this.$route.query, view: 'studios' } })
+        } else {
+          this.dlState = value
+        }
       }
     },
     dlState: {
@@ -156,6 +184,9 @@ export default defineComponent({
     isListReloading () {
       return this.isLoading && !this.isLoadingMore
     },
+    showSkeleton () {
+      return this.isListReloading && this.isSlowLoad
+    },
     // Two rows of placeholders for the current card size.
     skeletonCount () {
       const perRow = { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2 }[this.$store.state.sceneList.filters.cardSize] || 5
@@ -176,6 +207,11 @@ export default defineComponent({
   },
 
   watch: {
+    isListReloading (loading) {
+      clearTimeout(this.slowLoadTimer)
+      this.isSlowLoad = false
+      if (loading) this.slowLoadTimer = setTimeout(() => { this.isSlowLoad = true }, 350)
+    },
     '$store.state.sceneList.show_scene_id' (id) {
       if (id && id !== '') {
         ky.get('/api/scene/' + id).json().then(data => {
@@ -214,10 +250,10 @@ export default defineComponent({
       if (this.debounceTimeout) return
       this.debounceTimeout = setTimeout(() => {
         this.debounceTimeout = null
-        const scrollY = window.scrollY || window.pageYOffset
-        const viewportHeight = window.innerHeight
-        const fullHeight = document.documentElement.scrollHeight
-        if (scrollY + viewportHeight + 600 >= fullHeight) {
+        const y = window.scrollY
+        const movedDown = y > this.lastScrollY
+        this.lastScrollY = y
+        if (movedDown && y + window.innerHeight + 600 >= document.documentElement.scrollHeight) {
           this.loadMore()
         }
       }, 150)
@@ -225,6 +261,11 @@ export default defineComponent({
   },
 
   mounted () {
+    loadSites().then(sites => { this.studioCount = sites.filter(s => s.scene_count > 0).length })
+    this.toolbarObserver = new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty('--list-head-h', `${entry.target.offsetHeight}px`)
+    })
+    this.toolbarObserver.observe(this.$refs.toolbar)
     this.scrollHandler = this.handleScroll.bind(this)
     if (this.infiniteScrollEnabled) {
       window.addEventListener('scroll', this.scrollHandler, { passive: true })
@@ -236,61 +277,14 @@ export default defineComponent({
       window.removeEventListener('scroll', this.scrollHandler)
     }
     if (this.debounceTimeout) clearTimeout(this.debounceTimeout)
+    clearTimeout(this.slowLoadTimer)
+    this.toolbarObserver.disconnect()
+    document.documentElement.style.removeProperty('--list-head-h')
   },
 });
 </script>
 
 <style scoped>
-  .list-progress {
-    position: sticky;
-    top: 3.25rem;
-    z-index: 7;
-    height: 2px;
-    margin-bottom: -2px;
-    overflow: hidden;
-    background: rgba(127, 127, 127, 0.15);
-  }
-  .list-progress::after {
-    content: '';
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 35%;
-    background: var(--bulma-primary, #7957d5);
-    animation: list-progress-slide 1.1s ease-in-out infinite;
-  }
-  @keyframes list-progress-slide {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(290%); }
-  }
-  .skeleton-card {
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .skeleton-block {
-    background: linear-gradient(90deg, rgba(127, 127, 127, 0.12) 25%, rgba(127, 127, 127, 0.22) 50%, rgba(127, 127, 127, 0.12) 75%);
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.4s ease-in-out infinite;
-    border-radius: 4px;
-  }
-  .skeleton-thumb {
-    width: 100%;
-    border-radius: 6px 6px 0 0;
-  }
-  .skeleton-line {
-    height: 0.8em;
-    margin: 0.6em 0.6em 0;
-  }
-  .skeleton-line.is-short {
-    width: 55%;
-    margin-bottom: 0.6em;
-  }
-  @keyframes skeleton-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .skeleton-block, .list-progress::after { animation: none; }
-  }
   /* results | filter tabs (centred) | card size: both sides grow equally so the
      tabs sit in the middle of the toolbar */
   .toolbar-total {
@@ -310,11 +304,6 @@ export default defineComponent({
   }
   .toolbar-size :deep(.field) {
     margin-bottom: 0 !important;
-  }
-  .list-header-label {
-    padding-right: 1em;
-    white-space: nowrap;
-    align-self: center;
   }
   .loading-more {
     display: flex;

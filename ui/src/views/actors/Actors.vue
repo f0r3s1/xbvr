@@ -3,9 +3,10 @@
     <div class="columns">
 
       <div class="column is-one-fifth">
-         <Filters/> 
+        <Filters ref="filters"/>
+        <p class="fork-credit">This fork is maintained by <a href="https://github.com/f0r3s1/xbvr" target="_blank" rel="noopener">f0r3s1</a></p>
 
-        <a id="toTop">
+        <a id="toTop" :class="{ 'is-visible': showScrollButtons }" @click="scrollToTop">
           <b-icon pack="mdi" icon="navigation" />
         </a>
       </div>
@@ -27,26 +28,31 @@ import List from './List'
 
 export default defineComponent({
   name: 'Actors',
-  components: { Filters, List},
+  components: { Filters, List },
+
+  data () {
+    return {
+      showScrollButtons: false
+    }
+  },
+
+  methods: {
+    handleScroll () {
+      this.showScrollButtons = window.scrollY > 0 &&
+        this.$refs.filters.$el.getBoundingClientRect().bottom < window.innerHeight - 90
+    },
+    scrollToTop () {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  },
 
   mounted () {
-    const toTop = document.getElementById('toTop')
-    addEventListener('scroll', function () {
-      toTop.style.display = document.body.scrollTop > 20 || document.documentElement.scrollTop > 20
-        ? 'block'
-        : 'none'
-    })
-    toTop.addEventListener('click', function () {
-      scrollToTop()
-    })
+    this._scrollHandler = this.handleScroll.bind(this)
+    window.addEventListener('scroll', this._scrollHandler, { passive: true })
+  },
 
-    const scrollToTop = () => {
-      const c = document.documentElement.scrollTop || document.body.scrollTop
-      if (c > 0) {
-        window.requestAnimationFrame(scrollToTop)
-        window.scrollTo(0, c - c / 16)
-      }
-    }
+  beforeUnmount () {
+    window.removeEventListener('scroll', this._scrollHandler)
   },
 
   beforeRouteEnter (to) {
@@ -66,15 +72,11 @@ export default defineComponent({
     }
     this.$store.dispatch('actorList/load', { offset: 0 })
   },
-
-  computed: {
-  },
 });
 </script>
 
 <style scoped>
   #toTop {
-    display: none;
     position: fixed;
     bottom: 20px;
     left: 30px;
@@ -86,6 +88,15 @@ export default defineComponent({
     font-size: 18px;
   }
 
+  #toTop {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #toTop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+  }
   #toTop:hover {
     background-color: #BDBDBD;
   }

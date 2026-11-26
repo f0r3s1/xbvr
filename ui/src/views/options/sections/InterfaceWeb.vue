@@ -1,9 +1,6 @@
 <template>
-  <div class="container">
-    <b-loading :is-full-page="false" v-model="isLoading" />
+  <OptionsSection :title="$t('Web UI')" :loading="isLoading">
     <div class="content">
-      <h3>{{ $t('Web UI') }}</h3>
-      <hr />
 
       <div class="settings-layout">
         <!-- Left: Settings -->
@@ -34,6 +31,15 @@
             </div>
             <div class="settings-row" style="margin-top: 0.5rem">
               <div class="setting-item">
+                <label class="setting-label">Buttons</label>
+                <b-select size="is-small" v-model="cardButtonStyle">
+                  <option value="classic">Classic</option>
+                  <option value="glass">Liquid glass</option>
+                </b-select>
+              </div>
+            </div>
+            <div class="settings-row" style="margin-top: 0.5rem">
+              <div class="setting-item">
                 <b-switch v-model="sceneCardScaleToFit" type="is-dark" size="is-small">
                   Scale to fit
                 </b-switch>
@@ -53,6 +59,29 @@
             </div>
           </div>
 
+          <!-- Upcoming Scenes -->
+          <div class="settings-group">
+            <h5 class="group-title">Upcoming Scenes</h5>
+            <div class="settings-row">
+              <div class="setting-item">
+                <b-switch v-model="showUpcoming" type="is-dark" size="is-small">
+                  Show in scene list
+                </b-switch>
+              </div>
+              <div class="setting-item" v-if="showUpcoming">
+                <label class="setting-label">Releasing within</label>
+                <b-select size="is-small" v-model="upcomingDays">
+                  <option :value="7">1 week</option>
+                  <option :value="14">2 weeks</option>
+                  <option :value="30">1 month</option>
+                  <option :value="90">3 months</option>
+                  <option :value="0">Any time</option>
+                </b-select>
+              </div>
+            </div>
+            <p class="setting-hint">Scenes VRBangers sites, VRSpy and SLR studios announce before release. Picked up by the next scrape.</p>
+          </div>
+
           <!-- Visible Buttons -->
           <div class="settings-group">
             <h5 class="group-title">Visible Buttons</h5>
@@ -65,6 +94,7 @@
               <b-switch v-model="sceneWatched" type="is-dark" size="is-small">Watched</b-switch>
               <b-switch v-model="sceneEdit" type="is-dark" size="is-small">Edit</b-switch>
               <b-switch v-model="sceneDuration" type="is-dark" size="is-small">Duration</b-switch>
+              <b-switch v-model="sceneScriptSpeed" type="is-dark" size="is-small">Script speed</b-switch>
               <b-switch v-model="sceneCuepoint" type="is-dark" size="is-small">Cuepoints</b-switch>
               <b-switch v-model="hspFile" type="is-dark" size="is-small">HSP File</b-switch>
               <b-switch v-model="subtitlesFile" type="is-dark" size="is-small">Subtitles</b-switch>
@@ -131,123 +161,29 @@
         <div class="preview-col">
           <div class="preview-sticky">
             <h5 class="group-title">Preview</h5>
-            <div class="preview-card">
-              <div class="preview-thumb" :style="{ aspectRatio: previewAspectRatio }">
-                <img v-if="previewCoverUrl" :src="previewCoverUrl" :style="{ objectFit: sceneCardScaleToFit ? 'contain' : 'cover' }"/>
-                <div v-else class="preview-placeholder-img"></div>
-
-                <!-- Tags top-left -->
-                <div class="preview-tags-left">
-                  <span class="p-tag p-tag-info">
-                    <b-icon pack="mdi" icon="file" size="is-small"/><span>2</span>
-                  </span>
-                  <span class="p-tag p-tag-funscript">
-                    <b-icon pack="mdi" icon="pulse" size="is-small"/>
-                  </span>
-                  <span v-if="hspFile" class="p-tag p-tag-info">
-                    <b-icon pack="mdi" icon="safety-goggles" size="is-small"/>
-                  </span>
-                  <span v-if="subtitlesFile" class="p-tag p-tag-info">
-                    <b-icon pack="mdi" icon="subtitles" size="is-small"/>
-                  </span>
-                  <span v-if="sceneCuepoint" class="p-tag p-tag-info">
-                    <b-icon pack="mdi" icon="skip-next-outline" size="is-small"/><span>3</span>
-                  </span>
-                </div>
-
-                <!-- Tags top-right -->
-                <div class="preview-tags-right">
-                  <span class="p-tag p-tag-star">
-                    <b-icon pack="mdi" icon="star" size="is-small"/>4
-                  </span>
-                  <span v-if="sceneDuration" class="p-tag p-tag-duration">
-                    45m
-                  </span>
-                </div>
-
-                <!-- Heatmap -->
-                <div v-if="ScriptHeatmap" class="preview-heatmap">
-                  <svg width="100%" height="8" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="heatGrad">
-                        <stop offset="0%" stop-color="#3b82f6"/>
-                        <stop offset="15%" stop-color="#22c55e"/>
-                        <stop offset="30%" stop-color="#eab308"/>
-                        <stop offset="45%" stop-color="#f97316"/>
-                        <stop offset="55%" stop-color="#ef4444"/>
-                        <stop offset="65%" stop-color="#f97316"/>
-                        <stop offset="75%" stop-color="#22c55e"/>
-                        <stop offset="85%" stop-color="#3b82f6"/>
-                        <stop offset="100%" stop-color="#22c55e"/>
-                      </linearGradient>
-                    </defs>
-                    <rect width="100%" height="8" rx="3" fill="url(#heatGrad)"/>
-                  </svg>
-                </div>
-
-                <!-- Buttons — always visible -->
-                <div class="preview-actions">
-                  <span v-if="sceneHidden" class="p-btn p-btn-danger">
-                    <b-icon pack="mdi" icon="eye-off" size="is-small"/>
-                  </span>
-                  <span v-if="sceneWatchlist" class="p-btn p-btn-primary">
-                    <b-icon pack="mdi" icon="calendar-check" size="is-small"/>
-                  </span>
-                  <span v-if="sceneTrailerlist" class="p-btn p-btn-primary">
-                    <b-icon pack="mdi" icon="movie-open-check" size="is-small"/>
-                  </span>
-                  <span v-if="sceneFavourite" class="p-btn p-btn-danger">
-                    <b-icon pack="mdi" icon="heart" size="is-small"/>
-                  </span>
-                  <span v-if="sceneWishlist" class="p-btn p-btn-info">
-                    <b-icon pack="mdi" icon="oil-lamp" size="is-small"/>
-                  </span>
-                  <span v-if="sceneWatched" class="p-btn p-btn-dark">
-                    <b-icon pack="mdi" icon="eye-check" size="is-small"/>
-                  </span>
-                  <span v-if="sceneEdit" class="p-btn p-btn-dark">
-                    <b-icon pack="mdi" icon="pencil" size="is-small"/>
-                  </span>
-                </div>
-              </div>
-
-              <!-- Info -->
-              <div class="preview-info">
-                <div class="preview-title-row">
-                  <span class="preview-title">{{ previewTitle }}</span>
-                  <span class="preview-status-icons">
-                    <b-icon v-if="sceneFavourite" pack="mdi" icon="heart" size="is-small" class="pi-danger"/>
-                    <b-icon v-if="sceneWatchlist" pack="mdi" icon="calendar-check" size="is-small" class="pi-primary"/>
-                    <b-icon v-if="sceneWatched" pack="mdi" icon="eye-check" size="is-small" class="pi-dark"/>
-                  </span>
-                </div>
-                <div class="preview-meta">
-                  <span class="preview-site">
-                    <img v-if="showSiteLogo && previewSiteIcon" :src="previewSiteIcon" class="preview-site-icon"/>
-                    {{ previewSiteName }}
-                  </span>
-                  <span class="preview-date">{{ previewFormattedDate }}</span>
-                </div>
-              </div>
+            <div class="preview-card-demo">
+              <SceneCard v-if="sampleScene" :item="sampleScene" demo/>
             </div>
           </div>
         </div>
       </div>
 
     </div>
-  </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
+import SceneCard from '../../scenes/SceneCard.vue'
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
-import { format, parseISO } from 'date-fns'
 
 let saveTimer = null
 
 export default defineComponent({
   name: 'InterfaceWeb',
+  components: { OptionsSection, SceneCard },
 
   data () {
     return {
@@ -292,43 +228,6 @@ export default defineComponent({
   },
 
   computed: {
-    previewTitle () {
-      return this.sampleScene ? this.sampleScene.title : 'Amazing VR Experience Vol. 3'
-    },
-    previewSiteName () {
-      return this.sampleScene ? this.sampleScene.site : 'StudioName'
-    },
-    previewFormattedDate () {
-      const fmt = this.dateFormat
-      if (this.sampleScene && this.sampleScene.release_date && this.sampleScene.release_date !== '0001-01-01T00:00:00Z') {
-        return format(parseISO(this.sampleScene.release_date), fmt)
-      }
-      return format(new Date(2025, 0, 15), fmt)
-    },
-    previewAspectRatio () {
-      const r = this.sceneCardAspectRatio || '16:9'
-      const parts = r.split(':')
-      if (parts.length === 2) return `${parts[0]} / ${parts[1]}`
-      return '16 / 9'
-    },
-    previewCoverUrl () {
-      if (!this.sampleScene || !this.sampleScene.cover_url) return ''
-      const u = this.sampleScene.cover_url
-      if (!u.startsWith('http')) return u
-      if (u.search('%') === -1) return '/img/700x/' + encodeURI(u)
-      return '/img/700x/' + encodeURI(decodeURI(u))
-    },
-    previewSiteIcon () {
-      if (!this.sampleScene) return null
-      const sites = this.$store.state.optionsSites.items
-      if (!sites || !sites.length) return null
-      const site = sites.find(s => s.id === this.sampleScene.scraper_id)
-      if (!site || !site.avatar_url) return null
-      const u = site.avatar_url
-      if (!u.startsWith('http')) return u
-      if (u.search('%') === -1) return '/img/200x/' + encodeURI(u)
-      return '/img/200x/' + encodeURI(decodeURI(u))
-    },
     tagSort: {
       get () { return this.$store.state.optionsWeb.web.tagSort },
       set (value) { this.$store.state.optionsWeb.web.tagSort = value }
@@ -369,6 +268,10 @@ export default defineComponent({
       get () { return this.$store.state.optionsWeb.web.showAllHeatmaps },
       set (value) { this.$store.state.optionsWeb.web.showAllHeatmaps = value }
     },
+    sceneScriptSpeed: {
+      get () { return this.$store.state.optionsWeb.web.sceneScriptSpeed },
+      set (value) { this.$store.state.optionsWeb.web.sceneScriptSpeed = value }
+    },
     sceneDuration: {
       get () { return this.$store.state.optionsWeb.web.sceneDuration },
       set (value) { this.$store.state.optionsWeb.web.sceneDuration = value }
@@ -402,6 +305,10 @@ export default defineComponent({
       get () { return this.$store.state.optionsWeb.web.sceneCardAspectRatio },
       set (value) { this.$store.state.optionsWeb.web.sceneCardAspectRatio = value }
     },
+    cardButtonStyle: {
+      get () { return this.$store.state.optionsWeb.web.cardButtonStyle },
+      set (value) { this.$store.state.optionsWeb.web.cardButtonStyle = value }
+    },
     sceneCardScaleToFit: {
       get () { return this.$store.state.optionsWeb.web.sceneCardScaleToFit },
       set (value) { this.$store.state.optionsWeb.web.sceneCardScaleToFit = value }
@@ -430,6 +337,14 @@ export default defineComponent({
       get () { return this.$store.state.optionsWeb.web.updateCheck },
       set (value) { this.$store.state.optionsWeb.web.updateCheck = value }
     },
+    showUpcoming: {
+      get () { return this.$store.state.optionsWeb.web.showUpcoming !== false },
+      set (value) { this.$store.state.optionsWeb.web.showUpcoming = value }
+    },
+    upcomingDays: {
+      get () { return this.$store.state.optionsWeb.web.upcomingDays ?? 14 },
+      set (value) { this.$store.state.optionsWeb.web.upcomingDays = value }
+    },
     theme: {
       get () { return this.$store.state.optionsWeb.web.theme || 'auto' },
       set (value) { this.$store.state.optionsWeb.web.theme = value }
@@ -442,6 +357,9 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.preview-card-demo {
+  pointer-events: none;
+}
 /* ── Layout ── */
 .settings-layout {
   display: flex;
@@ -490,6 +408,11 @@ export default defineComponent({
   font-weight: 500;
   white-space: nowrap;
 }
+.setting-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  opacity: 0.65;
+}
 .slider-item {
   margin-top: 0.75rem;
   flex-direction: column;
@@ -516,110 +439,6 @@ export default defineComponent({
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 0.5rem 1rem;
 }
-
-/* ── Preview Card ── */
-.preview-card {
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  cursor: default;
-}
-.preview-thumb {
-  position: relative;
-  background: #1a1a2e;
-  overflow: hidden;
-}
-.preview-thumb > img {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  object-position: center center;
-}
-.preview-placeholder-img {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: linear-gradient(135deg, #2a2a4a 0%, #1a1a3e 50%, #2a2a4a 100%);
-}
-
-/* Tags */
-.preview-tags-left {
-  position: absolute;
-  top: 6px; left: 6px;
-  display: flex;
-  gap: 4px;
-  z-index: 2;
-}
-.preview-tags-right {
-  position: absolute;
-  top: 6px; right: 6px;
-  display: flex;
-  gap: 4px;
-  z-index: 2;
-}
-.p-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-}
-.p-tag :deep(.icon) {
-  width: 12px !important; height: 12px !important;
-}
-.p-tag :deep(.mdi) {
-  font-size: 12px !important;
-  color: #fff !important;
-}
-.p-tag-info {
-  background: rgba(0,0,0,0.7);
-}
-.p-tag-funscript {
-  background: rgba(62, 142, 208, 0.95);
-}
-.p-tag-star {
-  background: rgba(255, 221, 87, 0.95);
-  color: rgba(0,0,0,0.7);
-}
-.p-tag-star :deep(.mdi) {
-  color: rgba(0,0,0,0.7) !important;
-}
-.p-tag-duration {
-  background: rgba(0,0,0,0.8);
-}
-
-/* Heatmap */
-.preview-heatmap {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 0 4px 4px;
-  z-index: 2;
-}
-.preview-heatmap svg {
-  display: block;
-  border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.25);
-}
-
-/* Buttons — always visible in preview */
-.preview-actions {
-  position: absolute;
-  bottom: 6px; right: 6px;
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  z-index: 3;
-}
-.preview-heatmap ~ .preview-actions {
-  bottom: 16px;
-}
 .p-btn {
   display: inline-flex;
   align-items: center;
@@ -640,29 +459,6 @@ export default defineComponent({
   font-size: 16px !important;
   color: #fff !important;
 }
-
-/* Info section — fixed height */
-.preview-info {
-  padding: 7px 10px;
-  height: 52px;
-  box-sizing: border-box;
-}
-.preview-title-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  overflow: hidden;
-}
-.preview-title {
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.3;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .preview-status-icons {
   display: flex;
   gap: 3px;
@@ -671,39 +467,6 @@ export default defineComponent({
 .pi-danger :deep(.mdi) { color: #f14668 !important; }
 .pi-primary :deep(.mdi) { color: #7957d5 !important; }
 .pi-dark :deep(.mdi) { color: #363636 !important; }
-.preview-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  opacity: 0.7;
-  height: 18px;
-  gap: 8px;
-}
-.preview-site {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  overflow: hidden;
-}
-.preview-site-icon {
-  width: 16px; height: 16px;
-  max-width: 16px; max-height: 16px;
-  border-radius: 2px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-.preview-date {
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* ── Dark mode ── */
-html[data-theme="dark"] .preview-card {
-  background: #1c1c26;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
 html[data-theme="dark"] .pi-dark :deep(.mdi) { color: #d4d4d8 !important; }
 
 /* ── Responsive ── */

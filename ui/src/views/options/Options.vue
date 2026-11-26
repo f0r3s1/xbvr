@@ -173,4 +173,9 @@ export default defineComponent({
   position: relative;
   min-height: 200px;
 }
+@media screen and (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+}
 </style>

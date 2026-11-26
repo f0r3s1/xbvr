@@ -1,103 +1,60 @@
 <template>
-  <div>
+  <OptionsSection :title="$t('Export funscripts')" :loading="isLoading" :value="options" @save="save">
     <div class="content">
-      <h3>{{ $t("Export funscripts") }}</h3>
-      <p>
-        {{$t('Here you can download a ZIP file containing a funscript for each scripted scene. The file names include scene title and scene id, as expected by DeoVR. If a scene has multiple scripts you can choose a preferred script in the scene details view. Otherwise, the most recently added script is chosen.')}}
-      </p>
-      <p>
-        {{ $t("Note that the filenames are not compatible with DLNA.") }}
-      </p>
-      <p>
-        {{
-          $t(
-            "To use this export with DeoVR: Unzip and put the files in the Interactive folder on your device."
-          )
-        }}
-      </p>
-      <p>
-        {{
-          $t(
-            "To use this export with ScriptPlayer: Unzip and put the files in a folder of your choice. In the ScriptPlayer settings, add this folder in the Paths section, then connect to DeoVR."
-          )
-        }}
-      </p>
-      <hr />
-      <p><strong>Download funscripts for DeoVR</strong></p>
-      <p>
-        <b-button
-          type="is-primary"
-          @click="exportAllFunscripts"
-          :disabled="countTotal === 0"
-          icon-left="download"
-          >{{ $t("Download all funscripts") }} ({{ countTotal }})</b-button
-        >
-      </p>
-      <p>
-        <b-button
-          type="is-primary"
-          @click="exportNewFunscripts"
-          :disabled="countUpdated === 0"
-          icon-left="download"
-          >{{ $t("Download changes since last export") }} ({{
-            countUpdated
-          }})</b-button
-        >
-      </p>
-      <hr />
-      <b-field>
-        <b-switch v-model="scrapeFunscripts" type="is-default">
-          <strong>Scrape for Available Funscripts</strong>
-        </b-switch>
-      </b-field>
-      <b-field>
-        <b-button type="is-primary" @click="save">Save</b-button>
-      </b-field>
+      <p>{{ $t('Here you can download a ZIP file containing a funscript for each scripted scene. The file names include scene title and scene id, as expected by DeoVR. If a scene has multiple scripts you can choose a preferred script in the scene details view. Otherwise, the most recently added script is chosen.') }}</p>
+      <p>{{ $t('Note that the filenames are not compatible with DLNA.') }}</p>
+      <p>{{ $t('To use this export with DeoVR: Unzip and put the files in the Interactive folder on your device.') }}</p>
+      <p>{{ $t('To use this export with ScriptPlayer: Unzip and put the files in a folder of your choice. In the ScriptPlayer settings, add this folder in the Paths section, then connect to DeoVR.') }}</p>
     </div>
-  </div>
+
+    <div class="buttons">
+      <b-button tag="a" href="/api/task/funscript/export-all" type="is-primary" icon-left="download" :disabled="countTotal === 0">
+        {{ $t('Download all funscripts') }} ({{ countTotal }})
+      </b-button>
+      <b-button tag="a" href="/api/task/funscript/export-new" type="is-primary" outlined icon-left="download" :disabled="countUpdated === 0">
+        {{ $t('Download changes since last export') }} ({{ countUpdated }})
+      </b-button>
+    </div>
+
+    <b-field>
+      <b-switch v-model="options.scrapeFunscripts">{{ $t('Scrape for available funscripts') }}</b-switch>
+    </b-field>
+  </OptionsSection>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
+import { defineComponent } from 'vue'
+import OptionsSection from '../OptionsSection.vue'
 
 export default defineComponent({
-  name: "Funscripts",
+  name: 'Funscripts',
+  components: { OptionsSection },
 
-  mounted() {
-    this.$store.dispatch("optionsFunscripts/load");
+  data () {
+    return { isLoading: true }
   },
 
-  methods: {
-    exportAllFunscripts() {
-      const link = document.createElement("a");
-      link.href = "/api/task/funscript/export-all";
-      link.click();
-    },
-    exportNewFunscripts() {
-      const link = document.createElement("a");
-      link.href = "/api/task/funscript/export-new";
-      link.click();
-    },
-    save () {
-      this.$store.dispatch('optionsFunscripts/save')
-    },
+  async mounted () {
+    await this.$store.dispatch('optionsFunscripts/load')
+    this.isLoading = false
   },
 
   computed: {
-    countTotal: function () {
-      return this.$store.state.optionsFunscripts.countTotal;
+    options () {
+      return this.$store.state.optionsFunscripts.optionsFunscripts
     },
-    countUpdated: function () {
-      return this.$store.state.optionsFunscripts.countUpdated;
+    countTotal () {
+      return this.$store.state.optionsFunscripts.countTotal
     },
-    scrapeFunscripts: {
-      get () {
-        return this.$store.state.optionsFunscripts.optionsFunscripts.scrapeFunscripts
-      },
-      set (value) {
-        this.$store.state.optionsFunscripts.optionsFunscripts.scrapeFunscripts = value
-      },
-    },
+    countUpdated () {
+      return this.$store.state.optionsFunscripts.countUpdated
+    }
   },
-});
+
+  methods: {
+    save () {
+      return this.$store.dispatch('optionsFunscripts/save')
+    }
+  }
+})
 </script>

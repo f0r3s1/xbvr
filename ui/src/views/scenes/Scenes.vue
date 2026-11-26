@@ -3,9 +3,10 @@
     <div class="columns">
 
       <div class="column is-one-fifth">
-        <Filters/>
+        <Filters ref="filters"/>
+        <p class="fork-credit">This fork is maintained by <a href="https://github.com/f0r3s1/xbvr" target="_blank" rel="noopener">f0r3s1</a></p>
 
-        <div id="scrollButtons">
+        <div id="scrollButtons" :class="{ 'is-visible': showScrollButtons }">
           <a id="toTop" @click="scrollToTop">
             <b-icon pack="mdi" icon="navigation" />
           </a>
@@ -35,7 +36,8 @@ export default defineComponent({
 
   data() {
     return {
-      infiniteScrollEnabled: true
+      infiniteScrollEnabled: true,
+      showScrollButtons: false
     }
   },
 
@@ -44,11 +46,8 @@ export default defineComponent({
       this.infiniteScrollEnabled = !this.infiniteScrollEnabled
     },
     handleScroll () {
-      const show = document.body.scrollTop > 20 || document.documentElement.scrollTop > 20
-      const toTop = this.$refs.toTop || document.getElementById('toTop')
-      const toggleBtn = document.getElementById('toggleInfiniteScroll')
-      if (toTop) toTop.style.display = show ? 'block' : 'none'
-      if (toggleBtn) toggleBtn.style.display = show ? 'block' : 'none'
+      this.showScrollButtons = window.scrollY > 0 &&
+        this.$refs.filters.$el.getBoundingClientRect().bottom < window.innerHeight - 90
     },
     scrollToTop () {
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -93,9 +92,15 @@ export default defineComponent({
     left: 30px;
     width: 18.5%;
     z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #scrollButtons.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
   }
   #toTop, #toggleInfiniteScroll {
-    display: none;
     background-color: #f0f0f0;
     color: #4a4a4a;
     padding: 15px;

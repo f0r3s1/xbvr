@@ -2496,6 +2496,58 @@ func Migrate(migrateTo string) {
 				return tx.AutoMigrate(&models.ActorMerge{}).Error
 			},
 		},
+		{
+			// Actor list speed: covering index on scene_cast and (SQLite) ANALYZE so the planner avoids the is_hidden index.
+			ID: "0096-actor-list-indexes",
+			Migrate: func(tx *gorm.DB) error {
+				if !tx.Dialect().HasIndex("scene_cast", "idx_scene_cast_actor_scene") {
+					if err := tx.Table("scene_cast").AddIndex("idx_scene_cast_actor_scene", "actor_id", "scene_id").Error; err != nil {
+						return err
+					}
+				}
+				if tx.Dialect().GetName() == "sqlite3" {
+					return tx.Exec("ANALYZE").Error
+				}
+				return nil
+			},
+		},
+		{
+			// Scenes announced by a site before release (scraped from its upcoming list).
+			ID: "0097-upcoming-scenes",
+			Migrate: func(tx *gorm.DB) error {
+				type Scene struct {
+					IsUpcoming bool `json:"is_upcoming" gorm:"default:false"`
+				}
+				return tx.AutoMigrate(&Scene{}).Error
+			},
+		},
+		{
+			ID: "0098-perf-indexes",
+			Migrate: func(tx *gorm.DB) error {
+				if !tx.Dialect().HasIndex("scene_tags", "idx_scene_tags_tag_scene") {
+					if err := tx.Table("scene_tags").AddIndex("idx_scene_tags_tag_scene", "tag_id", "scene_id").Error; err != nil {
+						return err
+					}
+				}
+				if tx.Dialect().GetName() == "sqlite3" {
+					return tx.Exec("ANALYZE").Error
+				}
+				return nil
+			},
+		},
+		{
+			ID: "0099-site-metadata",
+			Migrate: func(tx *gorm.DB) error {
+				type Site struct {
+					BannerURL     string `gorm:"size:1000"`
+					Description   string `gorm:"type:text"`
+					HomepageURL   string `gorm:"size:1000"`
+					LogoURL       string `gorm:"size:1000"`
+					MetaUpdatedAt *time.Time
+				}
+				return tx.AutoMigrate(Site{}).Error
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

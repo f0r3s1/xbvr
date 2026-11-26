@@ -7,8 +7,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
+	"github.com/mozillazg/go-slugify"
 	"github.com/nleeper/goment"
 	"github.com/thoas/go-funk"
 	"github.com/xbapps/xbvr/pkg/config"
@@ -145,11 +148,58 @@ func POVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<-
 		WaitBeforeVisit("povr.com", siteCollector.Visit, siteURL+"?o=d")
 	}
 
+	if home := upcomingHomes[scraperID]; singleSceneURL == "" && home != "" && config.Config.Web.ShowUpcoming {
+		if page, err := fetchURLWithFlareSolverr(home, strings.Split(home, "/")[2]); err != nil {
+			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+		} else {
+			emitUpcoming(scraperID, parseWankzVRUpcoming(page, home, scraperID, siteID, company), out)
+		}
+	}
+
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
 	}
 	logScrapeFinished(scraperID, siteID)
 	return nil
+}
+
+// upcomingHomes lists the Wankz network sites whose homepage carries the hidden upcoming block.
+var upcomingHomes = map[string]string{"wankzvr": "https://www.wankzvr.com/", "milfvr": "https://www.milfvr.com/"}
+
+// parseWankzVRUpcoming reads the upcoming list of a Wankz network homepage.
+func parseWankzVRUpcoming(homeHTML string, homeURL string, scraperID string, siteID string, company string) []models.ScrapedScene {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(homeHTML))
+	if err != nil {
+		return nil
+	}
+	var scenes []models.ScrapedScene
+	doc.Find(".js-up-sc li.card").Each(func(_ int, item *goquery.Selection) {
+		title := strings.TrimSpace(item.Find(".card__h").Text())
+		if title == "" {
+			return
+		}
+		sc := models.ScrapedScene{
+			ScraperID:   scraperID,
+			SceneType:   "VR",
+			Studio:      company,
+			Site:        siteID,
+			Title:       title,
+			SceneID:     models.UpcomingPlaceholderID(scraperID, title),
+			HomepageURL: homeURL + "#upcoming-" + slugify.Slugify(title),
+			Upcoming:    true,
+		}
+		if cover := item.Find("img.video__cover").AttrOr("data-src", ""); cover != "" {
+			sc.Covers = []string{strings.Replace(cover, "/tiny.jpg", "/large.jpg", 1)}
+		}
+		if d, err := time.Parse("2 January, 2006", strings.TrimSpace(item.Find(".card__date").Text())); err == nil {
+			sc.Released = d.Format("2006-01-02")
+		}
+		item.Find(".card__links a").Each(func(_ int, a *goquery.Selection) {
+			sc.Cast = append(sc.Cast, strings.TrimSpace(a.Text()))
+		})
+		scenes = append(scenes, sc)
+	})
+	return scenes
 }
 
 func addPOVRScraper(id string, name string, company string, avatarURL string, custom bool, siteURL string, masterSiteId string) {

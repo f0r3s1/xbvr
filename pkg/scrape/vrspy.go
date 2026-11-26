@@ -1,16 +1,21 @@
 package scrape
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/gocolly/colly/v2"
 	"github.com/nleeper/goment"
 	"github.com/thoas/go-funk"
+	"github.com/tidwall/gjson"
 
+	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
@@ -252,6 +257,10 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 			}
 		}
 		collector.Wait()
+
+		if config.Config.Web.ShowUpcoming {
+			scrapeVRSpyUpcoming(knownScenes, out)
+		}
 	}
 
 	if updateSite {
@@ -259,6 +268,68 @@ func VRSpy(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<
 	}
 	logScrapeFinished(scraperID, siteID)
 	return nil
+}
+
+// vrspyUpcomingQuery is the GraphQL query behind the "Upcoming Scenes" block on the home page.
+const vrspyUpcomingQuery = `query { upcomingVideos { content { hrc name cover publishedDate state actors { hrc name } } } }`
+
+// scrapeVRSpyUpcoming adds the scenes announced on the home page.
+func scrapeVRSpyUpcoming(knownScenes []string, out chan<- models.ScrapedScene) {
+	body, _ := json.Marshal(map[string]string{"query": vrspyUpcomingQuery})
+	resp, err := resty.New().R().
+		SetHeader("User-Agent", UserAgent).
+		SetHeader("Content-Type", "application/json").
+		SetBody(body).
+		Post(baseURL + "/api/graphql")
+	if err != nil || resp.StatusCode() != 200 {
+		log.Debugf("VRSpy: upcoming scenes not available: %v", err)
+		return
+	}
+	var listed []string
+	for _, sc := range parseVRSpyUpcoming(resp.String()) {
+		listed = append(listed, sc.HomepageURL)
+		if !funk.ContainsString(knownScenes, sc.HomepageURL) {
+			out <- sc
+		}
+	}
+	models.PruneUpcoming(scraperID, listed)
+}
+
+func parseVRSpyUpcoming(graphqlJSON string) []models.ScrapedScene {
+	idRe := regexp.MustCompile(`/videos/(\d+)/`)
+	var scenes []models.ScrapedScene
+	gjson.Get(graphqlJSON, "data.upcomingVideos.content").ForEach(func(_, v gjson.Result) bool {
+		match := idRe.FindStringSubmatch(v.Get("cover").String())
+		hrc := v.Get("hrc").String()
+		title := strings.TrimSpace(v.Get("name").String())
+		if len(match) < 2 || hrc == "" || title == "" {
+			return true
+		}
+		sc := models.ScrapedScene{
+			ScraperID:   scraperID,
+			SceneType:   "VR",
+			Studio:      siteID,
+			Site:        siteID,
+			SiteID:      match[1],
+			SceneID:     scraperID + "-" + match[1],
+			Title:       title,
+			HomepageURL: baseURL + "/video/" + hrc,
+			Covers:      []string{cleanCDNURL(v.Get("cover").String())},
+			Upcoming:    true,
+		}
+		if published := v.Get("publishedDate").Int(); published > 0 {
+			sc.Released = time.Unix(published, 0).Format("2006-01-02")
+		}
+		v.Get("actors").ForEach(func(_, a gjson.Result) bool {
+			if name := strings.TrimSpace(a.Get("name").String()); name != "" {
+				sc.Cast = append(sc.Cast, name)
+			}
+			return true
+		})
+		scenes = append(scenes, sc)
+		return true
+	})
+	return scenes
 }
 
 func init() {

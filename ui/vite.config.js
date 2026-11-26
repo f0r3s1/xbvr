@@ -5,6 +5,9 @@ import path from 'path'
 // Video.js 10 player tags are custom elements, not Vue components.
 const videojsTags = new Set(['video-player', 'video-skin'])
 
+const api = process.env.XBVR_API || 'http://localhost:9999'
+const ws = process.env.XBVR_WS || 'ws://localhost:9998'
+
 export default defineConfig({
   plugins: [
     vue({
@@ -42,12 +45,12 @@ export default defineConfig({
       port: 8080,
     },
     proxy: {
-      '/api': { target: 'http://localhost:9999', changeOrigin: true },
-      '/ws': { target: 'ws://localhost:9998', ws: true, changeOrigin: true },
-      '/img': { target: 'http://localhost:9999', changeOrigin: true },
-      '/imghm': { target: 'http://localhost:9999', changeOrigin: true },
-      '/download': { target: 'http://localhost:9999', changeOrigin: true },
-      '/myfiles': { target: 'http://localhost:9999', changeOrigin: true },
+      '/api': { target: api, changeOrigin: true },
+      '/ws': { target: ws, ws: true, changeOrigin: true },
+      '/img': { target: api, changeOrigin: true },
+      '/imghm': { target: api, changeOrigin: true },
+      '/download': { target: api, changeOrigin: true },
+      '/myfiles': { target: api, changeOrigin: true },
     },
   },
 })

@@ -117,6 +117,7 @@ export default defineComponent({
   },
 
   computed: {
+
     // short labels: drop the extension and the part all names share
     // ("Clip.mkv.funscript" + "Clip - Script v2.funscript" -> "mkv", "Script v2")
     options () {
@@ -254,8 +255,14 @@ export default defineComponent({
           const data = await (await fetch(l.url)).json()
           const inv = data.inverted === true
           const actions = (data.actions || [])
-            .map(a => ({ at: a.at / 1000, pos: inv ? 100 - a.pos : a.pos }))
+            .map(a => ({ at: a.at / 1000, pos: inv ? 100 - a.pos : a.pos, c: '' }))
             .sort((a, b) => a.at - b.at)
+          // colour of the stroke from each action to the next, worked out once
+          for (let i = 0; i < actions.length - 1; i++) {
+            const p = actions[i]
+            const n = actions[i + 1]
+            p.c = speedColour(Math.abs(n.pos - p.pos) / Math.max(n.at - p.at, 0.001))
+          }
           this.cache.set(l.url, { actions, status: actions.length ? '' : 'empty' })
         } catch {
           this.cache.set(l.url, { actions: [], status: 'unreadable' })
@@ -353,22 +360,37 @@ export default defineComponent({
           }
 
           if (a.length) {
-            let i = Math.max(0, this.indexAt(a, start))
+            // Strokes are clipped to the graph so they slide in from the edge instead of popping in.
             ctx.lineWidth = multi ? 1.5 : 2
             ctx.lineJoin = 'round'
             ctx.lineCap = 'round'
-            for (; i < a.length - 1 && a[i].at <= start + span; i++) {
-              const p = a[i]
-              const n = a[i + 1]
-              const speed = Math.abs(n.pos - p.pos) / Math.max(n.at - p.at, 0.001)
-              ctx.strokeStyle = speedColour(speed)
-              ctx.globalAlpha = n.at < t ? 0.45 : 1 // played strokes dimmed
-              ctx.beginPath()
-              ctx.moveTo(x(p.at), y(p.pos))
-              ctx.lineTo(x(n.at), y(n.pos))
-              ctx.stroke()
+            const i0 = Math.max(0, this.indexAt(a, start))
+            const end = start + span + 1 // one second past the edge, covers the line caps
+            const strokes = (from, to) => {
+              for (let i = i0; i < a.length - 1 && a[i].at <= end; i++) {
+                const p = a[i]
+                const n = a[i + 1]
+                if (n.at < from || p.at > to) continue
+                ctx.strokeStyle = p.c
+                ctx.beginPath()
+                ctx.moveTo(x(p.at), y(p.pos))
+                ctx.lineTo(x(n.at), y(n.pos))
+                ctx.stroke()
+              }
             }
-            ctx.globalAlpha = 1
+            ctx.save()
+            ctx.beginPath()
+            ctx.rect(0, top, px, laneH)
+            ctx.clip()
+            ctx.globalAlpha = 0.45 // played part dimmed
+            strokes(start - 1, t)
+            ctx.restore()
+            ctx.save()
+            ctx.beginPath()
+            ctx.rect(px, top, gw - px, laneH)
+            ctx.clip()
+            strokes(t, end)
+            ctx.restore()
             const cur = this.positionAt(a, t)
             ctx.fillStyle = '#fff'
             ctx.beginPath()

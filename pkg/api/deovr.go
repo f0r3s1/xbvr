@@ -1,12 +1,15 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
@@ -176,6 +179,38 @@ func getProto(req *restful.Request) string {
 	return proto
 }
 
+func requestBaseURL(req *restful.Request) string {
+	return getProto(req) + "://" + req.Request.Host
+}
+
+func proxiedImageURL(req *restful.Request, size string, imageURL string) string {
+	if !strings.HasPrefix(imageURL, "http") {
+		return imageURL
+	}
+	return requestBaseURL(req) + "/img/" + size + "/" + strings.Replace(imageURL, "://", ":/", -1)
+}
+
+var verifiedCredentials sync.Map
+
+const verifiedCredentialsTTL = 5 * time.Minute
+
+// The cache key includes the stored hash, so changing the password invalidates it.
+func deoCredentialsValid(username string, password string) bool {
+	cfg := config.Config.Interfaces.DeoVR
+	if username == "" || password == "" || username != cfg.Username {
+		return false
+	}
+	key := sha256.Sum256([]byte(cfg.Password + "\x00" + password))
+	if expiry, ok := verifiedCredentials.Load(key); ok && time.Now().Before(expiry.(time.Time)) {
+		return true
+	}
+	if bcrypt.CompareHashAndPassword([]byte(cfg.Password), []byte(password)) != nil {
+		return false
+	}
+	verifiedCredentials.Store(key, time.Now().Add(verifiedCredentialsTTL))
+	return true
+}
+
 func setDeoPlayerHost(req *restful.Request) {
 	deoIP := req.Request.RemoteAddr
 	lastColon := strings.LastIndex(deoIP, ":")
@@ -186,7 +221,6 @@ func setDeoPlayerHost(req *restful.Request) {
 	if deoIP != session.DeoPlayerHost {
 		common.Log.Infof("DeoVR Player connecting from %v", deoIP)
 		session.DeoPlayerHost = deoIP
-		session.DeoRequestHost = getProto(req) + "://" + req.Request.Host
 	}
 }
 
@@ -198,8 +232,7 @@ func restfulAuthFilter(req *restful.Request, resp *restful.Response, chain *rest
 		password, _ := req.BodyParameter("password")
 
 		if username != "" && password != "" {
-			cmpErr := bcrypt.CompareHashAndPassword([]byte(config.Config.Interfaces.DeoVR.Password), []byte(password))
-			if username == config.Config.Interfaces.DeoVR.Username && cmpErr == nil {
+			if deoCredentialsValid(username, password) {
 				authState = "1"
 			} else {
 				authState = "-1"
@@ -298,7 +331,7 @@ func (i DeoVRResource) getDeoFile(req *restful.Request, resp *restful.Response) 
 				Height:     height,
 				Width:      width,
 				Size:       file.Size,
-				URL:        fmt.Sprintf("%v/api/dms/file/%v%v", session.DeoRequestHost, file.ID, dnt),
+				URL:        fmt.Sprintf("%v/api/dms/file/%v%v", requestBaseURL(req), file.ID, dnt),
 			},
 		},
 	})
@@ -355,9 +388,6 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 			Where("id = ?", sceneID).First(&scene)
 	}
 
-	var stereoMode string = ""
-	var screenType string = ""
-
 	var actors []DeoSceneActor
 	for i := range scene.Cast {
 		actors = append(actors, DeoSceneActor{
@@ -400,7 +430,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 					Height:     height,
 					Width:      width,
 					Size:       file.Size,
-					URL:        fmt.Sprintf("%v/api/dms/file/%v/%v%v", session.DeoRequestHost, file.ID, scene.GetFunscriptTitle(), dnt),
+					URL:        fmt.Sprintf("%v/api/dms/file/%v/%v%v", requestBaseURL(req), file.ID, scene.GetFunscriptTitle(), dnt),
 				},
 			},
 		}
@@ -430,7 +460,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 		if strings.HasSuffix(file.Filename, ".funscript") {
 			deoScriptFiles = append(deoScriptFiles, DeoSceneScriptFile{
 				Title: file.Filename,
-				URL:   fmt.Sprintf("%v/api/dms/file/%v", session.DeoRequestHost, file.ID),
+				URL:   fmt.Sprintf("%v/api/dms/file/%v", requestBaseURL(req), file.ID),
 			})
 		}
 	}
@@ -446,7 +476,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 	for _, file := range hspFiles {
 		deoHSPFiles = append(deoHSPFiles, DeoSceneHSPFile{
 			Title: file.Filename,
-			URL:   fmt.Sprintf("%v/api/dms/file/%v", session.DeoRequestHost, file.ID),
+			URL:   fmt.Sprintf("%v/api/dms/file/%v", requestBaseURL(req), file.ID),
 		})
 	}
 
@@ -461,72 +491,26 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 		return cuepoints[i].TS < cuepoints[j].TS
 	})
 
-	var hasAlpha bool = false
-
-	// Set Scene projection IF either single video or all videos have same projection type
+	var stereoMode, screenType string
+	var hasAlpha bool
 	if sceneMultiProjection {
-		if videoFiles[0].VideoProjection == "mkx200" ||
-			videoFiles[0].VideoProjection == "mkx220" ||
-			videoFiles[0].VideoProjection == "rf52" ||
-			videoFiles[0].VideoProjection == "fisheye190" ||
-			videoFiles[0].VideoProjection == "fisheye" ||
-			videoFiles[0].VideoProjection == "vrca220" {
-			stereoMode = "sbs"
-			screenType = videoFiles[0].VideoProjection
-		}
-
-		if videoFiles[0].VideoProjection == "180_sbs" {
-			stereoMode = "sbs"
-			screenType = "dome"
-		}
-
-		if videoFiles[0].VideoProjection == "360_tb" {
-			stereoMode = "tb"
-			screenType = "sphere"
-		}
-
-		if videoFiles[0].VideoProjection == "flat" {
-			stereoMode = "off"
-			screenType = "flat"
-		}
-
-		if videoFiles[0].VideoProjection == "360_mono" {
-			stereoMode = "off"
-			screenType = "sphere"
-		}
-
-		if videoFiles[0].VideoProjection == "180_mono" {
-			stereoMode = "off"
-			screenType = "dome"
-		}
-
-		hasAlpha = videoFiles[0].HasAlpha
+		stereoMode, screenType, hasAlpha = deoProjection(videoFiles)
 	}
 
 	title := scene.Title
 
-	// Passthrough
-	var ckdata map[string]interface{}
-	//	nochromaKey := `{"enabled":false,"hasAlpha":false,"h":0,"opacity":0,"s":0,"threshold":0,"v":0}`
 	chromaKey := gjson.Parse(scene.ChromaKey)
-	_ = chromaKey
 	if gjson.Valid(scene.ChromaKey) {
-		if err := json.Unmarshal([]byte(scene.ChromaKey), &ckdata); err != nil {
-			fmt.Println("Error:", err)
+		ckdata := map[string]interface{}{}
+		if err := json.Unmarshal([]byte(scene.ChromaKey), &ckdata); err != nil || ckdata == nil {
+			ckdata = map[string]interface{}{}
 		}
-		result := gjson.Get(scene.ChromaKey, "hasAlpha")
-		if !result.Exists() || ckdata["hasAlpha"] == "" {
-			//			if ckdata["."].(map[string]interface{})["hasAlpha"] = "false" || ckdata["."].(map[string]interface{})["hasAlpha"] = "" {
-
-			// setting hasAlpha to false
+		if v, ok := ckdata["hasAlpha"]; !ok || v == "" {
 			ckdata["hasAlpha"] = "false"
 		}
-		// Convert back to JSON string
-		ckup, err := json.Marshal(ckdata)
-		if err != nil {
-			fmt.Println("Error:", err)
+		if ckup, err := json.Marshal(ckdata); err == nil {
+			chromaKey = gjson.ParseBytes(ckup)
 		}
-		chromaKey = gjson.ParseBytes(ckup)
 	} else if hasAlpha {
 		chromaKey = gjson.Parse(`{"enabled":true,"hasAlpha":true,"h":0,"opacity":0,"s":0,"threshold":0,"v":0}`)
 	}
@@ -551,7 +535,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 		RatingAvg:        scene.StarRating,
 		FullVideoReady:   true,
 		FullAccess:       true,
-		ThumbnailURL:     scene.CoverURL,
+		ThumbnailURL:     proxiedImageURL(req, "700x", scene.CoverURL),
 		StereoMode:       stereoMode,
 		Is3D:             true,
 		ScreenType:       screenType,
@@ -565,7 +549,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 	}
 
 	if scene.HasVideoPreview {
-		deoScene.VideoPreview = fmt.Sprintf("%v/api/dms/preview/%v", session.DeoRequestHost, scene.SceneID)
+		deoScene.VideoPreview = fmt.Sprintf("%v/api/dms/preview/%v", requestBaseURL(req), scene.SceneID)
 	}
 
 	if gjson.Valid(scene.ChromaKey) || hasAlpha {
@@ -583,7 +567,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 			RatingAvg:        scene.StarRating,
 			FullVideoReady:   true,
 			FullAccess:       true,
-			ThumbnailURL:     scene.CoverURL,
+			ThumbnailURL:     proxiedImageURL(req, "700x", scene.CoverURL),
 			StereoMode:       stereoMode,
 			Is3D:             true,
 			ScreenType:       screenType,
@@ -609,6 +593,27 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 	} else {
 		resp.WriteHeaderAndEntity(http.StatusOK, deoScene)
 	}
+}
+
+func deoProjection(videoFiles []models.File) (stereoMode string, screenType string, hasAlpha bool) {
+	if len(videoFiles) == 0 {
+		return "", "", false
+	}
+	switch projection := videoFiles[0].VideoProjection; projection {
+	case "mkx200", "mkx220", "rf52", "fisheye190", "fisheye", "vrca220":
+		stereoMode, screenType = "sbs", projection
+	case "180_sbs":
+		stereoMode, screenType = "sbs", "dome"
+	case "360_tb":
+		stereoMode, screenType = "tb", "sphere"
+	case "flat":
+		stereoMode, screenType = "off", "flat"
+	case "360_mono":
+		stereoMode, screenType = "off", "sphere"
+	case "180_mono":
+		stereoMode, screenType = "off", "dome"
+	}
+	return stereoMode, screenType, videoFiles[0].HasAlpha
 }
 
 func (i DeoVRResource) getDeoLibrary(req *restful.Request, resp *restful.Response) {
@@ -670,8 +675,8 @@ func scenesToDeoList(req *restful.Request, scenes []models.SceneSummary) []DeoLi
 		item := DeoListItem{
 			Title:        scenes[i].Title,
 			VideoLength:  scenes[i].Duration * 60,
-			ThumbnailURL: scenes[i].CoverURL,
-			VideoURL:     fmt.Sprintf("%v/deovr/%v", session.DeoRequestHost, scenes[i].ID),
+			ThumbnailURL: proxiedImageURL(req, "700x", scenes[i].CoverURL),
+			VideoURL:     fmt.Sprintf("%v/deovr/%v", requestBaseURL(req), scenes[i].ID),
 		}
 		list = append(list, item)
 	}
@@ -696,7 +701,7 @@ func filesToDeoList(req *restful.Request, files []models.File) []DeoListItem {
 		item := DeoListItem{
 			Title:       files[i].Filename,
 			VideoLength: uint(files[i].VideoDuration),
-			VideoURL:    fmt.Sprintf("%v/deovr/file/%v%v", session.DeoRequestHost, files[i].ID, dnt),
+			VideoURL:    fmt.Sprintf("%v/deovr/file/%v%v", requestBaseURL(req), files[i].ID, dnt),
 		}
 		list = append(list, item)
 	}

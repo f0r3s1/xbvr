@@ -11,6 +11,7 @@ import (
 	"github.com/nleeper/goment"
 	"github.com/thoas/go-funk"
 	"github.com/tidwall/gjson"
+	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
@@ -72,72 +73,29 @@ func UpCloseVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out c
 					log.Errorln("No Results found for UpCloseVR message:", gjson.Get(jsonString, "message").String(), "response code:", gjson.Get(jsonString, "status").String())
 				}
 
-				// iterate over each hit result
-				for i := range gjson.Get(jsonString, "results.0.hits").Array() {
-					queryStr := `results.0.hits.` + strconv.Itoa(i)
-
+				for _, hit := range gjson.Get(jsonString, "results.0.hits").Array() {
+					sc := parseUpCloseHit(hit, scraperID, siteID)
 					// Check to make sure we don't update scenes we have already collected
-					sceneID := gjson.Get(jsonString, queryStr+`.clip_id`).String()
-					sceneURL := `https://www.upclosevr.com/en/video/upclosevr/` + gjson.Get(jsonString, queryStr+`.url_title`).String() + `/` + sceneID
-					if !funk.ContainsString(knownScenes, sceneURL) || singleSceneURL != "" {
-
-						sc := models.ScrapedScene{}
-
-						sc.ScraperID = scraperID
-						sc.SceneType = "VR"
-						sc.Studio = siteID
-						sc.Site = siteID
-						sc.SiteID = sceneID
-						sc.HomepageURL = sceneURL
-
-						// Scene ID
-						sc.SceneID = slugify.Slugify(sc.Site) + "-" + sc.SiteID
-
-						// Date
-						tmpDate, _ := goment.New(gjson.Get(jsonString, queryStr+`.release_date`).String(), "YYYY-MM-DD")
-						sc.Released = tmpDate.Format("YYYY-MM-DD")
-
-						// Cover
-						sc.Covers = append(sc.Covers, `https://transform.gammacdn.com/movies/`+gjson.Get(jsonString, queryStr+`.pictures.1920x1080`).String())
-
-						// Synopsis
-						sc.Synopsis = strings.TrimSpace(strings.Replace(gjson.Get(jsonString, queryStr+`.description`).String(), "</br></br>", " ", -1))
-
-						// Title
-						sc.Title = strings.TrimSpace(gjson.Get(jsonString, queryStr+`.title`).String())
+					if !funk.ContainsString(knownScenes, sc.HomepageURL) || singleSceneURL != "" {
 						log.Infoln(`Scraping ` + sc.Title)
-
-						// Cast - Females Only can be update to include males if wanted
-						sc.ActorDetails = make(map[string]models.ActorDetails)
-						for i, name := range gjson.Get(jsonString, queryStr+`.female_actors.#.name`).Array() {
-							sc.Cast = append(sc.Cast, name.String())
-
-							actorQuery := queryStr + `.female_actors.` + strconv.Itoa(i)
-
-							sc.ActorDetails[name.String()] = models.ActorDetails{
-								Source:     scraperID + " scrape",
-								ProfileUrl: `https://www.upclosevr.com/en/pornstar/view/` + gjson.Get(jsonString, actorQuery+`.url_name`).String() + `/` + gjson.Get(jsonString, actorQuery+`.actor_id`).String(),
-							}
-						}
-
-						// Junk Tags we don't want to add to scene data
-						skiptags := map[string]bool{
-							"Original Series":     true,
-							"Adult Time Original": true,
-						}
-
-						// Tags
-						for _, name := range gjson.Get(jsonString, queryStr+`.categories.#.name`).Array() {
-							if !skiptags[name.String()] {
-								sc.Tags = append(sc.Tags, name.String())
-							}
-						}
-
-						// Duration is in total seconds
-						sc.Duration = int(gjson.Get(jsonString, queryStr+`.length`).Int()) / 60
-
 						out <- sc
 					}
+				}
+			}
+
+			if singleSceneURL == "" && config.Config.Web.ShowUpcoming {
+				payload := `{"requests":[{"indexName":"all_scenes_latest_desc","params":"filters=(upcoming%3A'1')%20AND%20availableOnSite%3Aupclosevr&hitsPerPage=60"}]}`
+				resp, err := client.R().
+					SetHeader("Origin", "https://www.upclosevr.com").
+					SetHeader("User-Agent", UserAgent).
+					SetHeader("x-algolia-api-key", apiKey[1]).
+					SetHeader("x-algolia-application-id", applicationID[1]).
+					SetBody(payload).
+					Post("https://tsmkfa364q-dsn.algolia.net/1/indexes/*/queries")
+				if err != nil {
+					log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+				} else {
+					emitUpcoming(scraperID, parseUpCloseUpcoming(resp.String(), scraperID, siteID), out)
 				}
 			}
 		}
@@ -150,6 +108,60 @@ func UpCloseVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out c
 	}
 	logScrapeFinished(scraperID, siteID)
 	return nil
+}
+
+// parseUpCloseUpcoming reads announced scenes from an Algolia response; they share the clip_id of the later release.
+func parseUpCloseUpcoming(body string, scraperID string, siteID string) []models.ScrapedScene {
+	var scenes []models.ScrapedScene
+	for _, hit := range gjson.Get(body, "results.0.hits").Array() {
+		sc := parseUpCloseHit(hit, scraperID, siteID)
+		sc.Upcoming = true
+		scenes = append(scenes, sc)
+	}
+	return scenes
+}
+
+func parseUpCloseHit(hit gjson.Result, scraperID string, siteID string) models.ScrapedScene {
+	sc := models.ScrapedScene{}
+	sc.ScraperID = scraperID
+	sc.SceneType = "VR"
+	sc.Studio = siteID
+	sc.Site = siteID
+	sc.SiteID = hit.Get("clip_id").String()
+	sc.HomepageURL = `https://www.upclosevr.com/en/video/upclosevr/` + hit.Get("url_title").String() + `/` + sc.SiteID
+	sc.SceneID = slugify.Slugify(sc.Site) + "-" + sc.SiteID
+
+	tmpDate, _ := goment.New(hit.Get("release_date").String(), "YYYY-MM-DD")
+	sc.Released = tmpDate.Format("YYYY-MM-DD")
+	sc.Covers = append(sc.Covers, `https://transform.gammacdn.com/movies/`+hit.Get("pictures.1920x1080").String())
+	sc.Synopsis = strings.TrimSpace(strings.Replace(hit.Get("description").String(), "</br></br>", " ", -1))
+	sc.Title = strings.TrimSpace(hit.Get("title").String())
+
+	// Cast - Females Only can be update to include males if wanted
+	sc.ActorDetails = make(map[string]models.ActorDetails)
+	for _, actor := range hit.Get("female_actors").Array() {
+		name := actor.Get("name").String()
+		sc.Cast = append(sc.Cast, name)
+		sc.ActorDetails[name] = models.ActorDetails{
+			Source:     scraperID + " scrape",
+			ProfileUrl: `https://www.upclosevr.com/en/pornstar/view/` + actor.Get("url_name").String() + `/` + actor.Get("actor_id").String(),
+		}
+	}
+
+	// Junk Tags we don't want to add to scene data
+	skiptags := map[string]bool{
+		"Original Series":     true,
+		"Adult Time Original": true,
+	}
+	for _, name := range hit.Get("categories.#.name").Array() {
+		if !skiptags[name.String()] {
+			sc.Tags = append(sc.Tags, name.String())
+		}
+	}
+
+	// Duration is in total seconds
+	sc.Duration = int(hit.Get("length").Int()) / 60
+	return sc
 }
 
 func init() {

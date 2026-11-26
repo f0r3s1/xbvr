@@ -1,7 +1,6 @@
 <template>
-  <div>
+  <OptionsSection :title="$t('Import/Export database data')">
     <div class="content">
-      <h3>{{$t("Import/Export database data")}}</h3>
       <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
             <b-tab-item label="Import" icon="upload"/>
             <b-tab-item label="Export" icon="download"/>
@@ -11,7 +10,7 @@
             <b-tab-item label="Actor Data"/>
             <b-tab-item label="Settings/Misc Data"/>
         </b-tabs>
-      <h4 v-if="activeSubTab==0">{{ isImport ? "Import Scene Data" : "Export Scene Data"}}</h4>
+      <h4 v-if="activeSubTab==0" class="options-subtitle">{{ isImport ? "Import Scene Data" : "Export Scene Data"}}</h4>
       <b-field grouped v-if="activeSubTab == 0">
           <b-tooltip
             label="Select which studios are considered"
@@ -89,7 +88,7 @@
       </div>
       <hr />
       <div v-if="activeSubTab==1">
-        <h4>{{ isImport ? "Import Actor Data" : "Export Actor Data"}}</h4>
+        <h4 class="options-subtitle">{{ isImport ? "Import Actor Data" : "Export Actor Data"}}</h4>
         <b-field>
           <b-tooltip
             label="Includes Actors (note new actors are not created, New/Existing will apply to the fields on an existing actor record.)"
@@ -113,7 +112,7 @@
         </b-field>
         <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleActorIncludes()">Toggle Includes</b-button>
       </div>
-      <h4 v-if="activeSubTab==2">{{ isImport ? "Import Settings" : "Export Settings"}}</h4>
+      <h4 v-if="activeSubTab==2" class="options-subtitle">{{ isImport ? "Import Settings" : "Export Settings"}}</h4>
       <div class="block" v-if="activeSubTab == 2">
         <b-field>
           <b-tooltip
@@ -236,15 +235,17 @@
         </b-tooltip>
       </b-field>    
     </div>
-  </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
 export default defineComponent({
   name: 'OptionsSceneDataImportExport',
+  components: { OptionsSection },
 
   mounted () {
     this.$store.dispatch('sceneList/filters')

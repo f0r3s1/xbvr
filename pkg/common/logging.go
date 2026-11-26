@@ -34,6 +34,7 @@ func (hook *WampHook) Levels() []logrus.Level {
 }
 
 func (hook *WampHook) Fire(entry *logrus.Entry) error {
+	recordTaskStatus(entry)
 	err := hook.publisher.Publish("service.log", nil, nil, map[string]interface{}{
 		"level":     entry.Level.String(),
 		"message":   entry.Message,

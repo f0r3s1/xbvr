@@ -43,6 +43,7 @@ type ScrapedScene struct {
 	HasScriptDownload bool     `json:"has_script_Download"`
 	AiScript          bool     `json:"ai_script"`
 	HumanScript       bool     `json:"human_script"`
+	Upcoming          bool     `json:"upcoming"` // announced by the site, not released yet
 
 	OnlyUpdateScriptData bool `default:"false" json:"only_update_script_data"`
 	InternalSceneId      uint `json:"internal_id"`

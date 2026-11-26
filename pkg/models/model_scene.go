@@ -106,6 +106,7 @@ type Scene struct {
 	Trailerlist   bool   `json:"trailerlist" gorm:"default:false" xbvrbackup:"trailerlist"`
 	IsSubscribed  bool   `json:"is_subscribed" gorm:"default:false"`
 	IsHidden      bool   `json:"is_hidden" gorm:"default:false" xbvrbackup:"is_hidden"`
+	IsUpcoming    bool   `json:"is_upcoming" gorm:"default:false" xbvrbackup:"-"` // announced by the site, not released yet
 	LegacySceneID string `json:"legacy_scene_id" xbvrbackup:"legacy_scene_id"`
 
 	ScriptPublished time.Time `json:"script_published" xbvrbackup:"script_published"`
@@ -137,6 +138,11 @@ type Config struct {
 	Advanced struct {
 		UseAltSrcInFileMatching bool `json:"useAltSrcInFileMatching"`
 	} `json:"advanced"`
+	Web struct {
+		// pointers: a config saved before these settings existed keeps the defaults (show, 14 days)
+		ShowUpcoming *bool `json:"showUpcoming"`
+		UpcomingDays *int  `json:"upcomingDays"`
+	} `json:"web"`
 }
 
 func (i *Scene) Save() error {
@@ -455,6 +461,20 @@ func SceneCreateUpdateFromExternal(db *gorm.DB, ext ScrapedScene) error {
 		return nil
 	}
 
+	if placeholderAlreadyReleased(db, ext) {
+		return nil
+	}
+	adoptUpcomingPlaceholder(db, ext)
+	ext = canonicalPlaceholderID(db, ext)
+
+	if ext.Upcoming {
+		var released int
+		db.Model(&Scene{}).Where("scene_id = ? AND is_upcoming = ?", ext.SceneID, false).Count(&released)
+		if released > 0 {
+			return nil // a released scene is never turned back into an announcement
+		}
+	}
+
 	var o Scene
 	db.Where(&Scene{SceneID: ext.SceneID}).FirstOrCreate(&o)
 
@@ -573,6 +593,7 @@ func (o *Scene) PopulateSceneFieldsFromExternal(db *gorm.DB, ext ScrapedScene) {
 
 	o.NeedsUpdate = false
 	o.EditsApplied = false
+	o.IsUpcoming = ext.Upcoming
 	o.SceneID = ext.SceneID
 	o.ScraperId = ext.ScraperID
 	o.Title = ext.Title
@@ -753,15 +774,7 @@ func QueryScenes(r RequestSceneList, enablePreload bool) ResponseSceneList {
 
 	var out ResponseSceneList
 
-	// Count other variations
-	preCountTx.Where("is_hidden = ?", false).Count(&out.CountAny)
-	preCountTx.Where("is_available = ?", true).Where("is_accessible = ?", true).Where("is_hidden = ?", false).Count(&out.CountAvailable)
-	preCountTx.Where("is_available = ?", true).Where("is_hidden = ?", false).Count(&out.CountDownloaded)
-	preCountTx.Where("is_available = ?", false).Where("is_hidden = ?", false).Count(&out.CountNotDownloaded)
-	preCountTx.Where("is_hidden = ?", true).Count(&out.CountHidden)
-
-	// r.Offset must _not_ apply to the count, as the count query always returns a single value
-	finalTx.Offset(0).Count(&out.Results)
+	countScenes(preCountTx, r, &out)
 
 	if enablePreload {
 		finalTx = finalTx.
@@ -774,6 +787,33 @@ func QueryScenes(r RequestSceneList, enablePreload bool) ResponseSceneList {
 	finalTx.Find(&out.Scenes)
 
 	return out
+}
+
+// countScenes fills the result total and every dlState tab count in one scan.
+func countScenes(preCountTx *gorm.DB, r RequestSceneList, out *ResponseSceneList) {
+	resultCond, resultArgs := "not scenes.is_hidden", []interface{}{}
+	if r.DlState.OrElse("") == "hidden" {
+		resultCond = "scenes.is_hidden"
+	}
+	if r.IsAvailable.Present() {
+		resultCond += " and scenes.is_available = ?"
+		resultArgs = append(resultArgs, r.IsAvailable.OrElse(true))
+	}
+	if r.IsAccessible.Present() {
+		resultCond += " and scenes.is_accessible = ?"
+		resultArgs = append(resultArgs, r.IsAccessible.OrElse(true))
+	}
+	var counts struct {
+		CntResults, CntAny, CntAvailable, CntDownloaded, CntNotDownloaded, CntHidden int
+	}
+	preCountTx.Order("", true).Select(`count(case when `+resultCond+` then 1 end) as cnt_results,
+		count(case when not scenes.is_hidden then 1 end) as cnt_any,
+		count(case when not scenes.is_hidden and scenes.is_available and scenes.is_accessible then 1 end) as cnt_available,
+		count(case when not scenes.is_hidden and scenes.is_available then 1 end) as cnt_downloaded,
+		count(case when not scenes.is_hidden and not scenes.is_available then 1 end) as cnt_not_downloaded,
+		count(case when scenes.is_hidden then 1 end) as cnt_hidden`, resultArgs...).Scan(&counts)
+	out.Results, out.CountAny, out.CountAvailable = counts.CntResults, counts.CntAny, counts.CntAvailable
+	out.CountDownloaded, out.CountNotDownloaded, out.CountHidden = counts.CntDownloaded, counts.CntNotDownloaded, counts.CntHidden
 }
 
 func QuerySceneIDs(r RequestSceneList) []string {
@@ -808,20 +848,21 @@ func QuerySceneSummaries(r RequestSceneList) []SceneSummary {
 	return summaries
 }
 
+const altSceneLinks = "scenes.id in (select internal_db_id from external_reference_links where internal_db_id is not null and external_source like 'alternate scene %'"
+
 func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 	// get config, can't reference config directly due to circular package references
 	config := getConfig(db)
 
 	tx := db.Model(&Scene{})
+	tx = upcomingFilter(tx, config)
 
 	if r.IsWatched.Present() {
 		tx = tx.Where("is_watched = ?", r.IsWatched.OrElse(true))
 	}
 
 	if r.Volume.Present() && r.Volume.OrElse(0) != 0 {
-		tx = tx.
-			Joins("left join files on files.scene_id=scenes.id").
-			Where("files.volume_id = ?", r.Volume.OrElse(0))
+		tx = tx.Where("scenes.id in (select files.scene_id from files where files.volume_id = ?)", r.Volume.OrElse(0))
 	}
 
 	for _, i := range r.Lists {
@@ -939,7 +980,7 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 		case "Top/Bottom":
 			where = "exists (select 1 from files where files.scene_id = scenes.id and files.`type` = 'video' and files.video_projection in ('180_tb','360_tb'))"
 		case "Side by Side":
-			where = "exists (select 1 from files where files.scene_id = scenes.id and files.`type` = 'video' and files.video_projection not in (flat','180_mono','360_mono', '180_tb', '360_tb'))"
+			where = "exists (select 1 from files where files.scene_id = scenes.id and files.`type` = 'video' and files.video_projection not in ('flat','180_mono','360_mono', '180_tb', '360_tb'))"
 		case "MKX200":
 			where = "exists (select 1 from files where files.scene_id = scenes.id and files.`type` = 'video' and files.video_projection = 'mkx200')"
 		case "MKX220":
@@ -1006,19 +1047,19 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 				where = "scenes.human_script = 1"
 			}
 		case "Has Favourite Actor":
-			where = "exists (select * from scene_cast join actors on actors.id=scene_cast.actor_id where actors.favourite=1 and scene_cast.scene_id=scenes.id)"
+			where = "scenes.id in (select sc.scene_id from scene_cast sc join actors a on a.id = sc.actor_id where a.favourite = 1)"
 		case "Has Actor in Watchlist":
-			where = "exists (select * from scene_cast join actors on actors.id=scene_cast.actor_id where actors.watchlist=1 and scene_cast.scene_id=scenes.id)"
+			where = "scenes.id in (select sc.scene_id from scene_cast sc join actors a on a.id = sc.actor_id where a.watchlist = 1)"
 		case "Available from POVR":
-			where = "exists (select 1 from external_reference_links where external_source like 'alternate scene %' and external_id like 'povr-%' and internal_db_id = scenes.id)"
+			where = altSceneLinks + " and external_id like 'povr-%')"
 		case "Available from VRPorn":
-			where = "exists (select 1 from external_reference_links where external_source like 'alternate scene %' and external_id like 'vrporn-%' and internal_db_id = scenes.id)"
+			where = altSceneLinks + " and external_id like 'vrporn-%')"
 		case "Available from RealVR":
-			where = "exists (select 1 from external_reference_links where external_source like 'alternate scene %' and external_id like 'realvr-%' and internal_db_id = scenes.id)"
+			where = altSceneLinks + " and external_id like 'realvr-%')"
 		case "Available from SLR":
-			where = "exists (select 1 from external_reference_links where external_source like 'alternate scene %' and external_id like 'slr-%' and internal_db_id = scenes.id)"
+			where = altSceneLinks + " and external_id like 'slr-%')"
 		case "Available from Alternate Sites":
-			where = "exists (select 1 from external_reference_links where external_source like 'alternate scene %' and internal_db_id = scenes.id)"
+			where = altSceneLinks + ")"
 		case "Multiple Scenes Available at an Alternate Site":
 			where = "exists (select 1 from external_reference_links where external_source like 'alternate scene %' and internal_db_id = scenes.id  group by external_source having count(*)>1)"
 		}
@@ -1081,17 +1122,10 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 		}
 	}
 	if len(tags) > 0 {
-		tx = tx.
-			Joins("left join scene_tags on scene_tags.scene_id=scenes.id").
-			Joins("left join tags on tags.id=scene_tags.tag_id").
-			Where("tags.name IN (?)", tags)
+		tx = tx.Where("scenes.id in (select st.scene_id from scene_tags st join tags t on t.id = st.tag_id where t.name in (?))", tags)
 	}
-	for idx, musthave := range mustHaveTags {
-		stAlias := "st_i" + strconv.Itoa(idx)
-		tagAlias := "t_i" + strconv.Itoa(idx)
-		tx = tx.
-			Joins("join scene_tags "+stAlias+" on "+stAlias+".scene_id=scenes.id").
-			Joins("join tags "+tagAlias+" on "+tagAlias+".id="+stAlias+".tag_id and "+tagAlias+".name=?", musthave)
+	for _, musthave := range mustHaveTags {
+		tx = tx.Where("scenes.id in (select st.scene_id from scene_tags st join tags t on t.id = st.tag_id where t.name = ?)", musthave)
 	}
 	for idx, exclude := range excludedTags {
 		stAlias := "st_e" + strconv.Itoa(idx)
@@ -1115,17 +1149,10 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 		}
 	}
 	if len(cast) > 0 {
-		tx = tx.
-			Joins("left join scene_cast on scene_cast.scene_id=scenes.id").
-			Joins("left join actors on actors.id=scene_cast.actor_id").
-			Where("actors.name IN (?)", cast)
+		tx = tx.Where("scenes.id in (select sc.scene_id from scene_cast sc join actors a on a.id = sc.actor_id where a.name in (?))", cast)
 	}
-	for idx, musthave := range mustHaveCast {
-		scAlias := "sc_i" + strconv.Itoa(idx)
-		actorAlias := "a_i" + strconv.Itoa(idx)
-		tx = tx.
-			Joins("join scene_cast "+scAlias+" on "+scAlias+".scene_id=scenes.id").
-			Joins("join actors "+actorAlias+" on "+actorAlias+".id="+scAlias+".actor_id and "+actorAlias+".name=?", musthave)
+	for _, musthave := range mustHaveCast {
+		tx = tx.Where("scenes.id in (select sc.scene_id from scene_cast sc join actors a on a.id = sc.actor_id where a.name = ?)", musthave)
 	}
 	for idx, exclude := range excludedCast {
 		scAlias := "sc_e" + strconv.Itoa(idx)
@@ -1150,23 +1177,16 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 	}
 
 	if len(cuepoint) > 0 {
-		tx = tx.Joins("left join scene_cuepoints on scene_cuepoints.scene_id=scenes.id")
 		fields := []string{}
 		values := []interface{}{}
-
 		for _, i := range cuepoint {
-			fields = append(fields, "scene_cuepoints.name LIKE ?")
+			fields = append(fields, "scp.name LIKE ?")
 			values = append(values, i)
 		}
-		tx = tx.Where(strings.Join(fields, " OR "), values...)
+		tx = tx.Where("scenes.id in (select scp.scene_id from scene_cuepoints scp where "+strings.Join(fields, " OR ")+")", values...)
 	}
-	for idx, musthave := range mustHaveCuepoint {
-		scpAlias := "scp_i" + strconv.Itoa(idx)
-		if musthave == "%" {
-			tx = tx.Where("scenes.id in (select case when count(*)>0 then scenes.id else null end from scene_cuepoints " + scpAlias + " where " + scpAlias + ".scene_id = scenes.id)")
-		} else {
-			tx = tx.Joins("join scene_cuepoints "+scpAlias+" on "+scpAlias+".scene_id=scenes.id and "+scpAlias+".name like ?", musthave)
-		}
+	for _, musthave := range mustHaveCuepoint {
+		tx = tx.Where("scenes.id in (select scp.scene_id from scene_cuepoints scp where scp.name like ?)", musthave)
 	}
 	for idx, exclude := range excludedCuepoint {
 		scpAlias := "scp_e" + strconv.Itoa(idx)
@@ -1276,8 +1296,7 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 	// Add second order to keep things stable in case of ties
 	tx = tx.Order("scenes.id asc")
 
-	preCountTx := tx.Group("scenes.scene_id")
-	tx = tx.Group("scenes.scene_id")
+	preCountTx := tx
 
 	// Apply avail/accessible after counting
 	if r.IsAvailable.Present() {

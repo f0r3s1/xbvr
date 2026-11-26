@@ -1,8 +1,7 @@
 <template>
-  <div class="container">
-    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
+  <OptionsSection :title="$t('Create/Import scene')" :loading="isLoading">
     <div class="content">
-      <h3 class="title">{{$t('Import Japanese Adult VR (JAVR) Scene')}}</h3>
+      <h4 class="options-subtitle">{{$t('Import Japanese Adult VR (JAVR) Scene')}}</h4>
       <div class="card">
         <div class="card-content content">
           <b-field grouped>
@@ -24,10 +23,10 @@
         </div>
       </div>
 
-      <h3 class="title">{{$t('Import scene from TPDB')}}</h3>
+      <h4 class="options-subtitle">{{$t('Import scene from TPDB')}}</h4>
       <div class="card">
         <div class="card-content content">
-          <h5 class="title">API Token</h5>
+          <label class="label">API Token</label>
           <b-field label="TPDB API Token" label-position="on-border" grouped>
             <b-input v-model="tpdbApiToken" placeholder="TPDB API Token" type="search"></b-input>
           </b-field>
@@ -39,7 +38,7 @@
         </div>
       </div>
 
-      <h3 class="title">{{$t('Create custom scene')}}</h3>
+      <h4 class="options-subtitle">{{$t('Create custom scene')}}</h4>
       <div class="card">
         <div class="card-content content">
           <b-field label="Scene title" label-position="on-border">
@@ -53,7 +52,7 @@
         </div>
       </div>
 
-      <h3 class="title">{{$t('Scrape a scene')}}</h3>
+      <h4 class="options-subtitle">{{$t('Scrape a scene')}}</h4>
       <div class="card">
         <div class="card-content content">
           <b-field label="Scene URL" label-position="on-border">
@@ -89,10 +88,11 @@
         </div>
       </b-modal>
     </div>
-  </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
@@ -100,6 +100,7 @@ import ky from 'ky'
 import { getOptionsState } from '@/api'
 export default defineComponent({
   name: 'OptionsCreateScene',
+  components: { OptionsSection },
 
   data () {
     return {

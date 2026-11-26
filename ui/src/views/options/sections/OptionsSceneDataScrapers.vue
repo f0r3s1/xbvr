@@ -1,10 +1,6 @@
 <template>
-  <div class="scraper-page">
-    <b-loading :is-full-page="false" v-model:active="isLoading"></b-loading>
-    <!-- Header -->
-    <div class="scraper-header">
-      <h3>{{$t('Scrape scenes from studios')}}</h3>
-      <div class="header-actions">
+  <OptionsSection :title="$t('Scrape scenes from studios')" :loading="isLoading">
+    <template #actions>
         <b-dropdown aria-role="list" position="is-bottom-left">
           <template #trigger>
             <b-button icon-left="cog" size="is-small" />
@@ -20,11 +16,13 @@
         <a class="button is-small" :class="[showAllScrapers ? '' : 'is-info']" v-on:click="toggleEnabledFilter">
           {{showAllScrapers ? $t('Show enabled only') : $t('Show all scrapers')}}
         </a>
+        <b-button size="is-small" icon-left="image-refresh" @click="refreshSiteInfo">
+          {{$t('Refresh site info')}}
+        </b-button>
         <b-button type="is-primary" size="is-small" icon-left="play" @click="taskScrape('_enabled')">
           {{$t('Run selected scrapers')}}
         </b-button>
-      </div>
-    </div>
+    </template>
 
     <!-- Table -->
     <b-table :data="scraperList" ref="scraperTable" class="scrapers-table" :mobile-cards="true">
@@ -185,7 +183,7 @@
       </b-button>
     </div>
 
-    <b-modal v-model:active="isSingleScrapeModalActive"
+    <b-modal v-model="isSingleScrapeModalActive"
              has-modal-card
              trap-focus
              aria-role="dialog"
@@ -215,19 +213,18 @@
         </footer>
       </div>
     </b-modal>
-
-  </div>
-
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 
 export default {
   name: 'OptionsSites',
-  components: { VueLoadImage },
+  components: { OptionsSection, VueLoadImage },
   data () {
     return {
       javrQuery: '',
@@ -251,13 +248,17 @@ export default {
   methods: {
     getImageURL (u) {
       if (u.startsWith('http')) {
-        return '/img/128x/' + u.replace('://', ':/')
+        return '/img/200x/' + u.replace('://', ':/')
       } else {
         return u
       }
     },
     taskScrape (scraper) {
       ky.get(`/api/task/scrape?site=${scraper}`)
+    },
+    refreshSiteInfo () {
+      ky.get('/api/task/refresh-site-metadata')
+      this.$buefy.toast.open({ message: this.$t('Refreshing site info in the background'), type: 'is-info' })
     },
     taskScrapeQuick (scraper) {
       ky.get(`/api/task/scrape?site=${scraper}&quick=true`)
@@ -517,33 +518,6 @@ export default {
 </script>
 
 <style scoped>
-  .scraper-page {
-    padding: 0;
-  }
-
-  .scraper-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 0.25rem 0 0.75rem 0;
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 0.75rem;
-  }
-
-  .scraper-header h3 {
-    margin-bottom: 0;
-    font-size: 1.1rem;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
   .scrapers-table {
     font-size: 0.95rem;
   }
@@ -628,7 +602,7 @@ export default {
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    background: #f0f0f0;
+    background: rgba(127, 127, 127, 0.12);
     color: #888;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -687,7 +661,7 @@ export default {
     gap: 0.5rem;
     margin-top: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid #eee;
+    border-top: 1px solid rgba(127, 127, 127, 0.2);
   }
 
   .running {
@@ -745,15 +719,6 @@ export default {
 
   /* Responsive adjustments */
   @media screen and (max-width: 768px) {
-    .scraper-header {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .header-actions {
-      justify-content: flex-end;
-    }
-
     .settings-badges {
       flex-wrap: wrap;
     }
@@ -767,9 +732,6 @@ export default {
     }
   }
 
-  html[data-theme="dark"] .scraper-header {
-    border-bottom-color: #2a2a35 !important;
-  }
   html[data-theme="dark"] .footer-actions {
     border-top-color: #2a2a35 !important;
   }

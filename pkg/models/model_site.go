@@ -8,21 +8,26 @@ import (
 )
 
 type Site struct {
-	ID              string    `gorm:"primary_key" json:"id" xbvrbackup:"-"`
-	Name            string    `json:"name"  xbvrbackup:"name"`
-	AvatarURL       string    `json:"avatar_url" xbvrbackup:"-"`
-	IsBuiltin       bool      `json:"is_builtin" xbvrbackup:"-"`
-	IsEnabled       bool      `json:"is_enabled" xbvrbackup:"is_enabled"`
-	LastUpdate      time.Time `json:"last_update" xbvrbackup:"-"`
-	Subscribed      bool      `json:"subscribed" xbvrbackup:"subscribed"`
-	HasScraper      bool      `gorm:"-" json:"has_scraper" xbvrbackup:"-"`
-	LimitScraping   bool      `json:"limit_scraping" xbvrbackup:"limit_scraping"`
-	MasterSiteID    string    `json:"master_site_id" xbvrbackup:"master_site_id"`
-	MatchingParams  string    `json:"matching_params" gorm:"size:1000" xbvrbackup:"matching_params"`
-	ScrapeStash     bool      `json:"scrape_stash" xbvrbackup:"scrape_stash"`
-	UseFlareSolverr bool      `json:"use_flaresolverr" xbvrbackup:"use_flaresolverr"`
-	UseProxy        bool      `json:"use_proxy" xbvrbackup:"use_proxy"`
-	SceneCount      int       `gorm:"-" json:"scene_count" xbvrbackup:"-"`
+	ID              string     `gorm:"primary_key" json:"id" xbvrbackup:"-"`
+	Name            string     `json:"name"  xbvrbackup:"name"`
+	AvatarURL       string     `json:"avatar_url" xbvrbackup:"-"`
+	IsBuiltin       bool       `json:"is_builtin" xbvrbackup:"-"`
+	IsEnabled       bool       `json:"is_enabled" xbvrbackup:"is_enabled"`
+	LastUpdate      time.Time  `json:"last_update" xbvrbackup:"-"`
+	Subscribed      bool       `json:"subscribed" xbvrbackup:"subscribed"`
+	HasScraper      bool       `gorm:"-" json:"has_scraper" xbvrbackup:"-"`
+	LimitScraping   bool       `json:"limit_scraping" xbvrbackup:"limit_scraping"`
+	MasterSiteID    string     `json:"master_site_id" xbvrbackup:"master_site_id"`
+	MatchingParams  string     `json:"matching_params" gorm:"size:1000" xbvrbackup:"matching_params"`
+	ScrapeStash     bool       `json:"scrape_stash" xbvrbackup:"scrape_stash"`
+	UseFlareSolverr bool       `json:"use_flaresolverr" xbvrbackup:"use_flaresolverr"`
+	UseProxy        bool       `json:"use_proxy" xbvrbackup:"use_proxy"`
+	SceneCount      int        `gorm:"-" json:"scene_count" xbvrbackup:"-"`
+	BannerURL       string     `gorm:"size:1000" json:"banner_url" xbvrbackup:"-"`
+	Description     string     `gorm:"type:text" json:"description" xbvrbackup:"-"`
+	HomepageURL     string     `gorm:"size:1000" json:"homepage_url" xbvrbackup:"-"`
+	LogoURL         string     `gorm:"size:1000" json:"logo_url" xbvrbackup:"-"`
+	MetaUpdatedAt   *time.Time `json:"meta_updated_at" xbvrbackup:"-"`
 }
 
 func (i *Site) Save() error {

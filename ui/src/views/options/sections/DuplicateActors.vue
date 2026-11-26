@@ -122,8 +122,8 @@ export default defineComponent({
       return s >= 100 ? 'is-certain' : s >= 90 ? 'is-high' : 'is-review'
     },
     img (u) {
-      if (!u) return '/ui/images/blank_female_profile.png'
-      return u.startsWith('http') ? '/img/120x/' + u.replace('://', ':/') : u
+      if (!u) return '/ui/images/actor_placeholder.svg'
+      return u.startsWith('http') ? '/img/200x/' + u.replace('://', ':/') : u
     },
     confirmMerge () {
       const n = this.selectedCount

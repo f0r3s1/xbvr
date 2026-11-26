@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/document"
+	"github.com/blevesearch/bleve/v2/search/query"
 	index "github.com/blevesearch/bleve_index_api"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
@@ -111,6 +113,10 @@ func (i SceneResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/filters").To(i.getFilters).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(ResponseGetFilters{}))
+
+	ws.Route(ws.GET("/sites").To(i.getSites).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes([]SceneSite{}))
 
 	ws.Route(ws.POST("/list").To(i.getScenes).
 		Param(ws.PathParameter("file-id", "File ID").DataType("int")).
@@ -276,23 +282,15 @@ func (i SceneResource) getFilters(req *restful.Request, resp *restful.Response) 
 	var outSites []string
 	tx.Where("site != ''").Group("site").Pluck("site", &outSites)
 
-	// Available tags - lightweight join
 	var outTags []string
-	db.Table("scene_tags").
-		Joins("join tags on tags.id = scene_tags.tag_id").
-		Joins("join scenes on scenes.id = scene_tags.scene_id").
-		Where("tags.name != ''").
-		Group("tags.name").
-		Pluck("tags.name", &outTags)
+	db.Table("tags").
+		Where("tags.name != '' and exists (select 1 from scene_tags st join scenes s on s.id = st.scene_id where st.tag_id = tags.id)").
+		Order("tags.name").Pluck("distinct tags.name", &outTags)
 
-	// Available actors - lightweight join
 	var outCast []string
-	db.Table("scene_cast").
-		Joins("join actors on actors.id = scene_cast.actor_id").
-		Joins("join scenes on scenes.id = scene_cast.scene_id").
-		Where("actors.name != ''").
-		Group("actors.name").
-		Pluck("actors.name", &outCast)
+	db.Table("actors").
+		Where("actors.name != '' and exists (select 1 from scene_cast sc join scenes s on s.id = sc.scene_id where sc.actor_id = actors.id)").
+		Order("actors.name").Pluck("actors.name", &outCast)
 
 	// Available release dates (YYYY-MM)
 	var outRelease []string
@@ -677,9 +675,11 @@ func (i SceneResource) searchSceneIndex(req *restful.Request, resp *restful.Resp
 	// the indexed terms. Normalising apostrophes to spaces ("Sister s") matches how titles
 	// are tokenised, which is what filename-derived match queries need.
 	bleveQuery := strings.NewReplacer("'", " ", "’", " ", "`", " ").Replace(q)
-	query := bleve.NewQueryStringQuery(bleveQuery)
-
-	searchRequest := bleve.NewSearchRequest(query)
+	var searchQuery query.Query = bleve.NewQueryStringQuery(bleveQuery)
+	if req.QueryParameter("fuzzy") == "1" {
+		searchQuery = sceneSearchQuery(bleveQuery)
+	}
+	searchRequest := bleve.NewSearchRequest(searchQuery)
 	searchRequest.Fields = []string{"Id", "title", "cast", "site", "description"}
 	searchRequest.IncludeLocations = true
 	searchRequest.From = 0
@@ -1129,4 +1129,29 @@ func (i SceneResource) getScenesAlternateSources(req *restful.Request, resp *res
 		}
 	}
 	resp.WriteHeaderAndEntity(http.StatusOK, out)
+}
+
+// sceneSearchQuery keeps query-string syntax (fields, quotes, operators) as is;
+var emptyFieldPrefix = regexp.MustCompile(`[+-]?\w+:(\s|$)`)
+
+func sceneSearchQuery(q string) query.Query {
+	q = strings.TrimSpace(emptyFieldPrefix.ReplaceAllString(q, " "))
+	if strings.ContainsAny(q, ":\"+-*~^()") {
+		return bleve.NewQueryStringQuery(q)
+	}
+	words := strings.Fields(strings.ToLower(q))
+	if len(words) == 0 {
+		return bleve.NewQueryStringQuery(q)
+	}
+	var all []query.Query
+	for _, w := range words {
+		options := []query.Query{bleve.NewMatchQuery(w), bleve.NewPrefixQuery(w)}
+		if len([]rune(w)) >= 4 {
+			fuzzy := bleve.NewFuzzyQuery(w)
+			fuzzy.SetFuzziness(1)
+			options = append(options, fuzzy)
+		}
+		all = append(all, bleve.NewDisjunctionQuery(options...))
+	}
+	return bleve.NewConjunctionQuery(all...)
 }

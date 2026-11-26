@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -199,7 +200,27 @@ func fetchFromExternalProxy(ctx context.Context, externalURL string) (*http.Resp
 	return client.Do(req)
 }
 
+// defaultQualityRe matches a resize option segment such as "700x" or "200x,fit".
+var defaultQualityRe = regexp.MustCompile(`^/[0-9.]*x[0-9.]*(,[^/]*)?/`)
+var hasQualityRe = regexp.MustCompile(`,q[0-9]`)
+
+// withDefaultQuality adds the q80 option to a resize path that has no quality.
+func withDefaultQuality(p string) string {
+	m := defaultQualityRe.FindString(p)
+	if m == "" || hasQualityRe.MatchString(m) {
+		return p
+	}
+	return strings.TrimSuffix(m, "/") + ",q80/" + p[len(m):]
+}
+
 func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// fallback entries keep the plain path as key, so they stay valid across this rewrite
+	fallbackKey := "fallback:" + r.URL.Path
+	r.URL.Path = withDefaultQuality(r.URL.Path)
+	if r.URL.RawPath != "" {
+		r.URL.RawPath = withDefaultQuality(r.URL.RawPath)
+	}
+
 	// Extract the original URL from the request path
 	originalURL := extractOriginalURL(r.URL.Path)
 
@@ -224,7 +245,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	// Create a cache key for the proxied response
 	// Use the full path (including size options) so different sizes are cached separately
-	cacheKey := "fallback:" + r.URL.Path
+	cacheKey := fallbackKey
 
 	// Check if we have a cached response from the external proxy
 	if cachedData, ok := h.Cache.Get(cacheKey); ok {

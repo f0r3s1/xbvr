@@ -21,6 +21,7 @@ import (
 	"github.com/koding/websocketproxy"
 	"github.com/peterbourgon/diskv"
 	"github.com/rs/cors"
+	"github.com/xbapps/xbvr/pkg/imgcache"
 	"willnorris.com/go/imageproxy"
 
 	"github.com/xbapps/xbvr/pkg/api"
@@ -147,8 +148,10 @@ func StartServer(version, commit, branch, date string) {
 
 	// Imageproxy
 	r := mux.NewRouter()
-	imgCache := diskCache(common.ImgDir)
-	p := imageproxy.NewProxy(NewForceCacheTransport(), imgCache)
+	imgDisk := newDiskv(common.ImgDir)
+	imgStore := imgcache.New(imgDisk, 64<<20)
+	p := imageproxy.NewProxy(NewForceCacheTransport(), imgStore)
+	p.Client.Transport = &imgcache.Passthrough{Next: p.Client.Transport, Cache: imgStore}
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	// imageproxy >= 0.13 defaults to NOT following redirects when embedded (only its CLI
 	// defaults the flag to true). Studio CDNs commonly redirect image URLs, and without
@@ -159,7 +162,7 @@ func StartServer(version, commit, branch, date string) {
 	p.PassRequestHeaders = append(p.PassRequestHeaders, "Cache-Control")
 	u, _ := url.Parse("http://127.0.0.1:" + strconv.Itoa(config.Config.Server.Port))
 	p.DefaultBaseURL = u
-	imgFallback := NewImageProxyFallbackHandler(p, imgCache)
+	imgFallback := NewImageProxyFallbackHandler(p, diskcache.NewWithDiskv(imgDisk))
 	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
 	hmp := NewHeatmapThumbnailProxy(p, diskCache(common.HeatmapThumbnailDir))
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))
@@ -257,10 +260,13 @@ func StartServer(version, commit, branch, date string) {
 	}
 }
 
-func diskCache(path string) *diskcache.Cache {
-	d := diskv.New(diskv.Options{
+func newDiskv(path string) *diskv.Diskv {
+	return diskv.New(diskv.Options{
 		BasePath:  path,
 		Transform: func(s string) []string { return []string{s[0:2], s[2:4]} },
 	})
-	return diskcache.NewWithDiskv(d)
+}
+
+func diskCache(path string) *diskcache.Cache {
+	return diskcache.NewWithDiskv(newDiskv(path))
 }

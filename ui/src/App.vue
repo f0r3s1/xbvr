@@ -4,6 +4,13 @@
       :filter="e => !['INPUT', 'TEXTAREA'].includes(e.target.tagName)"
       @keypress="onGlobalKeypress"
     />
+    <GlobalEvents @keydown="onGlobalKeydown"/>
+    <svg class="glass-defs" aria-hidden="true" width="0" height="0">
+      <filter id="glass-refract" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feImage href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id='r'%3E%3Cstop%20offset='0'%20stop-color='%23000'/%3E%3Cstop%20offset='1'%20stop-color='%23f00'/%3E%3C/linearGradient%3E%3ClinearGradient%20id='g'%20x2='0'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23000'/%3E%3Cstop%20offset='1'%20stop-color='%230f0'/%3E%3C/linearGradient%3E%3Cfilter%20id='b'%3E%3CfeGaussianBlur%20stdDeviation='7'/%3E%3C/filter%3E%3C/defs%3E%3Crect%20width='100'%20height='100'%20fill='url%28%23r%29'/%3E%3Crect%20width='100'%20height='100'%20fill='url%28%23g%29'%20style='mix-blend-mode:screen'/%3E%3Crect%20x='20'%20y='20'%20width='60'%20height='60'%20rx='18'%20fill='%23808000'%20filter='url%28%23b%29'/%3E%3C/svg%3E" preserveAspectRatio="none" result="map"/>
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="30" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </svg>
     <Navbar/>
     <div class="navbar-pad">
       <router-view/>
@@ -96,6 +103,12 @@ export default defineComponent({
   },
 
   methods: {
+    onGlobalKeydown (e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        this.$store.commit('overlay/showQuickFind')
+      }
+    },
     onGlobalKeypress (e) {
       if (e.key === '?') {
         e.preventDefault()
@@ -150,10 +163,19 @@ export default defineComponent({
 
   .navbar-pad {
     margin-top: 1rem;
+    padding-bottom: 1.5rem;
+  }
+  .navbar-pad:has(.list-toolbar) {
+    margin-top: 0;
   }
 
-  /* Scene and actor list toolbars stay reachable while scrolling. */
+  :root {
+    --list-row-h: 49px;
+    --list-head-gap: 0.75rem;
+  }
   .list-toolbar {
+    min-height: var(--list-row-h);
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -162,13 +184,132 @@ export default defineComponent({
     top: 3.25rem;
     z-index: 6;
     padding: 0.5rem 0;
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--list-head-gap);
     background: #fff;
+    box-shadow: -12px 0 0 #fff, 12px 0 0 #fff;
     border-bottom: 1px solid rgba(127, 127, 127, 0.15);
     font-variant-numeric: tabular-nums;
   }
+  .fork-credit {
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
+    opacity: 0.4;
+  }
+  .fork-credit a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .property-filters {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 0 !important;
+  }
+  .property-filters > .column {
+    width: auto !important;
+    padding: 0 !important;
+  }
+  .property-filters > .column:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .property-filters .control,
+  html[data-theme] .property-filters .button {
+    width: 100%;
+  }
+  html[data-theme] .property-filters .button {
+    height: 36px;
+    margin: 0 !important;
+    border-radius: 8px !important;
+  }
+  html .hover-actions.is-glass .alt-link {
+    position: relative;
+  }
+  .detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .detail-actions .button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+  }
+  .detail-actions .button .icon {
+    margin: 0 !important;
+    width: 16px !important;
+    height: 16px !important;
+  }
+  .detail-actions .button .icon .mdi {
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+  .detail-actions .button span:not(.icon) {
+    display: none !important;
+  }
+  .detail-actions > :nth-child(-n+3) [data-tooltip]::after,
+  .detail-actions > [data-tooltip]:nth-child(-n+3)::after {
+    left: 0;
+    right: auto;
+  }
+
+  .glass-defs {
+    position: absolute;
+  }
+  .list-toolbar .control,
+  .segmented .control {
+    margin: 0 !important;
+  }
+  html[data-theme] .list-toolbar .b-radio.button,
+  html[data-theme] .segmented .b-radio.button {
+    height: 32px;
+    margin: 0 0 0 -1px !important;
+    padding: 0 0.8em;
+    font-size: 0.8rem;
+    border-radius: 0 !important;
+    border: 1px solid rgba(127, 127, 127, 0.3) !important;
+    background: transparent !important;
+    color: inherit !important;
+    opacity: 0.75;
+    box-shadow: none !important;
+  }
+  html[data-theme] .list-toolbar .b-radio.button:hover,
+  html[data-theme] .segmented .b-radio.button:hover {
+    background: rgba(127, 127, 127, 0.12) !important;
+    opacity: 1;
+  }
+  html[data-theme] .list-toolbar .b-radio.button.is-selected,
+  html[data-theme] .segmented .b-radio.button.is-selected {
+    background: rgba(121, 87, 213, 0.22) !important;
+    opacity: 1;
+  }
+  .list-toolbar .control:first-of-type .b-radio.button,
+  .segmented .control:first-of-type .b-radio.button {
+    margin-left: 0 !important;
+    border-radius: 8px 0 0 8px !important;
+  }
+  .list-toolbar .control:last-of-type .b-radio.button,
+  .segmented .control:last-of-type .b-radio.button {
+    border-radius: 0 8px 8px 0 !important;
+  }
+  .list-toolbar .list-header-label {
+    padding-right: 0.6em;
+    white-space: nowrap;
+    align-self: center;
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
   html[data-theme="dark"] .list-toolbar {
     background: #121218;
+    box-shadow: -12px 0 0 #121218, 12px 0 0 #121218;
   }
   /* ── Filter sidebars (scenes + actors) ──
      Section headers on the left with a hairline, labels above their inputs
@@ -183,9 +324,33 @@ export default defineComponent({
     background: none !important;
     text-align: left !important;
   }
-  /* first header lines up with the list toolbar ("6 results") next to it */
-  html[data-theme] .filter-panel > .is-divider:first-child {
-    margin-top: 16px !important;
+  @media (min-width: 769px) {
+    html[data-theme] .filter-panel > .is-divider:first-child {
+      height: var(--list-row-h) !important;
+      margin: calc(var(--list-head-h, var(--list-row-h)) - var(--list-row-h)) 0 calc(var(--list-head-gap) - 6px) !important;
+    }
+  }
+  @media (max-width: 768px) {
+    html[data-theme] .filter-panel > .is-divider:first-child {
+      margin-top: 0.25rem !important;
+    }
+    html .list-toolbar .toolbar-segment {
+      order: 3;
+      flex: 1 0 100%;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      justify-content: flex-start;
+    }
+    .list-toolbar .toolbar-segment .b-radio.button {
+      white-space: nowrap;
+    }
+    html .list-toolbar .toolbar-total {
+      flex: 1 1 auto;
+    }
+    .list-toolbar .list-header-label {
+      display: none;
+    }
   }
   html[data-theme] .filter-panel .is-divider::before {
     content: '';
@@ -207,11 +372,63 @@ export default defineComponent({
     color: inherit !important;
     opacity: 0.55;
   }
+  :root {
+    --card-bg: #fff;
+    --card-placeholder: #e9eaef;
+  }
+  html[data-theme="dark"] {
+    --card-bg: #1c1c26;
+    --card-placeholder: #262633;
+  }
+  .skeleton-card {
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    animation: fade-in 0.2s ease-out both;
+  }
+  .skeleton-block {
+    background: rgba(127, 127, 127, 0.16);
+    border-radius: 4px;
+    animation: skeleton-pulse 1.6s ease-in-out infinite alternate;
+  }
+  .skeleton-thumb {
+    width: 100%;
+    border-radius: 0;
+    background: var(--card-placeholder);
+  }
+  .skeleton-info {
+    height: 52px;
+    box-sizing: border-box;
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .skeleton-line {
+    height: 11px;
+    width: 72%;
+  }
+  .skeleton-line.is-short {
+    height: 9px;
+    width: 40%;
+  }
+  @keyframes skeleton-pulse {
+    from { opacity: 1; }
+    to { opacity: 0.6; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-card, .skeleton-block { animation: none; }
+  }
   /* Labels sit inside their field on the left (one compact row, value vertically
      centred), never cut into the border. Fixed label column so values align. */
   .filter-panel .field.is-floating-label {
     position: relative;
-    --label-col: 104px;
+    --label-col: 84px;
   }
   .filter-panel .field.is-floating-label .label {
     position: absolute !important;
@@ -316,7 +533,7 @@ export default defineComponent({
   }
   .filter-panel .saved-search .button {
     height: 40px !important;
-    width: 38px;
+    width: 40px;
     margin-left: -1px !important;
     border-radius: 0 !important;
     border-color: rgba(127, 127, 127, 0.3) !important;
@@ -558,7 +775,11 @@ export default defineComponent({
   /* hover is a faint tint; only the current page gets the filled tab + accent line,
      so two tabs never look selected at once */
   html[data-theme="dark"] .navbar-item:hover,
-  html[data-theme="dark"] .navbar-link:hover {
+  html[data-theme="dark"] .navbar-item:focus,
+  html[data-theme="dark"] .navbar-item:active,
+  html[data-theme="dark"] .navbar-item:focus-within,
+  html[data-theme="dark"] .navbar-link:hover,
+  html[data-theme="dark"] .navbar-link:focus {
     background-color: rgba(255, 255, 255, 0.05) !important;
     color: #fff !important;
   }
@@ -569,6 +790,13 @@ export default defineComponent({
   }
   .navbar-start .navbar-item.router-link-active {
     box-shadow: inset 0 -2px 0 var(--bulma-primary, #7957d5);
+  }
+  .navbar-item:focus:not(:focus-visible) {
+    outline: none;
+  }
+  .navbar-item:focus-visible {
+    outline: 2px solid var(--bulma-primary, #7957d5);
+    outline-offset: -2px;
   }
   html[data-theme="dark"] .navbar-divider {
     background-color: #2a2a35 !important;
@@ -1041,6 +1269,115 @@ export default defineComponent({
   @media screen and (max-width: 1215px) {
     .columns.is-multiline.is-gapless > .column.is-half .b-checkbox.button span:not(.icon) {
       display: none !important;
+    }
+  }
+
+  .scene-card,
+  .actor-card {
+    container-type: inline-size;
+  }
+  html[data-theme] .hover-actions.is-glass {
+    flex-wrap: nowrap;
+    max-width: calc(100% - 12px);
+    left: auto;
+    transition: opacity 0.18s ease !important;
+    gap: 0;
+    padding: 3px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 55%);
+    -webkit-backdrop-filter: saturate(150%) brightness(1.06);
+    backdrop-filter: url(#glass-refract) saturate(150%) brightness(1.06);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.55),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+      0 6px 18px rgba(0, 0, 0, 0.28);
+  }
+
+  html[data-theme] .hover-actions.is-glass .button,
+  html[data-theme] .hover-actions.is-glass .alt-link {
+    --tint: 255, 255, 255;
+    border: none !important;
+    border-radius: 9px !important;
+    background: transparent !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+    transition: background 0.15s ease;
+  }
+  html[data-theme] .hover-actions.is-glass .button .icon,
+  html[data-theme] .hover-actions.is-glass .alt-link img {
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.55));
+    opacity: 0.8;
+    transition: filter 0.15s ease, opacity 0.15s ease;
+  }
+  html[data-theme] .hover-actions.is-glass .button:hover .icon,
+  html[data-theme] .hover-actions.is-glass .button:not(.is-outlined) .icon {
+    opacity: 1;
+  }
+  html[data-theme] .hover-actions.is-glass > :nth-child(-n+3) [data-tooltip]::after,
+  html[data-theme] .hover-actions.is-glass > [data-tooltip]:nth-child(-n+3)::after {
+    left: 0;
+    right: auto;
+  }
+  html[data-theme] .hover-actions.is-glass .button.is-primary { --tint: 167, 139, 250; }
+  html[data-theme] .hover-actions.is-glass .button.is-danger { --tint: 251, 113, 133; }
+  html[data-theme] .hover-actions.is-glass .button.is-info { --tint: 96, 165, 250; }
+  html[data-theme] .hover-actions.is-glass .button.is-link { --tint: 129, 140, 248; }
+  html[data-theme] .hover-actions.is-glass .button.is-success { --tint: 52, 211, 153; }
+  html[data-theme] .hover-actions.is-glass .button.is-warning { --tint: 251, 191, 36; }
+  html[data-theme] .hover-actions.is-glass .button:not(.is-outlined) .icon {
+    filter: drop-shadow(0 0 7px rgba(var(--tint), 0.9));
+  }
+  html[data-theme] .hover-actions.is-glass .button:hover,
+  html[data-theme] .hover-actions.is-glass .alt-link:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+  .thumbnail-wrapper:has(.hover-actions.is-glass)::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 45%;
+    border-radius: inherit;
+    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.45));
+    pointer-events: none;
+    z-index: 24;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+  .thumbnail-wrapper:has(.hover-actions.is-glass.is-visible)::after {
+    opacity: 1;
+  }
+  @container (max-width: 260px) {
+    html[data-theme] .hover-actions.is-glass .button,
+    html[data-theme] .hover-actions.is-glass .alt-link {
+      width: 22px !important;
+      height: 22px !important;
+      min-width: 22px !important;
+      min-height: 22px !important;
+      max-width: 22px !important;
+      max-height: 22px !important;
+    }
+    html[data-theme] .hover-actions.is-glass .button .mdi {
+      font-size: 13px !important;
+    }
+  }
+  @container (max-width: 190px) {
+    html[data-theme] .hover-actions.is-glass {
+      padding: 2px;
+      border-radius: 9px;
+    }
+    html[data-theme] .hover-actions.is-glass .button,
+    html[data-theme] .hover-actions.is-glass .alt-link {
+      width: 18px !important;
+      height: 18px !important;
+      min-width: 18px !important;
+      min-height: 18px !important;
+      max-width: 18px !important;
+      max-height: 18px !important;
+    }
+    html[data-theme] .hover-actions.is-glass .button .mdi {
+      font-size: 11px !important;
     }
   }
 </style>

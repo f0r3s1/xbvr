@@ -33,8 +33,9 @@
       </div>
     </div>
 
-    <draggable :list="internalList" @end="onDragEnd" class="image-grid">
-      <div v-for="(item, index) in internalList" :key="index" class="image-item">
+    <draggable :list="internalList" :item-key="item => item" @end="onDragEnd" class="image-grid">
+      <template #item="{ element: item, index }">
+      <div class="image-item">
         <img :src="getImageURL(item)" alt="Gallery image" class="gallery-image"/>
         <div class="image-controls">
           <b-tooltip :label="$t('Delete Image')" type="is-dark" position="is-top" :delay="500" append-to-body>
@@ -58,6 +59,7 @@
           </b-tooltip>
         </div>
       </div>
+      </template>
     </draggable>
   </div>
 </template>

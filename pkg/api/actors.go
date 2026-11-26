@@ -100,13 +100,9 @@ func (i ActorResource) getFilters(req *restful.Request, resp *restful.Response) 
 	db, _ := models.GetDB()
 	defer db.Close()
 
-	var actors []models.Actor
-	db.Model(&actors).Order("name").Find(&actors)
-
+	// names only: loading whole actor rows (biographies, image lists) was slow
 	var outCast []string
-	for _, actor := range actors {
-		outCast = append(outCast, actor.Name)
-	}
+	db.Model(&models.Actor{}).Order("name").Pluck("name", &outCast)
 
 	var sites []models.Site
 	db.Model(&sites).Order("name").Find(&sites)
@@ -248,36 +244,22 @@ func (i ActorResource) getActors(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	// The list only needs a summary of each actor's scenes; full scenes made the
-	// response tens of MB for big libraries. The actor modal loads the full actor.
+	// Cards only show counts; the actor modal loads the full actor with its scenes.
 	out := models.QueryActors(r, false)
 	list := actorListResponse{ResponseActorList: out, Actors: make([]actorListItem, len(out.Actors))}
 	for idx, a := range out.Actors {
-		item := actorListItem{Actor: a, Scenes: make([]actorSceneSummary, len(a.Scenes)), Slim: true}
-		for j, s := range a.Scenes {
-			item.Scenes[j] = actorSceneSummary{ID: s.ID, IsAvailable: s.IsAvailable, IsScripted: s.IsScripted,
-				IsWatched: s.IsWatched, StarRating: s.StarRating, ReleaseDate: s.ReleaseDate}
-		}
-		list.Actors[idx] = item
+		list.Actors[idx] = actorListItem{Actor: a, SceneCount: a.VisibleSceneCount, AvailableScenes: a.AvailableSceneCnt, Slim: true}
 	}
 	resp.WriteHeaderAndEntity(http.StatusOK, list)
 }
 
-type actorSceneSummary struct {
-	ID          uint      `json:"id"`
-	IsAvailable bool      `json:"is_available"`
-	IsScripted  bool      `json:"is_scripted"`
-	IsWatched   bool      `json:"is_watched"`
-	StarRating  float64   `json:"star_rating"`
-	ReleaseDate time.Time `json:"release_date"`
-}
-
-// actorListItem is an Actor whose scenes are summaries (the outer Scenes field
-// shadows Actor.Scenes in the JSON).
+// actorListItem drops the scene list from Actor (the outer Scenes field shadows it).
 type actorListItem struct {
 	models.Actor
-	Scenes []actorSceneSummary `json:"scenes"`
-	Slim   bool                `json:"slim"`
+	Scenes          []models.Scene `json:"scenes,omitempty"`
+	SceneCount      int            `json:"scene_count"`
+	AvailableScenes int            `json:"available_scenes"`
+	Slim            bool           `json:"slim"`
 }
 
 type actorListResponse struct {

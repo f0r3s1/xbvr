@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gocolly/colly/v2"
 	"github.com/mozillazg/go-slugify"
 	"github.com/nleeper/goment"
 	"github.com/thoas/go-funk"
+	"github.com/tidwall/gjson"
+	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
@@ -159,11 +163,63 @@ func VRHush(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan
 		siteCollector.Visit("https://vrhush.com/scenes?page=1&order_by=publish_date&sort_by=desc")
 	}
 
+	if singleSceneURL == "" && config.Config.Web.ShowUpcoming {
+		if page, err := fetchURLWithFlareSolverr("https://vrhush.com/", "vrhush.com"); err != nil {
+			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
+		} else {
+			emitUpcoming(scraperID, parseVRHushUpcoming(page), out)
+		}
+	}
+
 	if updateSite {
 		updateSiteLastUpdate(scraperID)
 	}
 	logScrapeFinished(scraperID, siteID)
 	return nil
+}
+
+var vrhushNextDataRe = regexp.MustCompile(`(?s)<script id="__NEXT_DATA__"[^>]*>(.*?)</script>`)
+
+// parseVRHushUpcoming reads the home page's upcoming_scene list.
+func parseVRHushUpcoming(homeHTML string) []models.ScrapedScene {
+	m := vrhushNextDataRe.FindStringSubmatch(homeHTML)
+	if m == nil {
+		return nil
+	}
+	var scenes []models.ScrapedScene
+	gjson.Get(m[1], "props.pageProps.upcoming_scene").ForEach(func(_, v gjson.Result) bool {
+		code := strings.Split(v.Get("scene_code").String(), "_")[0]
+		title := strings.TrimSpace(v.Get("title").String())
+		if !strings.HasPrefix(code, "vrh") || title == "" {
+			return true
+		}
+		sc := models.ScrapedScene{
+			ScraperID:   "vrhush",
+			SceneType:   "VR",
+			Studio:      "VRHush",
+			Site:        "VRHush",
+			SiteID:      strings.TrimPrefix(code, "vrh"),
+			Title:       title,
+			Synopsis:    v.Get("description").String(),
+			HomepageURL: "https://vrhush.com/scenes/" + v.Get("slug").String() + "-" + v.Get("id").String(),
+			Covers:      []string{"https:" + v.Get("trailer_screencap").String()},
+			Duration:    int(v.Get("videos_duration").Float() / 60),
+			Upcoming:    true,
+		}
+		sc.SceneID = "vrhush-" + sc.SiteID
+		if d, err := time.Parse("2006/01/02 15:04:05", v.Get("publish_date").String()); err == nil {
+			sc.Released = d.Format("2006-01-02")
+		}
+		for _, name := range v.Get("models").Array() {
+			sc.Cast = append(sc.Cast, name.String())
+		}
+		for _, tag := range v.Get("tags").Array() {
+			sc.Tags = append(sc.Tags, tag.String())
+		}
+		scenes = append(scenes, sc)
+		return true
+	})
+	return scenes
 }
 
 func init() {

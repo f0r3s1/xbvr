@@ -1,14 +1,11 @@
 <template>
-  <div class="container">
-    <b-loading :is-full-page="false" v-model="isLoading"></b-loading>
+  <OptionsSection :title="$t('Players')" :loading="isLoading" :value="settings" :save-label="$t('Save and apply changes')" @save="save">
     <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="playertab">
       <b-tab-item label="Shared Settings"/>
       <b-tab-item label="DeoVR"/>
       <b-tab-item label="Heresphere"/>
     </b-tabs>
     <div class="content" v-if="activeTab == 0">
-      <h3>Shared Player Options</h3>
-      <hr/>
       <div class="columns">
         <div class="column">
           <section>
@@ -155,8 +152,6 @@
       </div>
     </div>
     <div class="content" v-if="activeTab == 1">
-      <h3>DeoVR interface</h3>
-      <hr/>
       <div class="block">
           <b-field label="Remote mode">
             <b-switch v-model="remoteEnabled" :disabled="watchTimeTrackingEnabled === false">
@@ -174,8 +169,6 @@
         </div>
     </div>
     <div class="content" v-if="activeTab == 2">
-      <h3>Heresphere interface</h3>
-      <hr/>
           <b-tooltip
             label="WANRING: File deletion from Heresphere is PERMANENT! ALL files associated with a scene will be deleted."
             size="is-large" type="is-danger" multilined :delay="250" >
@@ -255,17 +248,16 @@
             </div>
           </div>
       </div>
-      <b-field>
-        <b-button type="is-primary" @click="save">Save and apply changes</b-button>
-      </b-field>
-    </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import { defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'InterfaceDeoVR',
+  components: { OptionsSection },
 
   mounted () {
     this.$store.dispatch('optionsDeoVR/load')
@@ -285,7 +277,7 @@ export default defineComponent({
 
   methods: {
     save () {
-      this.$store.dispatch('optionsDeoVR/save')
+      return this.$store.dispatch('optionsDeoVR/save')
     },
     addIP (value) {
       const tmp = [...this.allowedIp]
@@ -523,6 +515,10 @@ export default defineComponent({
       set (value) {
         this.$store.state.optionsDeoVR.heresphere.retain_non_hsp_cuepoints = value
       }
+    },
+    settings () {
+      const { deovr, heresphere, players } = this.$store.state.optionsDeoVR
+      return { deovr, heresphere, players }
     },
     isLoading: function () {
       return this.$store.state.optionsDeoVR.loading

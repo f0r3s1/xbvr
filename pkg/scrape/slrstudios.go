@@ -76,6 +76,9 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 
 	// API-based scene processing function
 	processSceneFromAPI := func(sceneID string, sceneLabel string, isTransScene bool, isGayScene bool, duration int) {
+		if ScrapeCancelled() {
+			return
+		}
 		// Use v3 API endpoint with scene label for better data including gallery images
 		apiURL := "https://api.sexlikereal.com/v3/scenes/" + sceneLabel
 
@@ -204,6 +207,7 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 			timestamp := sceneData.Get("date").Int()
 			if timestamp > 0 {
 				sc.Released = time.Unix(timestamp, 0).Format("2006-01-02")
+				sc.Upcoming = timestamp > time.Now().Unix()
 			}
 		}
 
@@ -496,7 +500,7 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 			projectHeader = "3"
 		}
 
-		for (!limitScraping || page == 1) && (totalPages == 0 || page <= totalPages) {
+		for !ScrapeCancelled() && (!limitScraping || page == 1) && (totalPages == 0 || page <= totalPages) {
 			apiURL := "https://api.sexlikereal.com/v3/scenes?studios=" + studioCode + "&perPage=" + strconv.Itoa(perPage) + "&sort=mostRecent&page=" + strconv.Itoa(page)
 
 			req := client.R().
@@ -644,6 +648,55 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 		}
 	}
 
+	// Announced scenes of the studio.
+	fetchUpcomingFromAPI := func(studioCode string, isTransStudio bool, isGayStudio bool) {
+		projectHeader := "1"
+		if isGayStudio {
+			projectHeader = "4"
+		} else if isTransStudio {
+			projectHeader = "3"
+		}
+		apiURL := "https://api.sexlikereal.com/v3/scenes?studios=" + studioCode + "&perPage=36&page=1&type=upcoming"
+		req := client.R().
+			SetHeader("User-Agent", UserAgent).
+			SetHeader("Client-Type", "web").
+			SetHeader("project", projectHeader)
+		SetupRestyRequest(GetCoreDomain(apiURL)+"-scraper", req)
+		resp, err := req.Get(apiURL)
+		if err != nil || resp.StatusCode() != 200 {
+			log.Debugf("SLR upcoming scenes not available for studio %s", studioCode)
+			return
+		}
+
+		stored := models.UpcomingReleaseDates(scraperID)
+		var listed []string
+		gjson.Get(resp.String(), "data").ForEach(func(_, scene gjson.Result) bool {
+			sceneID := scene.Get("id").String()
+			sceneLabel := scene.Get("label").String()
+			if sceneID == "" || sceneLabel == "" {
+				return true
+			}
+			sceneURL := "https://www.sexlikereal.com/scenes/" + sceneLabel
+			listed = append(listed, sceneURL)
+			if funk.ContainsString(knownScenes, sceneURL) {
+				return true
+			}
+			// already stored with the same date: skip the detail request
+			releaseDay := time.Unix(scene.Get("date").Int(), 0).Format("2006-01-02")
+			if date, ok := stored[sceneURL]; ok && date.Format("2006-01-02") == releaseDay {
+				return true
+			}
+			sem <- struct{}{}
+			apiWG.Add(1)
+			go func(id string, label string) {
+				defer func() { <-sem; apiWG.Done() }()
+				processSceneFromAPI(id, label, isTransStudio, isGayStudio, 0)
+			}(sceneID, sceneLabel)
+			return true
+		})
+		models.PruneUpcoming(scraperID, listed)
+	}
+
 	// Track whether scrape was successful (studio code found and scenes fetched)
 	scrapeSuccessful := false
 
@@ -692,6 +745,9 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 			isGayStudio := strings.Contains(siteURL, "/gay")
 			fetchScenesFromAPI(studioCode, isTransStudio, isGayStudio)
 			scrapeSuccessful = true
+			if config.Config.Web.ShowUpcoming && masterSiteId == "" && scraperID != "" {
+				fetchUpcomingFromAPI(studioCode, isTransStudio, isGayStudio)
+			}
 		} else {
 			log.Errorln("Failed to get studio code from URL:", siteURL)
 		}
@@ -701,7 +757,7 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 	apiWG.Wait()
 
 	// Auto-enable limit scraping after successful full scrape if config option is enabled
-	if scrapeSuccessful && !limitScraping && scraperID != "" && config.Config.Advanced.AutoLimitScraping {
+	if scrapeSuccessful && !ScrapeCancelled() && !limitScraping && scraperID != "" && config.Config.Advanced.AutoLimitScraping {
 		db, _ := models.GetDB()
 		defer db.Close()
 

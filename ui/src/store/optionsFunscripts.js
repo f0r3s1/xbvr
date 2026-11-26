@@ -10,21 +10,19 @@ const state = {
 const mutations = {}
 
 const actions = {
-  async load({ state }) {
-    ky.get('/api/options/funscripts/count')
-      .json()
-      .then(data => {
+  load ({ state }) {
+    return Promise.all([
+      ky.get('/api/options/funscripts/count').json().then(data => {
         state.countTotal = data.total
         state.countUpdated = data.updated
-      })
-    getOptionsState()
-      .then(data => {
+      }),
+      getOptionsState().then(data => {
         state.optionsFunscripts.scrapeFunscripts = data.config.funscripts.scrapeFunscripts
       })
-
+    ])
   },
-  async save ({ state }) {    
-    ky.put('/api/options/funscripts', { json: { ...state.optionsFunscripts } })
+  save ({ state }) {
+    return ky.put('/api/options/funscripts', { json: { ...state.optionsFunscripts } })
       .json()
       .then(data => {
         state.optionsFunscripts.scrapeFunscripts = data.scrapeFunscripts

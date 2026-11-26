@@ -51,6 +51,8 @@ type Actor struct {
 	URLs      string `json:"urls" sql:"type:text;" xbvrbackup:"urls"`
 
 	SceneRatingAverage string `json:"scene_rating_average" gorm:"-" `
+	VisibleSceneCount  int    `json:"-" gorm:"-"`
+	AvailableSceneCnt  int    `json:"-" gorm:"-"`
 	AkaGroups          []Aka  `gorm:"many2many:actor_akas;" json:"aka_groups" xbvrbackup:"-"`
 }
 
@@ -64,6 +66,7 @@ type RequestActorList struct {
 	Tags           []optional.String `json:"tags"`
 	Attributes     []optional.String `json:"attributes"`
 	JumpTo         optional.String   `json:"jumpTo"`
+	Name           optional.String   `json:"name"`
 	MinAge         optional.Int      `json:"min_age"`
 	MaxAge         optional.Int      `json:"max_age"`
 	MinHeight      optional.Int      `json:"min_height"`
@@ -164,181 +167,136 @@ func QueryActorFull(r RequestActorList) ResponseActorList {
 	return q
 }
 
+// The unary plus on is_hidden keeps SQLite from driving these subqueries through the low-selectivity is_hidden index.
+const (
+	actorScenesSQL        = "from scene_cast sc join scenes s on s.id = sc.scene_id where sc.actor_id = actors.id"
+	actorVisibleScenesSQL = actorScenesSQL + " and +s.is_hidden = 0"
+	actorSceneRatingSQL   = "(select avg(s.star_rating) " + actorVisibleScenesSQL + " and s.star_rating > 0)"
+	actorStashLinksSQL    = "(select count(*) from external_reference_links erl where erl.internal_db_id = actors.id and erl.external_source = 'stashdb performer')"
+)
+
+var actorAttributeColumns = [][2]string{{"Cup Size ", "cup_size"}, {"Hair Color ", "hair_color"}, {"Eye Color ", "eye_color"}, {"Nationality ", "nationality"}, {"Gender ", "gender"}, {"Ethnicity ", "ethnicity"}, {"Breast Type ", "breast_type"}}
+
+// actorAttributeCond returns the SQL condition for an attribute filter name (without its "!"/"&" prefix), or "" for an unknown name.
+func actorAttributeCond(name string) (string, []interface{}) {
+	for _, col := range actorAttributeColumns {
+		if value, ok := strings.CutPrefix(name, col[0]); ok {
+			if col[1] == "nationality" {
+				for _, c := range GetCountryList() {
+					if c.Name == value {
+						value = c.Code
+					}
+				}
+			}
+			return "actors." + col[1] + " = ?", []interface{}{value}
+		}
+	}
+	if rating, ok := strings.CutPrefix(name, "Rating "); ok {
+		if v, err := strconv.ParseFloat(rating, 64); err == nil {
+			return "actors.star_rating = ?", []interface{}{v}
+		}
+	}
+	switch name {
+	case "In Watchlist":
+		return "actors.watchlist = 1", nil
+	case "Is Favourite":
+		return "actors.favourite = 1", nil
+	case "Is Scripted":
+		return "exists (select 1 " + actorVisibleScenesSQL + " and s.is_scripted = 1)", nil
+	case "Has Rating":
+		return "actors.star_rating > 0", nil
+	case "Aka Group":
+		return "actors.name like 'aka:%'", nil
+	case "In An Aka Group":
+		return "exists (select 1 from actor_akas where actor_akas.actor_id = actors.id)", nil
+	case "Has Image":
+		return "coalesce(actors.image_url, '') <> ''", nil
+	case "Possible Aka":
+		// the StashDB performer is linked to more than one actor here
+		return "exists (select 1 from external_reference_links erl join external_reference_links erl2 on erl2.external_id = erl.external_id and erl2.internal_db_id <> erl.internal_db_id where erl.internal_db_id = actors.id and erl.external_source = 'stashdb performer')", nil
+	case "Has Stashdb Link":
+		return actorStashLinksSQL + " > 0", nil
+	case "Multiple Stashdb Links":
+		// linked to more than one StashDB performer, i.e. duplicates in StashDB
+		return actorStashLinksSQL + " > 1", nil
+	case "SLR Scraper":
+		return "exists (select 1 from external_reference_links erl where erl.internal_db_id = actors.id and erl.external_source = 'slr scrape')", nil
+	case "VRPorn Scraper":
+		return "exists (select 1 from external_reference_links erl where erl.internal_db_id = actors.id and erl.external_source = 'vrporn scrape')", nil
+	case "Has Tattoo":
+		return "coalesce(actors.tattoos, '') not in ('', '[]')", nil
+	case "Has Piercing":
+		return "coalesce(actors.piercings, '') not in ('', '[]')", nil
+	case "No Cup Size":
+		return "coalesce(actors.cup_size, '') = ''", nil
+	}
+	return "", nil
+}
+
+// actorLetterCond is the first-letter filter ("#" = anything not starting with A-Z).
+func actorLetterCond(letter string) (string, []interface{}) {
+	if letter == "#" {
+		return "(actors.name < 'A' or (actors.name >= '[' and actors.name < 'a') or actors.name >= '{')", nil
+	}
+	c := letter[0]
+	if c < 'A' || c > 'Z' {
+		return "", nil
+	}
+	lower := c + ('a' - 'A')
+	return "((actors.name >= ? and actors.name < ?) or (actors.name >= ? and actors.name < ?))",
+		[]interface{}{string(c), string(c + 1), string(lower), string(lower + 1)}
+}
+
 func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 	limit := r.Limit.OrElse(100)
 	offset := r.Offset.OrElse(0)
 
 	commonDb, _ := GetCommonDB()
-
-	var actors []Actor
-	tx := commonDb.Model(&actors)
-
-	var out ResponseActorList
+	tx := commonDb.Model(&Actor{})
 
 	for _, i := range r.Lists {
-		if i.OrElse("") == "watchlist" {
+		switch i.OrElse("") {
+		case "watchlist":
 			tx = tx.Where("actors.watchlist = ?", true)
-		}
-		if i.OrElse("") == "favourite" {
+		case "favourite":
 			tx = tx.Where("actors.favourite = ?", true)
 		}
 	}
 
-	// handle Attribute selections
-	var orAttribute []string
-	var andAttribute []string
-	combinedWhere := ""
-	for idx, attribute := range r.Attributes {
-		truefalse := true
-		fieldName := attribute.OrElse("")
-		erlAlias := "external_reference_links_f" + strconv.Itoa(idx)
-
-		if strings.HasPrefix(fieldName, "!") { // ! prefix indicate NOT filtering
-			truefalse = false
-			fieldName = fieldName[1:]
+	// Attributes: plain ones are OR-ed, "&" (must have) and "!" (must not) are AND-ed.
+	var orConds, andConds []string
+	var orArgs, andArgs []interface{}
+	for _, attribute := range r.Attributes {
+		name := attribute.OrElse("")
+		cond, args := actorAttributeCond(strings.TrimLeft(name, "!&"))
+		if cond == "" {
+			continue
 		}
-
-		fieldName = strings.TrimPrefix(fieldName, "&") // & prefix indicate must have filtering
-
-		value := ""
-		where := ""
-
-		countries := GetCountryList()
-		attributes := [][2]string{{"Cup Size ", "cup_size"}, {"Hair Color ", "hair_color"}, {"Eye Color ", "eye_color"}, {"Nationality ", "nationality"}, {"Gender ", "gender"}, {"Ethnicity ", "ethnicity"}, {"Breast Type ", "breast_type"}}
-		for _, attribute := range attributes {
-			if strings.HasPrefix(fieldName, attribute[0]) {
-				value = fieldName[len(attribute[0]):]
-				if attribute[0] == "Nationality " {
-					for _, c := range countries {
-						if c.Name == value {
-							value = c.Code
-						}
-					}
-				}
-				if truefalse {
-					where = attribute[1] + " = '" + value + "'"
-				} else {
-					where = attribute[1] + " <> '" + value + "'"
-				}
-			}
-		}
-
-		switch fieldName {
-		case "In Watchlist":
-			if truefalse {
-				where = "actors.watchlist = 1"
-			} else {
-				where = "actors.watchlist = 0"
-			}
-		case "Is Scripted":
-			if truefalse {
-				where = "is_scripted = 1"
-			} else {
-				where = "is_scripted = 0"
-			}
-		case "Is Favourite":
-			if truefalse {
-				where = "actors.favourite = 1"
-			} else {
-				where = "actors.favourite = 0"
-			}
-		case "Has Rating":
-			if truefalse {
-				where = "actors.star_rating > 0"
-			} else {
-				where = "actors.star_rating = 0"
-			}
-		case "Aka Group":
-			if truefalse {
-				where = "name like 'aka:%'"
-			} else {
-				where = "name not like 'aka:%'"
-			}
-		case "In An Aka Group":
-			if truefalse {
-				where = "(select count(*) from actor_akas " + " where actor_akas.actor_id = actors.id) > 0"
-			} else {
-				where = "(select count(*) from actor_akas " + " where actor_akas.actor_id = actors.id) = 0"
-			}
-		case "Has Image":
-			if truefalse {
-				where = "image_url is not null and image_url <> ''"
-			} else {
-				where = "image_url is null or image_url = ''"
-			}
-		case "Possible Aka":
-			// find where the stashdb actor is linked to more than 1 xbv actor
-			if truefalse {
-				where = "(select count(*) from external_reference_links " + erlAlias + " join external_reference_links " + erlAlias + "_2" + " on " + erlAlias + ".external_id = " + erlAlias + "_2" + ".external_id and " + erlAlias + "_2" + " .internal_db_id <> " + erlAlias + ".internal_db_id  where " + erlAlias + ".internal_db_id = actors.id and " + erlAlias + ".`external_source` = 'stashdb performer') > 0"
-			} else {
-				where = "(select count(*) from external_reference_links " + erlAlias + " join external_reference_links " + erlAlias + "_2" + " on " + erlAlias + ".external_id = " + erlAlias + "_2" + ".external_id and " + erlAlias + "_2" + " .internal_db_id <> " + erlAlias + ".internal_db_id  where " + erlAlias + ".internal_db_id = actors.id and " + erlAlias + ".`external_source` = 'stashdb performer') = 0"
-			}
-		case "Has Stashdb Link":
-			if truefalse {
-				where = "(select count(*) from external_reference_links " + erlAlias + " where " + erlAlias + ".internal_db_id = actors.id and " + erlAlias + ".`external_source` = 'stashdb performer') > 0"
-			} else {
-				where = "(select count(*) from external_reference_links " + erlAlias + " where " + erlAlias + ".internal_db_id = actors.id and " + erlAlias + ".`external_source` = 'stashdb performer') = 0"
-			}
-		case "Multiple Stashdb Links":
-			// find where actor is link to more than 1 stashdb actor, indicates dups in stashdb
-			if truefalse {
-				where = "(select count(*) from external_reference_links " + erlAlias + " where " + erlAlias + ".internal_db_id = actors.id and " + erlAlias + ".`external_source` = 'stashdb performer') > 1"
-			} else {
-				where = "(select count(*) from external_reference_links " + erlAlias + " where " + erlAlias + ".internal_db_id = actors.id and " + erlAlias + ".`external_source` = 'stashdb performer') < 1"
-			}
-		case "Rating 0", "Rating .5", "Rating 1", "Rating 1.5", "Rating 2", "Rating 2.5", "Rating 3", "Rating 3.5", "Rating 4", "Rating 4.5", "Rating 5":
-			if truefalse {
-				where = "actors.star_rating = " + fieldName[7:]
-			} else {
-				where = "actors.star_rating <> " + fieldName[7:]
-			}
-		case "Has Tattoo":
-			if truefalse {
-				where = "tattoos not in ('','[]')"
-			} else {
-				where = "tattoos in ('','[]')"
-			}
-		case "Has Piercing":
-			if truefalse {
-				where = "piercings not in ('','[]')"
-			} else {
-				where = "piercings in ('','[]')"
-			}
-		case "No Cup Size":
-			if truefalse {
-				where = "cup_size is null or cup_size = ''"
-			} else {
-				where = "cup_size is not null and cup_size <> ''"
-			}
-		}
-		switch firstchar := string(attribute.OrElse(" ")[0]); firstchar {
-		case "&", "!":
-			andAttribute = append(andAttribute, where)
+		switch {
+		case strings.HasPrefix(name, "!"):
+			andConds = append(andConds, "not ("+cond+")")
+			andArgs = append(andArgs, args...)
+		case strings.HasPrefix(name, "&"):
+			andConds = append(andConds, "("+cond+")")
+			andArgs = append(andArgs, args...)
 		default:
-			orAttribute = append(orAttribute, where)
+			orConds = append(orConds, "("+cond+")")
+			orArgs = append(orArgs, args...)
 		}
 	}
-	if len(orAttribute) > 0 {
-		combinedWhere = "(" + strings.Join(orAttribute, " or ") + ")"
+	if len(orConds) > 0 {
+		tx = tx.Where("("+strings.Join(orConds, " or ")+")", orArgs...)
 	}
-	if len(andAttribute) > 0 {
-		if combinedWhere == "" {
-			combinedWhere = strings.Join(andAttribute, " and ")
-		} else {
-			combinedWhere = combinedWhere + " and " + strings.Join(andAttribute, " and ")
-		}
+	if len(andConds) > 0 {
+		tx = tx.Where(strings.Join(andConds, " and "), andArgs...)
 	}
-	tx = tx.Where(combinedWhere)
 
-	var cast []string
-	var excludedCast []string
+	var cast, excludedCast []string
 	for _, i := range r.Cast {
-		switch firstchar := string(i.OrElse(" ")[0]); firstchar {
-		case "!":
-			exCast, _ := i.Get()
-			excludedCast = append(excludedCast, exCast[1:])
-		default:
-			cast = append(cast, i.OrElse(""))
+		if name := i.OrElse(""); strings.HasPrefix(name, "!") {
+			excludedCast = append(excludedCast, name[1:])
+		} else if name != "" {
+			cast = append(cast, name)
 		}
 	}
 	if len(cast) > 0 {
@@ -375,7 +333,7 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 		tx = tx.Where("actors.avail_count >= ?", r.MinAvail.OrElse(0))
 	}
 	if r.MaxAvail.OrElse(150) < 150 {
-		tx = tx.Where("actors.avail_count <= ?", r.MinAvail.OrElse(150))
+		tx = tx.Where("actors.avail_count <= ?", r.MaxAvail.OrElse(150))
 	}
 	if r.MinRating.OrElse(0) > 0 {
 		tx = tx.Where("actors.star_rating >= ?", r.MinRating.OrElse(0))
@@ -384,89 +342,76 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 		tx = tx.Where("actors.star_rating <= ?", r.MaxRating.OrElse(5))
 	}
 	if r.MinSceneRating.OrElse(0) > 0 {
-		tx = tx.Where("(select AVG(s.star_rating) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0 and is_hidden=0) >= ?", r.MinSceneRating.OrElse(0))
+		tx = tx.Where(actorSceneRatingSQL+" >= ?", r.MinSceneRating.OrElse(0))
 	}
 	if r.MaxSceneRating.OrElse(5) < 5 {
-		tx = tx.Where("(select AVG(s.star_rating) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0 and is_hidden=0) <= ?", r.MaxSceneRating.OrElse(50))
+		tx = tx.Where(actorSceneRatingSQL+" <= ?", r.MaxSceneRating.OrElse(5))
 	}
 
-	// Letter filter: only actors whose name starts with that letter ("#" = digit,
-	// symbol or any non A-Z start).
+	if name := strings.TrimSpace(r.Name.OrElse("")); name != "" {
+		tx = tx.Where("LOWER(actors.name) LIKE ?", "%"+strings.ToLower(name)+"%")
+	}
+
 	if letter := strings.ToUpper(strings.TrimSpace(r.JumpTo.OrElse(""))); letter != "" {
-		if letter == "#" {
-			tx = tx.Where("upper(substr(actors.name, 1, 1)) NOT BETWEEN 'A' AND 'Z'")
-		} else {
-			tx = tx.Where("upper(substr(actors.name, 1, 1)) = ?", letter[:1])
+		if cond, args := actorLetterCond(letter[:1]); cond != "" {
+			tx = tx.Where(cond, args...)
 		}
 	}
+
+	// Site filters are semi-joins (IN subquery driven by the scraper_id index), so an actor never appears twice and the query needs no GROUP BY / DISTINCT.
+	const actorSiteSQL = "actors.id in (select sc.actor_id from scenes s join scene_cast sc on sc.scene_id = s.id where s.scraper_id in (select id from sites where name in (?)))"
 	var sites []string
-	var mustHaveSites []string
-	var excludedSites []string
 	for _, i := range r.Sites {
-		switch firstchar := string(i.OrElse(" ")[0]); firstchar {
-		case "&":
-			inclSite, _ := i.Get()
-			mustHaveSites = append(mustHaveSites, inclSite[1:])
-		case "!":
-			exSite, _ := i.Get()
-			excludedSites = append(excludedSites, exSite[1:])
-		default:
-			sites = append(sites, i.OrElse(""))
+		site := i.OrElse("")
+		switch {
+		case strings.HasPrefix(site, "&"):
+			tx = tx.Where(actorSiteSQL, []string{site[1:]})
+		case strings.HasPrefix(site, "!"):
+			tx = tx.Where("not "+actorSiteSQL, []string{site[1:]})
+		case site != "":
+			sites = append(sites, site)
 		}
 	}
 	if len(sites) > 0 {
-		tx = tx.Where("(select count(*) from scene_cast sc join scenes s on s.id=sc.scene_id join sites on sites.id = s.scraper_id where sc.actor_id=actors.id and sites.name IN (?)) > 0", sites)
-	}
-	for idx, musthave := range mustHaveSites {
-		scAlias := "sc_i" + strconv.Itoa(idx)
-		sceneAlias := "s_i" + strconv.Itoa(idx)
-		siteAlias := "st_i" + strconv.Itoa(idx)
-		tx = tx.
-			Joins("join scene_cast "+scAlias+" on "+scAlias+".actor_id=actors.id").
-			Joins("join scenes "+sceneAlias+" on "+sceneAlias+".id="+scAlias+".scene_id").
-			Joins("join sites "+siteAlias+" on "+siteAlias+".id="+sceneAlias+".scraper_id and "+siteAlias+".name = ?", musthave)
-	}
-	if len(excludedSites) > 0 {
-		tx = tx.Where("(select count(*) from scene_cast sc join scenes s on s.id=sc.scene_id join sites on sites.id = s.scraper_id where sc.actor_id=actors.id and sites.name IN (?)) = 0", excludedSites)
+		tx = tx.Where(actorSiteSQL, sites)
 	}
 
-	switch r.Sort.OrElse("") {
-	case "name_asc":
-		tx = tx.Order("name asc")
+	// Ratings-based sorts only list rated actors, so they belong to the filter.
+	sort := r.Sort.OrElse("")
+	if sort == "rating_desc" || sort == "rating_asc" {
+		tx = tx.Where("actors.star_rating > 0")
+	}
+
+	out := ResponseActorList{Offset: offset}
+	tx.Count(&out.Results)
+
+	switch sort {
 	case "name_desc":
-		tx = tx.Order("name desc")
+		tx = tx.Order("actors.name desc")
 	case "rating_desc":
-		tx = tx.
-			Where("actors.star_rating > ?", 0).
-			Order("actors.star_rating desc")
+		tx = tx.Order("actors.star_rating desc, actors.name")
 	case "rating_asc":
-		tx = tx.
-			Where("actors.star_rating > ?", 0).
-			Order("actors.star_rating asc")
+		tx = tx.Order("actors.star_rating asc, actors.name")
 	case "scene_rating_desc":
-		tx = tx.
-			Order("(select AVG(s.star_rating) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0  and is_hidden=0) desc, (select count(*) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0 and is_hidden=0) desc, (select count(*) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id) desc")
+		tx = tx.Order(actorSceneRatingSQL + " desc, (select count(*) " + actorVisibleScenesSQL + " and s.star_rating > 0) desc, actors.`count` desc")
 	case "scene_release_desc":
-		tx = tx.
-			Order("IFNULL((select max(s.release_date) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id),'1970-01-01') DESC, actors.avail_count desc, actors.`count` desc")
+		tx = tx.Order("coalesce((select max(s.release_date) " + actorScenesSQL + "), '1970-01-01') desc, actors.avail_count desc, actors.`count` desc")
 	case "scene_added_desc":
-		tx = tx.
-			Order("IFNULL((select max(s.created_at) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id),'1970-01-01') DESC, actors.avail_count desc, actors.`count` desc")
+		tx = tx.Order("coalesce((select max(s.created_at) " + actorScenesSQL + "), '1970-01-01') desc, actors.avail_count desc, actors.`count` desc")
 	case "file_added_desc":
-		tx = tx.
-			Order("IFNULL((select max(s.added_date) from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id),'1970-01-01') DESC, actors.avail_count desc, actors.`count` desc")
+		tx = tx.Order("coalesce((select max(s.added_date) " + actorScenesSQL + "), '1970-01-01') desc, actors.avail_count desc, actors.`count` desc")
 	case "birthday_desc":
-		tx = tx.Order("birth_date desc")
+		tx = tx.Order("actors.birth_date desc")
 	case "birthday_asc":
-		tx = tx.Order("birth_date asc")
+		tx = tx.Order("actors.birth_date asc")
 	case "added_desc":
-		tx = tx.Order("created_at desc")
+		tx = tx.Order("actors.created_at desc")
 	case "added_asc":
-		tx = tx.Order("created_at asc")
+		tx = tx.Order("actors.created_at asc")
 	case "modified_desc":
-		tx = tx.Order("updated_at desc")
+		tx = tx.Order("actors.updated_at desc")
 	case "modified_asc":
-		tx = tx.Order("updated_at asc")
+		tx = tx.Order("actors.updated_at asc")
 	case "random":
 		if dbConn.Driver == "mysql" {
 			tx = tx.Order("rand()")
@@ -474,39 +419,56 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 			tx = tx.Order("random()")
 		}
 	case "scene_count_desc":
-		tx = tx.
-			Order("actors.`count` desc, actors.name")
+		tx = tx.Order("actors.`count` desc, actors.name")
 	case "scene_available_desc":
-		tx = tx.
-			Order("actors.`avail_count` desc, actors.name")
+		tx = tx.Order("actors.avail_count desc, actors.name")
 	default:
-		tx = tx.Order("name asc")
+		tx = tx.Order("actors.name asc")
 	}
 
-	tx.Group("actors.id").
-		Count(&out.Results)
+	if enablePreload {
+		tx = tx.Preload("Scenes", func(db *gorm.DB) *gorm.DB {
+			return db.Order("release_date DESC").Where("+scenes.is_hidden = 0")
+		})
+	}
 
-	tx = tx.Preload("Scenes", func(db *gorm.DB) *gorm.DB {
-		db = db.Order("release_date DESC").Where("is_hidden = 0")
-		if !enablePreload {
-			// list view: only what the cards and stats use, not every scene column
-			// (scene_cast.actor_id is needed to map scenes back to their actor)
-			db = db.Select("scenes.id, scenes.is_available, scenes.is_scripted, scenes.is_watched, scenes.star_rating, scenes.release_date, scene_cast.actor_id")
-		}
-		return db
-	})
-
-	out.Offset = offset
-
-	tx = tx.Select(`distinct actors.*, 
-	(select AVG(s.star_rating) scene_avg from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0 and is_hidden=0) as scene_rating_average	
-	`)
-
-	tx.Limit(limit).
-		Offset(offset).
-		Find(&out.Actors)
-
+	tx.Select("actors.*").Limit(limit).Offset(offset).Find(&out.Actors)
+	fillSceneRatingAverages(out.Actors)
 	return out
+}
+
+// fillSceneRatingAverages sets the visible scene stats for a page of actors in one query.
+func fillSceneRatingAverages(actors []Actor) {
+	if len(actors) == 0 {
+		return
+	}
+	ids := make([]uint, len(actors))
+	for i, a := range actors {
+		ids[i] = a.ID
+	}
+	var rows []struct {
+		ActorID   uint
+		Cnt       int
+		Available int
+		Avg       float64
+	}
+	commonDb, _ := GetCommonDB()
+	commonDb.Raw(`select sc.actor_id, count(*) as cnt, count(case when s.is_available then 1 end) as available,
+		coalesce(avg(case when s.star_rating > 0 then s.star_rating end), 0) as avg
+		from scene_cast sc join scenes s on s.id = sc.scene_id
+		where sc.actor_id in (?) and +s.is_hidden = 0 and s.deleted_at is null group by sc.actor_id`, ids).Scan(&rows)
+	byID := make(map[uint]int, len(rows))
+	for i, row := range rows {
+		byID[row.ActorID] = i
+	}
+	for i := range actors {
+		actors[i].SceneRatingAverage = "0"
+		if j, ok := byID[actors[i].ID]; ok {
+			actors[i].SceneRatingAverage = strconv.FormatFloat(rows[j].Avg, 'f', -1, 64)
+			actors[i].VisibleSceneCount = rows[j].Cnt
+			actors[i].AvailableSceneCnt = rows[j].Available
+		}
+	}
 }
 
 func (o *Actor) GetIfExist(id string) error {
@@ -532,15 +494,17 @@ func (o *Actor) GetIfExistByPK(id uint) error {
 func (o *Actor) GetIfExistByPKWithSceneAvg(id uint) error {
 	commonDb, _ := GetCommonDB()
 
-	tx := commonDb.Model(&Actor{})
-	tx = tx.Select(`actors.*, 
-	(select AVG(s.star_rating) scene_avg from scene_cast sc join scenes s on s.id=sc.scene_id where sc.actor_id =actors.id and s.star_rating > 0 and is_hidden=0) as scene_rating_average`)
-
-	return tx.
+	err := commonDb.
 		Preload("Scenes", func(db *gorm.DB) *gorm.DB {
-			return db.Order("release_date DESC").Where("is_hidden = 0")
+			return db.Order("release_date DESC").Where("+scenes.is_hidden = 0")
 		}).
 		Where(&Actor{ID: id}).First(o).Error
+	if err == nil {
+		actors := []Actor{*o}
+		fillSceneRatingAverages(actors)
+		o.SceneRatingAverage = actors[0].SceneRatingAverage
+	}
+	return err
 }
 
 func (i *Actor) AddToImageArray(newValue string) bool {

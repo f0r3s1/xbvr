@@ -24,6 +24,7 @@ var (
 	lastSessionSceneID uint
 	lastSessionStart   time.Time
 	lastSessionEnd     time.Time
+	sessionPlayLimit   = 2 * time.Hour
 )
 
 var currentSessionHeatmap []int
@@ -99,15 +100,55 @@ func TrackSessionFromRemote(packet DeoPacket) {
 	}
 }
 
+const (
+	HereSphereEventOpen = iota
+	HereSphereEventPlay
+	HereSphereEventPause
+	HereSphereEventClose
+)
+
+func TrackSessionFromHereSphere(sceneID uint, event int) {
+	if sceneID == 0 {
+		return
+	}
+	sessionSource = "heresphere"
+	switch event {
+	case HereSphereEventOpen, HereSphereEventPlay:
+		if lastSessionSceneID != sceneID {
+			newWatchSession(sceneID)
+		}
+		isPlaying = event == HereSphereEventPlay
+	case HereSphereEventPause:
+		isPlaying = false
+	case HereSphereEventClose:
+		isPlaying = false
+		if lastSessionSceneID == sceneID && HasActiveSession() {
+			lastSessionEnd = time.Now()
+			watchSessionFlush()
+		}
+		return
+	}
+	lastSessionEnd = time.Now()
+}
+
 func CheckForDeadSession() {
 	var timeout float64
-	if sessionSource == "file" {
+	switch {
+	case sessionSource == "file":
 		timeout = 60
-	} else {
+	case sessionSource == "heresphere" && isPlaying:
+		timeout = sessionPlayLimit.Seconds()
+	case sessionSource == "heresphere":
+		timeout = 600
+	default:
 		timeout = 5
 	}
 
 	if time.Since(lastSessionEnd).Seconds() > timeout && lastSessionSceneID != 0 && HasActiveSession() {
+		if sessionSource == "heresphere" && isPlaying {
+			lastSessionEnd = lastSessionEnd.Add(sessionPlayLimit)
+			isPlaying = false
+		}
 		watchSessionFlush()
 		lastSessionID = 0
 		lastSessionSceneID = 0
@@ -121,6 +162,7 @@ func newWatchSession(sceneID uint) {
 
 	lastSessionSceneID = sceneID
 	lastSessionStart = time.Now()
+	sessionPlayLimit = 2 * time.Hour
 
 	obj := models.History{SceneID: sceneID, TimeStart: lastSessionStart}
 	obj.Save()
@@ -130,6 +172,9 @@ func newWatchSession(sceneID uint) {
 	if err == nil {
 		scene.LastOpened = time.Now()
 		scene.Save()
+		if scene.Duration > 0 {
+			sessionPlayLimit = time.Duration(scene.Duration)*time.Minute + 5*time.Minute
+		}
 	} else {
 		return
 	}
@@ -145,7 +190,7 @@ func watchSessionFlush() {
 	err := obj.GetIfExist(lastSessionID)
 	if err == nil {
 		obj.TimeEnd = lastSessionEnd
-		obj.Duration = time.Since(lastSessionStart).Seconds()
+		obj.Duration = lastSessionEnd.Sub(lastSessionStart).Seconds()
 		obj.Save()
 
 		var scene models.Scene

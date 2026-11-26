@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -12,181 +13,178 @@ import (
 )
 
 var cronInstance *cron.Cron
-var rescrapTask cron.EntryID
-var rescanTask cron.EntryID
-var previewTask cron.EntryID
-var actorScrapeTask cron.EntryID
-var stashdbScrapeTask cron.EntryID
-var linkScenesTask cron.EntryID
+
+// scheduledTask is one user configurable task schedule (Options > Task Schedules).
+type scheduledTask struct {
+	key      string // json key of the schedule in config.Cron, also used by the UI
+	name     string
+	schedule func() *config.CronSchedule
+	run      func()
+	// idleOnly skips the run while someone is playing a video (session active)
+	idleOnly bool
+
+	mu      sync.Mutex // held while the task runs, so runs never overlap
+	entryID cron.EntryID
+}
+
+var scheduledTasks = []*scheduledTask{
+	{key: "rescrapeSchedule", name: "Rescrape", idleOnly: true,
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.RescrapeSchedule },
+		run:      func() { tasks.Scrape("_enabled", "", "", false) }},
+	{key: "rescanSchedule", name: "Rescan", idleOnly: true,
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.RescanSchedule },
+		run:      func() { tasks.RescanVolumes(-1) }},
+	{key: "previewSchedule", name: "Preview Generation", idleOnly: true,
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.PreviewSchedule },
+		run:      generatePreviews},
+	{key: "actorRescrapeSchedule", name: "Actor Rescrape", idleOnly: true,
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.ActorRescrapeSchedule },
+		run:      tasks.ScrapeActors},
+	{key: "stashdbRescrapeSchedule", name: "Stashdb Rescrape", idleOnly: true,
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.StashdbRescrapeSchedule },
+		run:      api.StashdbRunAll},
+	{key: "linkScenesSchedule", name: "Link Scenes", idleOnly: true,
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.LinkScenesSchedule },
+		run:      tasks.MatchAlternateSources},
+	// Library Health already backs off on its own (skips while other jobs hold a lock, duty cycle)
+	{key: "libraryHealthSchedule", name: "Library Health",
+		schedule: func() *config.CronSchedule { return &config.Config.Cron.LibraryHealthSchedule },
+		run:      tasks.BackgroundHealthCheck},
+}
 
 func SetupCron() {
 	cronInstance = cron.New()
 	cronInstance.AddFunc("@every 2s", session.CheckForDeadSession)
 	cronInstance.AddFunc("@every 6h", tasks.CalculateCacheSizes)
-	if config.Config.Cron.RescrapeSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup Rescrape Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.RescrapeSchedule))))
-		rescrapTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.RescrapeSchedule)), scrapeCron)
-	}
-	if config.Config.Cron.RescanSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup Rescan Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.RescanSchedule))))
-		rescanTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.RescanSchedule)), rescanCron)
-	}
-	if config.Config.Cron.PreviewSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup Preview Generation Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.PreviewSchedule))))
-		ps := formatCronSchedule(config.CronSchedule(config.Config.Cron.PreviewSchedule))
-		previewTask, _ = cronInstance.AddFunc(ps, generatePreviewCron)
-	}
-	if config.Config.Cron.ActorRescrapeSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup Actor Rescrape Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.ActorRescrapeSchedule))))
-		actorScrapeTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.ActorRescrapeSchedule)), actorRescrapeCron)
-	}
-	if config.Config.Cron.StashdbRescrapeSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup Stashdb Rescrape Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.StashdbRescrapeSchedule))))
-		stashdbScrapeTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.StashdbRescrapeSchedule)), stashdbRescrapeCron)
-	}
-	if config.Config.Cron.LinkScenesSchedule.Enabled {
-		log.Println(fmt.Sprintf("Setup Link Scenes Task %v", formatCronSchedule(config.CronSchedule(config.Config.Cron.LinkScenesSchedule))))
-		linkScenesTask, _ = cronInstance.AddFunc(formatCronSchedule(config.CronSchedule(config.Config.Cron.LinkScenesSchedule)), linkScenesCron)
-	}
 	cronInstance.Start()
-
 	go tasks.CalculateCacheSizes()
 
-	// Library Health runs quietly in the background (fork addition): first ~10 min
-	// after start, then every 6 hours; it skips a round while other jobs are busy.
-	cronInstance.AddFunc("@every 6h", tasks.BackgroundHealthCheck)
-	time.AfterFunc(10*time.Minute, tasks.BackgroundHealthCheck)
+	api.ReloadTaskSchedules = ReloadSchedules
+	api.TaskScheduleNextRuns = NextScheduledRuns
+	ReloadSchedules()
 
-	if config.Config.Cron.RescrapeSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.RescrapeSchedule.RunAtStartDelay)*time.Minute, scrapeCron)
-	}
-	if config.Config.Cron.RescanSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.RescanSchedule.RunAtStartDelay)*time.Minute, rescanCron)
-	}
-	if config.Config.Cron.PreviewSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.PreviewSchedule.RunAtStartDelay)*time.Minute, generatePreviewCron)
-	}
-	if config.Config.Cron.ActorRescrapeSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.ActorRescrapeSchedule.RunAtStartDelay)*time.Minute, actorRescrapeCron)
-	}
-	if config.Config.Cron.StashdbRescrapeSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.StashdbRescrapeSchedule.RunAtStartDelay)*time.Minute, stashdbRescrapeCron)
-	}
-	if config.Config.Cron.LinkScenesSchedule.RunAtStartDelay > 0 {
-		time.AfterFunc(time.Duration(config.Config.Cron.LinkScenesSchedule.RunAtStartDelay)*time.Minute, linkScenesCron)
-	}
-
-	if config.Config.Cron.RescrapeSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
-	}
-	if config.Config.Cron.RescanSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next Rescan Task at %v", cronInstance.Entry(rescanTask).Next))
-	}
-	if config.Config.Cron.PreviewSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next Preview Generation Task at %v", cronInstance.Entry(previewTask).Next))
-	}
-	if config.Config.Cron.ActorRescrapeSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next Actor Rescrape Task at %v", cronInstance.Entry(actorScrapeTask).Next))
-	}
-	if config.Config.Cron.StashdbRescrapeSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next Stashdb Rescrape Task at %v", cronInstance.Entry(stashdbScrapeTask).Next))
-	}
-	if config.Config.Cron.LinkScenesSchedule.Enabled {
-		log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(linkScenesTask).Next))
-	}
-}
-
-func scrapeCron() {
-	if !session.HasActiveSession() {
-		tasks.Scrape("_enabled", "", "", false)
-	}
-	log.Println(fmt.Sprintf("Next Rescrape Task at %v", cronInstance.Entry(rescrapTask).Next))
-}
-
-func rescanCron() {
-	if !session.HasActiveSession() {
-		tasks.RescanVolumes(-1)
-	}
-	log.Println(fmt.Sprintf("Next Rescan Task at %v", cronInstance.Entry(rescanTask).Next))
-}
-func actorRescrapeCron() {
-	if !session.HasActiveSession() {
-		tasks.ScrapeActors()
-	}
-	log.Println(fmt.Sprintf("Next Actor Rescrape Task at %v", cronInstance.Entry(actorScrapeTask).Next))
-}
-func stashdbRescrapeCron() {
-	if !session.HasActiveSession() {
-		api.StashdbRunAll()
-	}
-	log.Println(fmt.Sprintf("Next Stashdb Rescrape Task at %v", cronInstance.Entry(stashdbScrapeTask).Next))
-}
-
-func linkScenesCron() {
-	if !session.HasActiveSession() {
-		tasks.MatchAlternateSources()
-	}
-	log.Println(fmt.Sprintf("Next Link Scenes Task at %v", cronInstance.Entry(linkScenesTask).Next))
-}
-
-var previewGenerateInProgress = false
-
-func generatePreviewCron() {
-	if !session.HasActiveSession() || !previewGenerateInProgress {
-		previewGenerateInProgress = true
-		defer func() {
-			previewGenerateInProgress = false
-		}()
-
-		if !config.Config.Cron.PreviewSchedule.UseRange {
-			tasks.GeneratePreviews(nil)
-		} else {
-			endTime := calcEndTime(config.Config.Cron.PreviewSchedule.HourStart, config.Config.Cron.PreviewSchedule.HourEnd, config.Config.Cron.PreviewSchedule.MinuteStart)
-			log.Infof("Preview Generation will stop at %v", endTime)
-			tasks.GeneratePreviews(&endTime)
+	// run-at-startup delays apply once per process start, not on every settings save
+	for _, t := range scheduledTasks {
+		s := t.schedule()
+		if s.Enabled && s.RunAtStartDelay > 0 {
+			time.AfterFunc(time.Duration(s.RunAtStartDelay)*time.Minute, t.execute)
 		}
 	}
-	log.Println(fmt.Sprintf("Next Preview Generation Task at %v", cronInstance.Entry(previewTask).Next))
 }
+
+// ReloadSchedules (re)registers all task schedules from the current config, so saved settings apply without a restart.
+var schedulesMu sync.Mutex
+
+func ReloadSchedules() {
+	schedulesMu.Lock()
+	defer schedulesMu.Unlock()
+	for _, t := range scheduledTasks {
+		if t.entryID != 0 {
+			cronInstance.Remove(t.entryID)
+			t.entryID = 0
+		}
+		s := t.schedule()
+		if !s.Enabled {
+			continue
+		}
+		spec := formatCronSchedule(*s)
+		id, err := cronInstance.AddFunc(spec, t.execute)
+		if err != nil {
+			log.Errorf("Invalid schedule %q for %s task: %v", spec, t.name, err)
+			continue
+		}
+		t.entryID = id
+		log.Infof("Scheduled %s task (%s), next run at %v", t.name, spec, cronInstance.Entry(id).Next)
+	}
+}
+
+// NextScheduledRuns returns the next run time of each enabled schedule, by config key.
+func NextScheduledRuns() map[string]time.Time {
+	schedulesMu.Lock()
+	defer schedulesMu.Unlock()
+	out := map[string]time.Time{}
+	for _, t := range scheduledTasks {
+		if t.entryID != 0 {
+			out[t.key] = cronInstance.Entry(t.entryID).Next
+		}
+	}
+	return out
+}
+
+func (t *scheduledTask) execute() {
+	if t.idleOnly && session.HasActiveSession() {
+		log.Infof("Skipping %s task, a video is playing", t.name)
+		return
+	}
+	if !t.mu.TryLock() {
+		log.Infof("Skipping %s task, previous run still in progress", t.name)
+		return
+	}
+	defer t.mu.Unlock()
+	t.run()
+}
+
+func generatePreviews() {
+	s := config.Config.Cron.PreviewSchedule
+	if !s.UseRange {
+		tasks.GeneratePreviews(nil)
+		return
+	}
+	endTime := calcEndTime(s.HourStart, s.HourEnd, s.MinuteStart)
+	log.Infof("Preview Generation will stop at %v", endTime)
+	tasks.GeneratePreviews(&endTime)
+}
+
+// formatCronSchedule turns a schedule into a robfig/cron spec;
 func formatCronSchedule(schedule config.CronSchedule) string {
-	// 	this routine will format a crontab range description, https://crontab.guru is a good tool to decode the range description generated
-	// 	if the start hour > end hour then the time range will extend across midnight into the next day
-	//		to achieve this with cron you create a range from the start until midnight and then a second from from midnight to the end time
-	//		we need to calculate the start time for the range after midnight to make sure we still get the right iterval
-	hourInterval := ""
-	formattedHourSchedule := ""
-
+	interval := schedule.HourInterval
+	if interval < 1 {
+		interval = 1
+	}
 	if !schedule.UseRange {
-		return fmt.Sprintf("@every %vh", schedule.HourInterval)
+		return fmt.Sprintf("@every %vh", interval)
 	}
 
-	if schedule.HourInterval > 0 {
-		hourInterval = fmt.Sprintf("/%v", schedule.HourInterval)
+	start := clamp(schedule.HourStart, 0, 23)
+	end := clamp(schedule.HourEnd, 0, 47) % 24 // the UI slider spans two days
+	minute := clamp(schedule.MinuteStart, 0, 59)
+	step := ""
+	if interval > 1 {
+		step = fmt.Sprintf("/%v", interval)
 	}
-	if schedule.HourStart > schedule.HourEnd { // if the start > end, time range goes over midnight into the next day
-		afterMidnightStart := (schedule.HourInterval - ((24 - schedule.HourStart) % schedule.HourInterval)) % schedule.HourInterval // calculate what time after midnight to restart
-		if afterMidnightStart <= schedule.HourEnd {
-			// schedule the range needed to start after midnight
-			formattedHourSchedule = fmt.Sprintf("%v-%v%v,%v-23%v", afterMidnightStart, schedule.HourEnd, hourInterval, schedule.HourStart, hourInterval)
+
+	hours := ""
+	if start > end {
+		afterMidnightStart := (interval - ((24 - start) % interval)) % interval
+		if afterMidnightStart <= end {
+			hours = fmt.Sprintf("%v-%v%v,%v-23%v", afterMidnightStart, end, step, start, step)
 		} else {
-			// the interval was too big to schedule after midnight before reaching the end time, so only create the pre midnight range
-			formattedHourSchedule = fmt.Sprintf("%v-23%v", schedule.HourStart, hourInterval)
+			// the interval is too big to fit a run after midnight before the window ends
+			hours = fmt.Sprintf("%v-23%v", start, step)
 		}
 	} else {
-		formattedHourSchedule = fmt.Sprintf("%v-%v%v", schedule.HourStart, schedule.HourEnd, hourInterval)
+		hours = fmt.Sprintf("%v-%v%v", start, end, step)
 	}
-	return fmt.Sprintf("%v %v * * *", schedule.MinuteStart, formattedHourSchedule)
+	return fmt.Sprintf("%v %v * * *", minute, hours)
 }
-func calcEndTime(startHour int, endHour int, minuteStart int) time.Time {
 
-	dt := time.Now()
-	if startHour > endHour {
-		if dt.Hour() > endHour {
-			return time.Date(dt.Year(), dt.Month(), dt.Day(), 23, 59, 0, 0, dt.Location())
-		} else {
-			return time.Date(dt.Year(), dt.Month(), dt.Day(), endHour, minuteStart, 0, 0, dt.Location())
-		}
-	} else {
-		return time.Date(dt.Year(), dt.Month(), dt.Day(), endHour, minuteStart, 0, 0, dt.Location())
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
 	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+// calcEndTime is when a ranged task should stop starting new work (end of today's window).
+func calcEndTime(startHour int, endHour int, minuteStart int) time.Time {
+	endHour %= 24
+	dt := time.Now()
+	if startHour > endHour && dt.Hour() > endHour {
+		next := dt.AddDate(0, 0, 1)
+		return time.Date(next.Year(), next.Month(), next.Day(), endHour, minuteStart, 0, 0, dt.Location())
+	}
+	return time.Date(dt.Year(), dt.Month(), dt.Day(), endHour, minuteStart, 0, 0, dt.Location())
 }

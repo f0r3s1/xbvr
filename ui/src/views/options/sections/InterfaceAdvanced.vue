@@ -1,9 +1,6 @@
 <template>
-  <div class="container">
-    <b-loading :is-full-page="false" v-model:active="isLoading" />
+  <OptionsSection :title="$t('Advanced')" :loading="isLoading">
     <div class="content">
-      <h3>{{ $t('Advanced') }}</h3>
-      <hr />
       <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
             <b-tab-item label="Scene Details"/>
             <b-tab-item label="Actor Settings"/>
@@ -170,7 +167,7 @@
       <div class="columns" v-if="activeTab == 4">
         <div class="column">
           <section>
-            <h4>{{ $t('Network Proxy') }}</h4>
+            <h4 class="options-subtitle">{{ $t('Network Proxy') }}</h4>
             <b-message type="is-info" size="is-small">
               <p><strong>Network Proxy</strong> routes ALL scraper traffic through an HTTP/SOCKS proxy server.</p>
               <p>Use this if you're behind a corporate firewall or want to route traffic through a VPN.</p>
@@ -181,7 +178,7 @@
 
             <hr/>
 
-            <h4>{{ $t('FlareSolverr') }}</h4>
+            <h4 class="options-subtitle">{{ $t('FlareSolverr') }}</h4>
             <b-message type="is-info" size="is-small">
               <p><strong>FlareSolverr</strong> helps bypass Cloudflare protection using a headless browser.</p>
               <p>Set the address here, then enable per-site in the <strong>Scrapers</strong> page using the <b-icon icon="fire" size="is-small"/> toggle.</p>
@@ -197,7 +194,7 @@
 
             <hr/>
 
-            <h4>{{ $t('Proxy Service') }}</h4>
+            <h4 class="options-subtitle">{{ $t('Proxy Service') }}</h4>
             <b-message type="is-info" size="is-small">
               <p><strong>Proxy Service</strong> routes requests through a URL-based proxy.</p>
               <p>Used for: <strong>1)</strong> Image fallback when direct access fails, <strong>2)</strong> Scraping sites that block direct access (enable per-site with <b-icon icon="cloud" size="is-small"/> toggle).</p>
@@ -400,13 +397,15 @@
 
 
     </div>
-  </div>
+  </OptionsSection>
 </template>
 
 <script>
+import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 export default {
   name: 'InterfaceAdvanced',
+  components: { OptionsSection },
   mounted () {
     this.$store.dispatch('optionsAdvanced/load')
   },

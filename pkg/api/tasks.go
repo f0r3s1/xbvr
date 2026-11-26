@@ -8,7 +8,9 @@ import (
 
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
+	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/models"
+	"github.com/xbapps/xbvr/pkg/scrape"
 	"github.com/xbapps/xbvr/pkg/tasks"
 )
 
@@ -68,12 +70,21 @@ func (i TaskResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/clean-tags").To(i.cleanTags).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.GET("/status").To(i.status).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.GET("/scrape").To(i.scrape).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	ws.Route(ws.GET("/scrape/cancel").To(i.cancelScrape).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.POST("/singlescrape").To(i.singleScrape).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(ResponseSceneScrape{}))
+
+	ws.Route(ws.GET("/refresh-site-metadata").To(i.refreshSiteMetadata).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.GET("/index").To(i.index).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
@@ -125,8 +136,19 @@ func (i TaskResource) cleanTags(req *restful.Request, resp *restful.Response) {
 	go tasks.CleanTags()
 }
 
+func (i TaskResource) refreshSiteMetadata(req *restful.Request, resp *restful.Response) {
+	go tasks.ForceRefreshSiteMetadata()
+}
+
 func (i TaskResource) index(req *restful.Request, resp *restful.Response) {
 	go tasks.SearchIndex()
+}
+
+func (i TaskResource) status(req *restful.Request, resp *restful.Response) {
+	status := common.TaskStatus()
+	status["lockScrape"] = models.CheckLock("scrape")
+	status["lockRescan"] = models.CheckLock("rescan")
+	resp.WriteHeaderAndEntity(http.StatusOK, status)
 }
 
 func (i TaskResource) scrape(req *restful.Request, resp *restful.Response) {
@@ -137,6 +159,13 @@ func (i TaskResource) scrape(req *restful.Request, resp *restful.Response) {
 	qQuick := req.QueryParameter("quick")
 	go tasks.Scrape(qSiteID, "", "", qQuick == "true")
 }
+
+func (i TaskResource) cancelScrape(req *restful.Request, resp *restful.Response) {
+	if models.CheckLock("scrape") {
+		scrape.SetScrapeCancelled(true)
+	}
+}
+
 func (i TaskResource) singleScrape(req *restful.Request, resp *restful.Response) {
 	var scrapeParams RequestSingleScrape
 	req.ReadEntity(&scrapeParams)

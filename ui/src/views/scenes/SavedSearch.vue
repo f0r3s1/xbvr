@@ -1,7 +1,7 @@
 <template>
   <div class="saved-search">
     <b-field grouped>
-      <b-select @update:modelValue="setPlaylist" expanded v-model="currentPlaylist">
+      <b-select v-field-id="'scene-saved-search'" aria-label="Saved search" @update:modelValue="setPlaylist" expanded v-model="currentPlaylist">
         <optgroup label="Web">
           <option v-for="(obj, idx) in playlistsWeb" :value="obj.id" :key="idx">
             {{ obj.name }}

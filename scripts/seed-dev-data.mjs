@@ -6,7 +6,7 @@
 //     which XBVR itself sees at the same path.
 //
 // What you get (deterministic, re-runnable):
-//   - SCENES fictional scenes (default 240) from 8 studios, ~48 people (plus five
+//   - SCENES fictional scenes (default 240) from 8 studios, PEOPLE people (default 48, plus five
 //     near-duplicate names for the duplicate actors review), neutral tags,
 //     landscape photos from picsum.photos as covers/galleries
 //   - a scanned storage folder containing:
@@ -59,7 +59,19 @@ const studios = [
 ]
 const firstNames = ['Ava', 'Mila', 'Nora', 'Iris', 'Luna', 'Cleo', 'Zara', 'Esme', 'Ruby', 'Ivy', 'Maya', 'Lena', 'Ada', 'Skye', 'Tess', 'June', 'Wren', 'Faye', 'Gwen', 'Hana']
 const lastNames = ['Rivers', 'Stone', 'Vale', 'Hart', 'Frost', 'Lane', 'Reed', 'Moss', 'Gray', 'Wilde', 'Brooks', 'Snow', 'Quinn', 'Marsh', 'Sloane']
-const people = [...new Set(Array.from({ length: 48 }, (_, i) => `${firstNames[i % firstNames.length]} ${lastNames[(i * 7) % lastNames.length]}`))]
+// PEOPLE (default 48) scales the cast for load tests. The first 48 names are the
+// original demo cast; after that every first/last pair, then pairs with a middle
+// initial, so all names stay unique.
+const peopleCount = parseInt(process.env.PEOPLE || '48', 10)
+const people = [...new Set(Array.from({ length: Math.min(peopleCount, 48) }, (_, i) => `${firstNames[i % firstNames.length]} ${lastNames[(i * 7) % lastNames.length]}`))]
+for (let k = 0, seen = new Set(people); people.length < peopleCount; k++) {
+  const pairs = firstNames.length * lastNames.length
+  const tier = Math.floor(k / pairs)
+  const first = firstNames[k % firstNames.length]
+  const last = lastNames[Math.floor(k / firstNames.length) % lastNames.length]
+  const name = tier ? `${first} ${String.fromCharCode(65 + (tier - 1) % 26)}. ${last}` : `${first} ${last}`
+  if (!seen.has(name)) { seen.add(name); people.push(name) }
+}
 const tags = ['Outdoor', 'Beach', 'City Lights', 'Mountain', 'Forest', 'Sunset', 'Studio', 'Rooftop', 'Cozy',
   'Cooking', 'Yoga', 'Dance', 'Travel', 'Road Trip', 'Rainy Day', 'Winter', 'Summer', 'Pool', 'Garden', 'Library']
 const titleA = ['Morning', 'Golden', 'Quiet', 'Electric', 'Hidden', 'Endless', 'Lazy', 'Midnight', 'Sunny', 'Velvet', 'Wild', 'Crystal']
@@ -184,6 +196,27 @@ const funscript = ({ durationMs = 10_000, tempo = 520, depth = 0.8, title = '', 
 
 // ── 1. scenes ───────────────────────────────────────────────────────
 // The restore handler sniffs for the literal `"bundleVersion":"1"`, so keep the JSON compact.
+// Upcoming announcements: release dates ahead of today, shown faded with an
+// "Upcoming · in N days" badge and limited by the Web UI "Releasing within" setting.
+const now = Date.now()
+for (const [k, days] of [2, 6, 11, 19, 33, 58].entries()) {
+  const studio = studios[k % studios.length]
+  const id = `${studio.scraper}-up${k + 1}`
+  scenes.push({
+    ...scenes[k],
+    _id: id,
+    xbvr_site: studio.scraper,
+    scene_id: `up${k + 1}`,
+    title: `${pick(titleA)} ${pick(titleB)} (Coming Soon)`,
+    studio: studio.name,
+    site: studio.name,
+    filename: [],
+    released: new Date(now + days * 86400000).toISOString().slice(0, 10),
+    homepage_url: `https://example.com/${studio.scraper}/up${k + 1}`,
+    upcoming: true
+  })
+}
+
 const bundle = JSON.stringify({ timestamp: new Date().toISOString(), bundleVersion: '1', scenes })
 await api('POST', '/api/task/bundle/restore', { uploadData: bundle })
 for (let i = 0; i < 120 && (await sceneTotal()) < sceneCount; i++) await sleep(500)
@@ -234,7 +267,26 @@ if (!(volumes || []).some(v => v.path === libraryDir)) {
 }
 await api('GET', '/api/task/rescan')
 
+// ── 4. previews ─────────────────────────────────────────────────────
+// Rescan runs in the background; once the linked scenes are available, render
+// their hover previews (ffmpeg in the container, a few seconds per scene).
+const available = async () => (await api('POST', '/api/scene/list', { dlState: 'available', limit: 1, offset: 0 })).results
+for (let i = 0; i < 60 && await available() < counts.linked; i++) await sleep(1000)
+await api('GET', '/api/task/preview/generate')
+
+// ── 5. birth dates ──────────────────────────────────────────────────
+// The bundle format carries no actor details, so two in three actors get a
+// birth date through the regular edit endpoint.
+const { actors } = await api('POST', '/api/actor/list', { limit: 5000, offset: 0, sort: 'name_asc' })
+for (const [i, a] of (actors || []).filter(a => !a.birth_date || a.birth_date.startsWith('0001')).entries()) {
+  if (i % 3 === 2) continue
+  const full = await api('GET', `/api/actor/${a.id}`)
+  const year = 1988 + Math.floor(rand() * 14)
+  full.birth_date = `${year}-${pad(1 + Math.floor(rand() * 12)).slice(2)}-${pad(1 + Math.floor(rand() * 28)).slice(2)}T00:00:00Z`
+  await api('POST', `/api/actor/edit/${a.id}`, full)
+}
+
 console.log(`files:    ${counts.linked} linked, ${counts.nearMiss} near-miss, ${counts.unrelated} unrelated videos`)
 console.log(`scripts:  ${counts.funscript} .funscript, ${counts.aiFunscript} _ai.funscript, ${counts.orphanScripts} orphans`)
 console.log(`no files: ${scenes.length - linkedCount} scenes`)
-console.log('rescan started - files will appear linked within a few seconds')
+console.log('rescan done, preview generation started - hover previews appear within a minute')
