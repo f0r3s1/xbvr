@@ -249,4 +249,4 @@ jobs:
         run: |
           cd dist
           sha256sum -- * > checksums.txt
-          gh release upload "$TAG" -- * --clobber
+          gh release upload "$TAG" ./* --clobber
