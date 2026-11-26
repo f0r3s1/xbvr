@@ -166,8 +166,8 @@ func (i HeresphereResource) postHeresphereEvent(req *restful.Request, resp *rest
 		resp.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// events carry the username but no password, so only the name can be checked
-	if isDeoAuthEnabled() && event.Username != config.Config.Interfaces.DeoVR.Username {
+	// events carry no password; the event URL handed to HereSphere is signed instead
+	if AuthRequired() && !ValidMediaToken(req.Request) {
 		resp.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -177,6 +177,6 @@ func (i HeresphereResource) postHeresphereEvent(req *restful.Request, resp *rest
 		resp.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	session.TrackSessionFromHereSphere(uint(sceneID), event.Event)
+	session.TrackSessionFromHereSphere(uint(sceneID), event.Event, event.Time, event.Speed)
 	resp.WriteHeader(http.StatusNoContent)
 }

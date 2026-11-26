@@ -1,0 +1,200 @@
+<template>
+  <div class="saved-search">
+    <b-field grouped>
+      <b-select v-field-id="`${kind}-saved-search`" :aria-label="$t('Saved search')" @update:modelValue="setPlaylist" expanded v-model="currentPlaylist">
+        <optgroup :label="$t('Web')">
+          <option v-for="(obj, idx) in playlistsWeb" :value="obj.id" :key="idx">
+            {{ obj.name }}
+          </option>
+        </optgroup>
+        <optgroup :label="$t('VR Players')">
+          <option v-for="(obj, idx) in playlistsDeo" :value="obj.id" :key="idx">
+            {{ obj.name }}
+          </option>
+        </optgroup>
+      </b-select>
+
+      <b-tooltip position="is-bottom" :label="$t('Save as new')" :delay="200">
+        <button class="button is-small is-outlined" @click="showNewDialog" :aria-label="$t('Save as new')">
+          <b-icon pack="mdi" icon="content-save-outline"></b-icon>
+        </button>
+      </b-tooltip>
+      <b-tooltip position="is-bottom" :label="$t('Edit')" :delay="200">
+        <button class="button is-small is-outlined" @click="showEditDialog" :disabled="disableEditDelete" :aria-label="$t('Edit')">
+          <b-icon pack="mdi" icon="square-edit-outline"></b-icon>
+        </button>
+      </b-tooltip>
+      <b-tooltip position="is-bottom" :label="$t('Delete')" :delay="200">
+        <button class="button is-small is-outlined" @click="removePlaylist" :disabled="disableEditDelete" :aria-label="$t('Delete')">
+          <b-icon pack="mdi" icon="delete-outline"></b-icon>
+        </button>
+      </b-tooltip>
+    </b-field>
+
+    <b-modal v-model="isPlaylistModalActive"
+             has-modal-card
+             trap-focus
+             aria-role="dialog"
+             aria-modal>
+      <div class="modal-card" style="width: auto">
+        <header class="modal-card-head">
+          <p class="modal-card-title">{{ modalTitle }}</p>
+        </header>
+        <section class="modal-card-body">
+          <b-field :label="$t('Name')" label-for="playlist-name">
+            <b-input
+              id="playlist-name"
+              type="text"
+              v-model="playlistName"
+              required>
+            </b-input>
+          </b-field>
+          <b-checkbox v-if="!actors" v-model="playlistDeoEnabled">{{ $t('Use as DeoVR list') }}</b-checkbox>
+        </section>
+        <footer class="modal-card-foot">
+          <button class="button is-primary" :disabled="playlistName===''" @click="savePlaylist(modalAction)">{{ $t('Save') }}
+          </button>
+        </footer>
+      </div>
+    </b-modal>
+  </div>
+</template>
+
+<script>
+import { defineComponent } from 'vue';
+
+import ky from 'ky'
+
+export default defineComponent({
+  name: 'SavedSearch',
+  props: { actors: Boolean },
+
+  mounted () {
+    this.$store.dispatch(`${this.store}/filters`)
+  },
+
+  data () {
+    return {
+      currentPlaylistObj: null,
+
+      isPlaylistModalActive: false,
+      modalTitle: '',
+      modalAction: 'create',
+      playlistName: '',
+      playlistDeoEnabled: false
+    }
+  },
+
+  methods: {
+    showNewDialog () {
+      this.modalTitle = this.$t('Create new saved search')
+      this.modalAction = 'create'
+      this.playlistName = ''
+      this.playlistDeoEnabled = false
+
+      this.isPlaylistModalActive = true
+    },
+    showEditDialog () {
+      if (this.currentPlaylistObj !== null) {
+        this.modalTitle = this.$t('Edit saved search')
+        this.modalAction = 'update'
+        this.playlistName = this.currentPlaylistObj.name
+        this.playlistDeoEnabled = this.currentPlaylistObj.is_deo_enabled
+
+        this.isPlaylistModalActive = true
+      }
+    },
+    setPlaylist (val) {
+      const obj = this.playlists.find(item => item.id === val)
+      if (!obj || !obj.search_params) return
+
+      this.$router.push({
+        name: this.actors ? 'actors' : 'scenes',
+        query: {
+          q: this.$store.getters[`${this.store}/getQueryParamsFromObject`](obj.search_params)
+        }
+      })
+      // no load here: the route change loads with the saved filters
+    },
+    async savePlaylist (action) {
+      const payload = {
+        name: this.playlistName,
+        is_deo_enabled: !this.actors && this.playlistDeoEnabled,
+        is_smart: true,
+        search_params: JSON.stringify(this.$store.state[this.store].filters)
+      }
+      if (this.actors) payload.playlist_type = 'actor'
+
+      let p
+      if (action === 'create') {
+        p = await ky.post('/api/playlist', { json: payload }).json()
+      } else {
+        p = await ky.put(`/api/playlist/${this.currentPlaylistObj.id}`, { json: payload }).json()
+      }
+
+      await this.$store.dispatch(`${this.store}/filters`)
+      this.currentPlaylist = p.id
+      this.isPlaylistModalActive = false
+    },
+    removePlaylist () {
+      this.$buefy.dialog.confirm({
+        title: this.$t('Delete saved search'),
+        message: this.$t('Do you want to delete saved search {name}?', { name: `<strong>${this.currentPlaylistObj.name}</strong>` }),
+        type: 'is-danger',
+        hasIcon: true,
+        confirmText: this.$t('Delete'),
+        onConfirm: () => {
+          ky.delete(`/api/playlist/${this.currentPlaylistObj.id}`).then(() => {
+            this.$store.dispatch(`${this.store}/filters`)
+            this.currentPlaylist = null
+          })
+        }
+      })
+    }
+
+  },
+
+  computed: {
+    kind () {
+      return this.actors ? 'actor' : 'scene'
+    },
+    store () {
+      return this.actors ? 'actorList' : 'sceneList'
+    },
+    playlists () {
+      return this.$store.state[this.store].playlists
+    },
+    playlistsWeb () {
+      return this.playlists.filter(obj => obj.is_deo_enabled === false)
+    },
+    playlistsDeo () {
+      return this.playlists.filter(obj => obj.is_deo_enabled === true)
+    },
+    currentPlaylist: {
+      get () {
+        if (this.currentPlaylistObj !== null) {
+          return this.currentPlaylistObj.id
+        }
+        return null
+      },
+      set (val) {
+        if (val === null) {
+          this.currentPlaylistObj = null
+          return null
+        }
+        this.currentPlaylistObj = this.playlists.find(item => item.id === val)
+        return this.currentPlaylistObj.id
+      }
+    },
+    disableEditDelete () {
+      return this.currentPlaylistObj === null || this.currentPlaylistObj.is_system === true
+    }
+  },
+});
+</script>
+
+<style lang="scss" scoped>
+button {
+  margin-left: 0.1rem;
+}
+</style>

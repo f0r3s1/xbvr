@@ -138,7 +138,7 @@ export default {
     },
     removeFile (file) {
       this.$buefy.dialog.confirm({
-        title: 'Remove file',
+        title: this.$t('Remove file'),
         message: `You're about to remove file <strong>${file.filename}</strong> from <strong>disk</strong>.`,
         type: 'is-danger',
         hasIcon: true,

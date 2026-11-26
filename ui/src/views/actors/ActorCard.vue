@@ -3,7 +3,7 @@
     <div class="thumbnail-wrapper" :style="{ aspectRatio: actorCardAspectRatio }">
       <div class="thumbnail-img" :class="{ 'is-contain': actorCardScale === 'contain' }"
            :style="{ opacity: isAvailable(actor) ? 1.0 : isAvailOpacity, '--actor-img': `url(${imageURL})` }">
-        <img :src="imageURL" class="cover-image" :class="{ 'is-loaded': imageLoaded }"
+        <img decoding="async" v-queued-src="imageURL" class="cover-image" :class="{ 'is-loaded': imageLoaded }"
              :style="{ objectFit: actorCardScale }" alt="" @load="imageLoaded = true" @error="imageLoaded = true"/>
       </div>
 
@@ -20,7 +20,7 @@
         </b-tooltip>
       </div>
 
-      <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
+      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
         <a v-if="colleague != undefined" class="button is-info is-outlined is-small"
            @click="showColleague(actor.name, colleague)" :title="'Show Scenes with ' + actor.name">
           <b-icon pack="mdi" icon="movie-outline" size="is-small"/>
@@ -36,14 +36,14 @@
       <div class="title-row">
         <div class="actor-name">{{actor.name}}</div>
         <span class="status-icons">
-          <b-icon v-if="actor.watchlist" pack="mdi" icon="calendar-check" size="is-small" class="status-primary" title="Watchlist"/>
-          <b-icon v-if="actor.favourite" pack="mdi" icon="heart" size="is-small" class="status-danger" title="Favourite"/>
+          <b-icon v-if="actor.watchlist" pack="mdi" icon="calendar-check" size="is-small" class="status-primary" :title="$t('Watchlist')"/>
+          <b-icon v-if="actor.favourite" pack="mdi" icon="heart" size="is-small" class="status-danger" :title="$t('Favourite')"/>
         </span>
       </div>
       <div class="meta-row">
         <span class="meta-left">
           <vue-load-image v-if="actor.nationality" class="flag-wrap">
-            <template #image><img :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() + '.svg')" class="flag" :title="actor.nationality"/></template>
+            <template #image><img loading="lazy" decoding="async" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() + '.svg')" class="flag" :title="actor.nationality"/></template>
           </vue-load-image>
           <span>{{sceneCount}} {{sceneCount == 1 ? 'scene' : 'scenes'}}<template v-if="actor.avail_count > 0"> · {{actor.avail_count}} available</template></span>
         </span>
@@ -127,7 +127,7 @@ export default defineComponent({
         return "/ui/images/actor_placeholder.svg"
       }
       if (u.startsWith('http')) {
-        return '/img/1200x/' + u.replace('://', ':/')
+        return '/img/700x/' + u.replace('://', ':/')
       } else {
         return u
       }

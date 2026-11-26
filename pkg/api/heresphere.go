@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/hmac"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -138,13 +139,13 @@ func heresphereRequestData(req *restful.Request) HereSphereAuthRequest {
 
 func HeresphereAuthFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 	body := heresphereRequestBody(req)
-	if isDeoAuthEnabled() {
+	if AuthRequired() && !validHeresphereToken(req.Request) {
 		authState := 0
 		var requestData HereSphereAuthRequest
 
 		if err := json.Unmarshal(body, &requestData); err == nil {
 			if requestData.Username != "" && requestData.Password != "" {
-				if deoCredentialsValid(requestData.Username, requestData.Password) {
+				if CredentialsValid(requestData.Username, requestData.Password) {
 					authState = 1
 				} else {
 					authState = -1
@@ -191,6 +192,9 @@ func (i HeresphereResource) WebService() *restful.WebService {
 		Produces(restful.MIME_JSON)
 
 	ws.Route(ws.HEAD("/").To(i.getHeresphereLibrary))
+
+	ws.Route(ws.POST("/auth").To(i.heresphereLogin).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.GET("/").Filter(HeresphereAuthFilter).To(i.getHeresphereLibrary).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -260,7 +264,7 @@ func (i HeresphereResource) getHeresphereFile(req *restful.Request, resp *restfu
 				Height:     height,
 				Width:      width,
 				Size:       file.Size,
-				URL:        fmt.Sprintf("%v://%v/api/dms/file/%v%v", getProto(req), req.Request.Host, file.ID, dnt),
+				URL:        withMediaToken(fmt.Sprintf("%v://%v/api/dms/file/%v%v", getProto(req), req.Request.Host, file.ID, dnt)),
 			},
 		},
 	})
@@ -341,7 +345,7 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 
 	var media []HeresphereMedia
 
-	videoLength := float64(scene.Duration)
+	videoLength := float64(scene.Duration) * 60
 
 	for i, file := range videoFiles {
 		height := file.VideoHeight
@@ -369,13 +373,15 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 					Height:     height,
 					Width:      width,
 					Size:       file.Size,
-					URL:        fmt.Sprintf("%v://%v/api/dms/file/%v%v", getProto(req), req.Request.Host, file.ID, dnt),
+					URL:        withMediaToken(fmt.Sprintf("%v://%v/api/dms/file/%v%v", getProto(req), req.Request.Host, file.ID, dnt)),
 				},
 			},
 		}
 
 		media = append(media, mediafile)
-		videoLength = file.VideoDuration
+		if i == 0 && file.VideoDuration > 0 {
+			videoLength = file.VideoDuration
+		}
 	}
 
 	if len(videoFiles) == 0 && config.Config.Web.SceneTrailerlist && requestData.NeedsMediaSource.OrElse(true) {
@@ -438,13 +444,7 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 			var trackAssignments []string
 			for i := range cuepoints {
 				start := int(cuepoints[i].TimeStart * 1000)
-				if i+1 < len(cuepoints) {
-					end = int(cuepoints[i+1].TimeStart*1000) - 1
-				} else if int(videoLength*1000) > start {
-					end = int(videoLength * 1000)
-				} else {
-					end = start + 1000
-				}
+				end = cuepointEndMs(cuepoints, i, videoLength)
 
 				if !config.Config.Interfaces.Heresphere.MultitrackCuepoints && !config.Config.Interfaces.Heresphere.MultitrackCastCuepoints {
 					track := 0
@@ -515,12 +515,16 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 			}
 		} else {
 			// extra heresphere cuepoint attributes
-			for _, cuepoint := range cuepoints {
+			for i, cuepoint := range cuepoints {
 				trackNo := int(*cuepoint.Track)
+				endMs := cuepoint.TimeEnd * 1000
+				if cuepoint.TimeEnd <= cuepoint.TimeStart {
+					endMs = float64(cuepointEndMs(cuepoints, i, videoLength))
+				}
 				tags = append(tags, HeresphereTag{
 					Name:              cuepoint.Name,
 					StartMilliseconds: cuepoint.TimeStart * 1000,
-					EndMilliseconds:   cuepoint.TimeEnd * 1000,
+					EndMilliseconds:   endMs,
 					Track:             &trackNo,
 					Rating:            cuepoint.Rating,
 				})
@@ -585,7 +589,7 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 		addFeatureTag("Is scripted")
 		heresphereScriptFiles = append(heresphereScriptFiles, HeresphereScript{
 			Name: file.Filename,
-			URL:  fmt.Sprintf("%v://%v/api/dms/file/%v", getProto(req), req.Request.Host, file.ID),
+			URL:  withMediaToken(fmt.Sprintf("%v://%v/api/dms/file/%v", getProto(req), req.Request.Host, file.ID)),
 		})
 
 		if scene.HumanScript {
@@ -628,7 +632,7 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 		heresphereSubtitlesFiles = append(heresphereSubtitlesFiles, HeresphereSubtitles{
 			Name:     file.Filename,
 			Language: getLanguage(file.Filename),
-			URL:      fmt.Sprintf("%v://%v/api/dms/file/%v", getProto(req), req.Request.Host, file.ID),
+			URL:      withMediaToken(fmt.Sprintf("%v://%v/api/dms/file/%v", getProto(req), req.Request.Host, file.ID)),
 		})
 	}
 
@@ -642,7 +646,7 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 
 	if len(hspFiles) > 0 {
 		addFeatureTag("Has HSP file")
-		hspUrl = fmt.Sprintf("%v://%v/api/dms/file/%v", getProto(req), req.Request.Host, hspFiles[0].ID)
+		hspUrl = withMediaToken(fmt.Sprintf("%v://%v/api/dms/file/%v", getProto(req), req.Request.Host, hspFiles[0].ID))
 	}
 
 	var projection string = "equirectangular"
@@ -782,10 +786,10 @@ func (i HeresphereResource) getHeresphereScene(req *restful.Request, resp *restf
 	}
 
 	if scene.HasVideoPreview {
-		video.ThumbnailVideo = fmt.Sprintf("%v://%v/api/dms/preview/%v", getProto(req), req.Request.Host, scene.SceneID)
+		video.ThumbnailVideo = withMediaToken(fmt.Sprintf("%v://%v/api/dms/preview/%v", getProto(req), req.Request.Host, scene.SceneID))
 	}
 	if config.Config.Interfaces.DeoVR.TrackWatchTime {
-		video.EventServer = fmt.Sprintf("%v/heresphere/events/%v", requestBaseURL(req), scene.ID)
+		video.EventServer = withMediaToken(fmt.Sprintf("%v/heresphere/events/%v", requestBaseURL(req), scene.ID))
 	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, video)
@@ -1168,4 +1172,57 @@ func (fs *StringOrInt) UnmarshalJSON(data []byte) error {
 	}
 	// Return an error if neither worked
 	return fmt.Errorf("invalid resolution format: %s", data)
+}
+
+// cuepointEndMs ends a cuepoint where the next later one starts (cuepoints sharing a start overlap),
+// else at the end of the video, so no tag ever ends before it starts.
+func cuepointEndMs(sorted []models.SceneCuepoint, i int, videoLengthSec float64) int {
+	start := int(sorted[i].TimeStart * 1000)
+	for _, next := range sorted[i+1:] {
+		if nextStart := int(next.TimeStart * 1000); nextStart > start {
+			return nextStart - 1
+		}
+	}
+	if videoEnd := int(videoLengthSec * 1000); videoEnd > start {
+		return videoEnd
+	}
+	return start + 1000
+}
+
+// HereSphere's login: it posts the username and password once to /heresphere/auth and then sends
+// the returned token in an "auth-token" header (HereSphere JSON API version 1).
+const heresphereTokenHeader = "auth-token"
+
+type heresphereAuthResponse struct {
+	AuthToken string `json:"auth-token"`
+	Access    int    `json:"access"`
+}
+
+func heresphereToken() string {
+	return sign("heresphere\x00" + sessionValue())
+}
+
+// validHeresphereToken also accepts the API key as the token.
+func validHeresphereToken(r *http.Request) bool {
+	token := r.Header.Get(heresphereTokenHeader)
+	if token == "" {
+		return false
+	}
+	if hmac.Equal([]byte(token), []byte(heresphereToken())) {
+		return true
+	}
+	stored := storedAPIKeyHash()
+	return stored != "" && hmac.Equal([]byte(hashAPIKey(token)), []byte(stored))
+}
+
+func (i HeresphereResource) heresphereLogin(req *restful.Request, resp *restful.Response) {
+	creds := heresphereRequestData(req)
+	switch {
+	case !AuthRequired():
+		resp.WriteHeaderAndEntity(http.StatusOK, heresphereAuthResponse{Access: 1})
+	case CredentialsValid(creds.Username, creds.Password):
+		resp.WriteHeaderAndEntity(http.StatusOK, heresphereAuthResponse{AuthToken: heresphereToken(), Access: 1})
+	default:
+		resp.WriteHeaderAndEntity(http.StatusOK, heresphereAuthResponse{Access: -1})
+	}
 }

@@ -10,15 +10,7 @@
 </template>
 
 <script>
-// Video.js 10 player (custom elements + skin) with our own VR view.
-//
-// Video.js 10 has no plugin system, so the old videojs-vr plugin is replaced by a
-// small three.js layer: the <video> inside the skin keeps playing (hidden) and is
-// drawn as a texture on a 180° hemisphere or a 360° sphere, under the skin's
-// controls. Drag to look around, scroll (or zoom()) to change the field of view.
-//
-// The public methods mirror the bits of the Video.js 8 player API the views used
-// (play, pause, paused, currentTime, duration, poster, dispose) so callers stay simple.
+// Video.js 10 skin with a three.js VR view (replaces the videojs-vr plugin); the methods mirror the old Video.js 8 API
 import { defineComponent } from 'vue'
 import ScriptOverlay from './ScriptOverlay.vue'
 import '@videojs/html/video/player'
@@ -69,8 +61,7 @@ export default defineComponent({
   data () {
     return {
       vrActive: false,
-      // Black with just the play button until playback starts (no poster or
-      // stretched first frame behind it).
+      // black with only the play button until playback starts
       started: false
     }
   },
@@ -131,7 +122,6 @@ export default defineComponent({
   },
 
   methods: {
-    // ── player API used by the views ──────────────────────────────────────
     el () { return this.$refs.skin },
     video () { return this.$refs.video },
     play () { const v = this.$refs.video; return v ? v.play().catch(() => {}) : Promise.resolve() },
@@ -198,10 +188,7 @@ export default defineComponent({
       return e.composedPath().some(n => n.tagName && /^MEDIA-(CONTROLS|MENU|VOLUME-POPOVER|TIME-SLIDER|TOOLTIP|DIALOG)/.test(n.tagName))
     },
 
-    // The packaged skin renders in a shadow root, so our page CSS cannot reach it.
-    // Add a small sheet there: no cast/AirPlay buttons (never used), and no bright
-    // focus outline around the whole player when it takes keyboard focus. Buttons
-    // keep their own focus rings.
+    // the skin renders in a shadow root: hide cast/AirPlay and the whole-player focus outline there
     styleSkin () {
       const skin = this.$refs.skin
       const apply = () => {
@@ -221,7 +208,6 @@ export default defineComponent({
       if (!apply()) customElements.whenDefined('video-skin').then(() => requestAnimationFrame(apply))
     },
 
-    // ── VR view ───────────────────────────────────────────────────────────
     async startVR () {
       const THREE = await import('three')
       if (!this.$refs.canvas) return
@@ -279,9 +265,7 @@ export default defineComponent({
       return mesh
     },
 
-    // Equidistant fisheye (VR180 lenses): a spherical cap of the lens field of
-    // view around -Z. Each vertex samples the image at a radius proportional to
-    // its angle from the lens axis, inside the left eye's circle.
+    // equidistant fisheye (VR180 lenses): radius in the left-eye circle is proportional to the angle from the lens axis
     fisheyeMesh (THREE, texture) {
       const half = (this.mode.fisheye / 2) * Math.PI / 180
       const geometry = new THREE.SphereGeometry(500, 96, 64, 0, Math.PI * 2, 0, half)
@@ -304,9 +288,7 @@ export default defineComponent({
       return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide }))
     },
 
-    // Size from the canvas's own box, not the skin: in fullscreen Video.js puts its
-    // inner container in the top layer, so the canvas fills the screen while the
-    // <video-skin> element keeps its page size (that mismatch stretched the view).
+    // size from the canvas box: in fullscreen the skin keeps its page size while the canvas fills the screen
     resize () {
       const cv = this.$refs.canvas
       if (!this.three || !cv) return

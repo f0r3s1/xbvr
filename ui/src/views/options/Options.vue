@@ -7,7 +7,6 @@
           <b-menu-list :label="$t('Options')">
             <b-menu-item :label="$t('Storage')" :active="active==='storage'" @click="setActive('storage')"/>
             <b-menu-item :label="$t('Previews')" :active="active==='previews'" @click="setActive('previews')"/>
-            <!--            <b-menu-item :label="$t('Scheduled tasks')" :active="active==='tasks'" @click="setActive ('tasks')"/>-->
             <b-menu-item :label="$t('Cache')" :active="active==='cache'" @click="setActive('cache')"></b-menu-item>
             <b-menu-item :active="active==='health'" @click="setActive('health')">
               <template #label>
@@ -85,8 +84,7 @@ export default defineComponent({
   data: function () {
     return {
       active: this.$route.query.tab || localStorage.getItem('optionsActiveTab') || 'storage',
-      // While the sections fetch their settings, switch off transitions so toggles
-      // snap to their saved value instead of visibly sliding over from the default.
+      // no transitions while settings load, so toggles snap to their saved value
       settling: true
     }
   },
@@ -101,7 +99,6 @@ export default defineComponent({
     setActive: function (e) {
       this.active = e
       localStorage.setItem('optionsActiveTab', e)
-      // Update URL without navigation
       if (this.$route.query.tab !== e) {
         this.$router.replace({ query: { ...this.$route.query, tab: e } }).catch(() => {})
       }
@@ -111,7 +108,6 @@ export default defineComponent({
   mounted () {
     this.loadHealthSummary()
     setTimeout(() => { this.settling = false }, 600)
-    // Restore tab from URL query if present
     if (this.$route.query.tab) {
       this.active = this.$route.query.tab
     }

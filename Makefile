@@ -208,6 +208,7 @@ deps-update: ## Upgrade all Go modules and JS packages to latest (docker), then 
 LOCAL_NAME   ?= xbvr-local
 LOCAL_CONFIG ?= xbvr-local-config
 LOCAL_MEDIA  ?= xbvr-local-media
+LOCAL_ENV    ?=
 
 .PHONY: local
 local: local-up local-seed ## Build, run and seed a local instance on http://localhost:9999
@@ -216,7 +217,7 @@ local: local-up local-seed ## Build, run and seed a local instance on http://loc
 local-up: BUILD_VERSION = latest
 local-up: prod-build ## Build the prod image and (re)start the local instance
 	@docker rm -f $(LOCAL_NAME) >/dev/null 2>&1 || true
-	@docker run -d --name $(LOCAL_NAME) -p 9999:9999 -p 9998:9998 \
+	@docker run -d --name $(LOCAL_NAME) -p 9999:9999 -p 9998:9998 $(LOCAL_ENV) \
 		-v $(LOCAL_CONFIG):/root/.config -v $(LOCAL_MEDIA):/media xbvr:latest >/dev/null
 	@for i in $$(seq 1 60); do curl -sf -o /dev/null http://localhost:9999/ && break; sleep 1; done
 	@echo "XBVR running at http://localhost:9999"

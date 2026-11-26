@@ -1,5 +1,5 @@
 <template>
-    <a data-tooltip="Link to stashdb" class="button is-primary is-dark is-outlined is-small"
+    <a :data-tooltip="$t('Link to stashdb')" class="button is-primary is-dark is-outlined is-small"
             @click="openDialog(item)">
             <span class="icon is-small">
               <svg width="16" height="16" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">

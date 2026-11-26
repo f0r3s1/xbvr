@@ -45,7 +45,7 @@
                         </span>
                     </template>
                   </b-carousel>
-                  <button class="fullscreen-btn" @click="openFullscreenGallery(carouselSlide)" title="Fullscreen (G)">
+                  <button class="fullscreen-btn" @click="openFullscreenGallery(carouselSlide)" :title="$t('Fullscreen (G)')">
                     <b-icon pack="mdi" icon="fullscreen" size="is-small"></b-icon>
                   </button>
                 </div>
@@ -170,12 +170,12 @@
                     </button>
                   </div>
                   <p v-if="!hasDetails" class="actor-empty-details">
-                    No profile details yet. Use Edit, or link the actor on StashDB, to fill them in.
+                    {{ $t('No profile details yet. Use Edit, or link the actor on StashDB, to fill them in.') }}
                   </p>
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
-                    <span class="tab-label">Scenes ({{ actorScenes.length || actor.scene_count || 0 }})<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" title="Open scenes in a new window" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
+                    <span class="tab-label">Scenes ({{ actorScenes.length || actor.scene_count || 0 }})<a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" class="tab-ext" :title="$t('Open scenes in a new window')" @click.stop><b-icon pack="mdi" icon="open-in-new" custom-size="mdi-14px"/></a></span>
                   </template>
                   <div v-show="activeTab == 1">
                     <b-field class="segmented scene-scope">
@@ -263,21 +263,20 @@
             </div>
 
     </template>
-    <button class="modal-close is-large" aria-label="close" @click="close()"></button>
+    <button class="modal-close is-large" :aria-label="$t('close')" @click="close()"></button>
     <a class="prev" @click="prevActor"
-       title="Keyboard shortcut: O">&#10094;</a>
+       :title="$t('Keyboard shortcut: O')">&#10094;</a>
     <a class="next" @click="nextActor"
-       title="Keyboard shortcut: P">&#10095;</a>
+       :title="$t('Keyboard shortcut: P')">&#10095;</a>
 
-    <!-- Fullscreen Gallery Modal -->
     <div v-if="fullscreenGallery" ref="fullscreenGallery" class="fullscreen-gallery" :class="{ 'is-zoomed': fullscreenZoomed }" @click.self="handleGalleryClick">
-      <button class="fullscreen-close" @click="closeFullscreenGallery" title="Close (Esc)" v-show="!fullscreenZoomed">
+      <button class="fullscreen-close" @click="closeFullscreenGallery" :title="$t('Close (Esc)')" v-show="!fullscreenZoomed">
         <b-icon pack="mdi" icon="close" size="is-medium"></b-icon>
       </button>
-      <button class="fullscreen-nav fullscreen-prev" @click="fullscreenPrev" v-if="images.length > 1" v-show="!fullscreenZoomed" title="Previous (←)">
+      <button class="fullscreen-nav fullscreen-prev" @click="fullscreenPrev" v-if="images.length > 1" v-show="!fullscreenZoomed" :title="$t('Previous (←)')">
         <b-icon pack="mdi" icon="chevron-left" size="is-large"></b-icon>
       </button>
-      <button class="fullscreen-nav fullscreen-next" @click="fullscreenNext" v-if="images.length > 1" v-show="!fullscreenZoomed" title="Next (→)">
+      <button class="fullscreen-nav fullscreen-next" @click="fullscreenNext" v-if="images.length > 1" v-show="!fullscreenZoomed" :title="$t('Next (→)')">
         <b-icon pack="mdi" icon="chevron-right" size="is-large"></b-icon>
       </button>
       <img 
@@ -314,11 +313,13 @@ import LinkStashdbButton from '../../components/LinkStashdbButton'
 import SceneCard from '../scenes/SceneCard'
 import SplitModal from '../../components/SplitModal.vue'
 import ActorCard from './ActorCard'
+import gallery from '@/gallery'
 
 export default defineComponent({
   name: 'ActorDetails',
   components: { SplitModal, VueLoadImage, GlobalEvents, StarRating, ActorWatchlistButton, ActorFavouriteButton, SceneCard, ActorEditButton,  ActorCard, LinkStashdbButton },
 
+  mixins: [gallery],
   data () {
     return {
       sceneScope: 'all',
@@ -328,22 +329,11 @@ export default defineComponent({
       bioExpanded: false,
       photoRatios: {},
       bioLong: false,
-      carouselSlide: 0,
       sortMultiple: true,
       countries: [],
       akas: [],
       extrefs: [],
       colleagues: [],
-      carouselImagesLoaded: {},
-      carouselImageRetries: {},
-      carouselImageKeys: {},
-      fullscreenGallery: false,
-      fullscreenIndex: 0,
-      fullscreenImageLoaded: false,
-      fullscreenZoomed: false,
-      fullscreenCanZoom: false,
-      fullscreenImageInfo: null,
-      carouselImageInfo: {},
     }
   },
 
@@ -357,8 +347,7 @@ export default defineComponent({
     shownScenes () {
       return this.sceneScope === 'downloaded' ? this.downloadedScenes : this.actorScenes
     },
-    // height/width of the photo on screen, so the box fits portrait and landscape
-    // shots (clamped between 3:2 landscape and 2:3 portrait)
+    // box follows the photo aspect, clamped between 3:2 landscape and 2:3 portrait
     activePhotoRatio () {
       const r = this.photoRatios[this.carouselSlide] || 1
       return Math.min(1.5, Math.max(0.66, r))
@@ -382,7 +371,6 @@ export default defineComponent({
       })
       return actor
     },
-    // Properties for gallery
     images () {
       if (this.actor.image_arr==undefined || this.actor.image_arr=="") {
         return []
@@ -395,7 +383,6 @@ export default defineComponent({
     showOpenInNewWindow () {
       return this.$store.state.optionsWeb.web.showOpenInNewWindow
     },
-    // At-a-glance numbers from the actor's scenes (already loaded, no extra request).
     actorStats () {
       const scenes = this.actor.scenes || []
       const latest = scenes.map(s => s.release_date).filter(d => d && !d.startsWith('0001')).sort().pop()
@@ -403,13 +390,13 @@ export default defineComponent({
       const born = this.actor.birth_date
       const age = born && !born.startsWith('0001') ? this.calcAge(born) : null
       return [
-        ...(age ? [{ label: 'Age', value: age }] : []),
-        { label: 'Scenes', value: scenes.length },
-        { label: 'Available', value: scenes.filter(s => s.is_available).length },
-        { label: 'Scripted', value: scenes.filter(s => s.is_scripted).length },
-        { label: 'Watched', value: scenes.filter(s => s.is_watched).length },
-        { label: 'Avg rating', value: rated.length ? (rated.reduce((a, s) => a + s.star_rating, 0) / rated.length).toFixed(1) : '–' },
-        { label: 'Latest', value: latest ? latest.slice(0, 7) : '–' }
+        ...(age ? [{ label: this.$t('Age'), value: age }] : []),
+        { label: this.$t('Scenes'), value: scenes.length },
+        { label: this.$t('Available'), value: scenes.filter(s => s.is_available).length },
+        { label: this.$t('Scripted'), value: scenes.filter(s => s.is_scripted).length },
+        { label: this.$t('Watched'), value: scenes.filter(s => s.is_watched).length },
+        { label: this.$t('Avg rating'), value: rated.length ? (rated.reduce((a, s) => a + s.star_rating, 0) / rated.length).toFixed(1) : '–' },
+        { label: this.$t('Latest'), value: latest ? latest.slice(0, 7) : '–' }
       ]
     },
     hasDetails () {
@@ -436,8 +423,7 @@ export default defineComponent({
         this.activeTab = this.hasDetails ? 0 : 1
         this.bioExpanded = false
         this.$nextTick(() => this.measureBio())
-        // The actor list only carries scene summaries; fetch the full scenes for
-        // the Scenes tab. Merged in place so the akas/colleagues lookups don't rerun.
+        // the list only has scene summaries; merge the full scenes in place so the aka lookups do not rerun
         const shown = this.$store.state.overlay.actordetails.actor
         if (shown && shown.slim) {
           ky.get('/api/actor/' + shown.id).json().then(full => {
@@ -451,11 +437,11 @@ export default defineComponent({
     },
     images: {
       handler () {
-        // Reset loaded state when images change
         this.carouselImagesLoaded = {}
         this.photoRatios = {}
         this.carouselImageRetries = {}
         this.carouselImageKeys = {}
+        this.carouselSlide = 0
       },
 
       immediate: false,
@@ -464,93 +450,10 @@ export default defineComponent({
   },
 
   methods: {
-    // "Show more" only when the clamped biography actually hides text
     measureBio () {
       const el = this.$refs.bio
       this.bioLong = !!el && el.scrollHeight > el.clientHeight + 2
     },
-  getCarouselImageURL (url, index) {
-    // Add a cache-busting key when retrying
-    const key = this.carouselImageKeys[index] || 0
-    const baseUrl = this.getImageURL(url, '1200x')
-    return key > 0 ? baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_retry=' + key : baseUrl
-  },
-  getFullscreenImageURL (url) {
-    // Full resolution for fullscreen view
-    return this.getImageURL(url, '0x0')
-  },
-  openFullscreenGallery (index) {
-    this.fullscreenIndex = index
-    this.fullscreenImageLoaded = false
-    this.fullscreenGallery = true
-    // Disable body scroll when fullscreen is open
-    document.body.style.overflow = 'hidden'
-  },
-  closeFullscreenGallery () {
-    this.fullscreenGallery = false
-    this.fullscreenZoomed = false
-    // Re-enable body scroll
-    document.body.style.overflow = ''
-    // Sync carousel with fullscreen position
-    this.carouselSlide = this.fullscreenIndex
-  },
-  fullscreenPrev () {
-    this.fullscreenImageLoaded = false
-    this.fullscreenImageInfo = null
-    this.fullscreenZoomed = false
-    this.fullscreenCanZoom = false
-    this.fullscreenIndex = (this.fullscreenIndex - 1 + this.images.length) % this.images.length
-  },
-  fullscreenNext () {
-    this.fullscreenImageLoaded = false
-    this.fullscreenImageInfo = null
-    this.fullscreenZoomed = false
-    this.fullscreenCanZoom = false
-    this.fullscreenIndex = (this.fullscreenIndex + 1) % this.images.length
-  },
-  handleGalleryClick () {
-    if (this.fullscreenZoomed) {
-      this.fullscreenZoomed = false
-    } else {
-      this.closeFullscreenGallery()
-    }
-  },
-  handleImageClick (event) {
-    if (!this.fullscreenCanZoom) return
-    
-    const gallery = this.$refs.fullscreenGallery
-    const img = this.$refs.fullscreenImage
-    
-    if (this.fullscreenZoomed) {
-      // Zoom out
-      this.fullscreenZoomed = false
-    } else {
-      // Capture click position BEFORE zoom (as ratio 0-1)
-      const rect = img.getBoundingClientRect()
-      const clickRatioX = (event.clientX - rect.left) / rect.width
-      const clickRatioY = (event.clientY - rect.top) / rect.height
-      
-      // Enable zoom
-      this.fullscreenZoomed = true
-      
-      // Use requestAnimationFrame + setTimeout to ensure layout is complete
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          // Image natural size (full resolution)
-          const natW = img.naturalWidth
-          const natH = img.naturalHeight
-          // Where the clicked point is in the full-size image
-          const pointX = natW * clickRatioX
-          const pointY = natH * clickRatioY
-          // Scroll so that point is at center of viewport
-          const scrollX = Math.max(0, pointX - (window.innerWidth / 2))
-          const scrollY = Math.max(0, pointY - (window.innerHeight / 2))
-          
-          gallery.scrollTo(scrollX, scrollY)
-        }, 50)
-      })
-    }
-  },
   handleEscape () {
     if (this.fullscreenGallery) {
       this.closeFullscreenGallery()
@@ -581,7 +484,6 @@ export default defineComponent({
   },
   onCarouselChange (index) {
     this.scrollToActiveIndicator(index)
-    // Check if the new slide's image is already loaded
     nextTick(() => {
       if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
         const img = this.$refs.carouselImages[index]
@@ -592,153 +494,23 @@ export default defineComponent({
     })
   },
   onCarouselImageLoad (index) {
-    // Verify the image actually loaded with valid dimensions
     nextTick(() => {
       if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
         const img = this.$refs.carouselImages[index]
         if (img.naturalWidth > 100) {
-          // Image loaded successfully with reasonable size
           this.carouselImagesLoaded[index] = true
           this.carouselImageRetries[index] = 0
           this.photoRatios[index] = img.naturalHeight / img.naturalWidth
-          // Fetch image info (format and size) for the badge
           this.fetchCarouselImageInfo(img.src, index)
         } else if ((this.carouselImageRetries[index] || 0) < 3) {
-          // Image too small, might be an error - retry
           this.retryCarouselImage(index)
         } else {
-          // Give up, show whatever we have
           this.carouselImagesLoaded[index] = true
         }
       } else {
         this.carouselImagesLoaded[index] = true
       }
     })
-  },
-  onFullscreenImageLoad () {
-    this.fullscreenImageLoaded = true
-    if (this.$refs.fullscreenImage) {
-      const img = this.$refs.fullscreenImage
-      // Can zoom if image is larger than 90% of viewport in either dimension
-      const fitsWidth = img.naturalWidth <= window.innerWidth * 0.9
-      const fitsHeight = img.naturalHeight <= window.innerHeight * 0.9
-      this.fullscreenCanZoom = !(fitsWidth && fitsHeight)
-      // Fetch image info for fullscreen
-      this.fetchFullscreenImageInfo(img.src)
-    }
-  },
-  fetchCarouselImageInfo (url, index) {
-    // Use Range request to get first 16 bytes for magic number detection
-    fetch(url, { 
-      method: 'GET',
-      headers: { 'Range': 'bytes=0-15' }
-    })
-      .then(response => {
-        // Get file size from Content-Range header (format: bytes 0-15/totalSize)
-        const contentRange = response.headers.get('Content-Range')
-        let fileSize = null
-        if (contentRange) {
-          const match = contentRange.match(/\/(\d+)$/)
-          if (match) {
-            fileSize = parseInt(match[1])
-          }
-        }
-        return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
-      })
-      .then(({ buffer, fileSize }) => {
-        const bytes = new Uint8Array(buffer)
-        const format = this.detectFormatFromBytes(bytes)
-        const size = fileSize ? this.formatBytes(fileSize) : ''
-        const info = size ? `${format} · ${size}` : format
-        this.carouselImageInfo[index] = info
-      })
-      .catch(() => {
-        // Silently fail - no info displayed
-      })
-  },
-  fetchFullscreenImageInfo (url) {
-    this.fullscreenImageInfo = null
-    // Use Range request to get first 16 bytes for magic number detection + full response for size
-    fetch(url, { 
-      method: 'GET',
-      headers: { 'Range': 'bytes=0-15' }
-    })
-      .then(response => {
-        // Get file size from Content-Range header (format: bytes 0-15/totalSize)
-        const contentRange = response.headers.get('Content-Range')
-        let fileSize = null
-        if (contentRange) {
-          const match = contentRange.match(/\/(\d+)$/)
-          if (match) {
-            fileSize = parseInt(match[1])
-          }
-        }
-        // Fallback to Content-Length if no range support
-        if (!fileSize) {
-          const cl = response.headers.get('Content-Length')
-          if (cl) fileSize = parseInt(cl)
-        }
-        return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
-      })
-      .then(({ buffer, fileSize }) => {
-        const bytes = new Uint8Array(buffer)
-        const format = this.detectFormatFromBytes(bytes)
-        const size = fileSize ? this.formatBytes(fileSize) : ''
-        this.fullscreenImageInfo = size ? `${format} · ${size}` : format
-      })
-      .catch(() => {
-        // Silently fail
-      })
-  },
-  detectFormatFromBytes (bytes) {
-    if (bytes.length < 12) return 'IMG'
-    
-    // AVIF: check for 'ftyp' at offset 4 and 'avif', 'avis', or 'mif1' at offset 8
-    if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-      const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
-      if (brand === 'avif' || brand === 'avis' || brand === 'mif1') return 'AVIF'
-      if (brand === 'heic' || brand === 'heix') return 'HEIC'
-    }
-    
-    // JPEG: starts with FF D8 FF
-    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'JPEG'
-    
-    // PNG: starts with 89 50 4E 47 (‰PNG)
-    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'PNG'
-    
-    // GIF: starts with GIF87a or GIF89a
-    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'GIF'
-    
-    // WebP: starts with RIFF....WEBP
-    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-        bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'WebP'
-    
-    return 'IMG'
-  },
-  formatBytes (bytes) {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-  },
-  onCarouselImageError (index) {
-    const retries = this.carouselImageRetries[index] || 0
-    if (retries < 3) {
-      this.retryCarouselImage(index)
-    } else {
-      // Give up, remove blur anyway
-      this.carouselImagesLoaded[index] = true
-    }
-  },
-  retryCarouselImage (index) {
-    const retries = (this.carouselImageRetries[index] || 0) + 1
-    this.carouselImageRetries[index] = retries
-    const delay = retries * 1500 // 1.5s, 3s, 4.5s
-    setTimeout(() => {
-      // Increment the key to force a new request
-      this.carouselImageKeys[index] = (this.carouselImageKeys[index] || 0) + 1
-    }, delay)
   },
   getImageURL (u, size) {
     if (u.startsWith('http') || u.startsWith('https')) {
@@ -767,8 +539,7 @@ export default defineComponent({
   onZeroKey (e) {
     if (e.key === '0') this.setRating(0)
   },
-  // Next/previous follow the lazily loaded list: at the end, load the next batch
-  // if there is one, otherwise wrap around to the other end of what is loaded.
+  // at the end, load the next batch if there is one, else wrap around
   showActor (data) {
     this.$store.commit('overlay/showActorDetails', { actor: data })
     this.activeMedia = 0
@@ -790,15 +561,6 @@ export default defineComponent({
     let data = this.$store.getters['actorList/prevActor'](this.actor)
     if (data === null) data = this.$store.getters['actorList/lastActor']()
     if (data) this.showActor(data)
-  },
-  scrollToActiveIndicator (value) {
-    const indicators = document.querySelector('.carousel-indicator')
-    const active = indicators.children[value]
-    indicators.scrollTo({
-      top: 0,
-      left: active.offsetLeft + active.offsetWidth / 2 - indicators.offsetWidth / 2,
-      behavior: 'smooth'
-    })
   },
   calcAge(birthdate){       
     const birthdateObj = new Date(birthdate);
@@ -938,7 +700,6 @@ export default defineComponent({
   addToAkaGroup (newMember) {
     this.$store.state.actorList.isLoading = true
     ky.post('/api/aka/add', {json: {actorList: [this.actor.name, newMember]}}).json().then(data => {        
-      // delete old aka & add new name
       if (data.status != '') {
         this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
       }
@@ -954,7 +715,6 @@ export default defineComponent({
   removeFromAkaGroup (memberToRemove) {
     this.$store.state.actorList.isLoading = true
     ky.post('/api/aka/remove', {json: {actorList: [this.actor.name, memberToRemove]}}).json().then(data => {        
-      // delete old aka & add new name
       if (data.status != '') {
         this.$buefy.toast.open({message: `Warning:  ${data.status}`, type: 'is-warning', duration: 5000})
       }

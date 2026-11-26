@@ -4,8 +4,8 @@
     <div class="modal-card">
       <section class="modal-card-body has-text-centered">
         <div class="content">
-          <h3 class="title is-4">Database Maintenance in Progress</h3>
-          <p class="subtitle is-6">Please wait while the database is being updated...</p>
+          <h3 class="title is-4">{{ $t('Database Maintenance in Progress') }}</h3>
+          <p class="subtitle is-6">{{ $t('Please wait while the database is being updated...') }}</p>
 
           <div v-if="migrationState.total > 0" class="migration-progress">
             <p v-if="migrationPhase" class="migration-phase">{{ migrationPhase }}</p>
@@ -29,7 +29,7 @@
           </div>
 
           <p class="help-notice mt-4">
-            Web interface will become available when operation is complete.
+            {{ $t('Web interface will become available when operation is complete.') }}
           </p>
         </div>
       </section>
@@ -74,7 +74,6 @@ export default defineComponent({
       return this.migrationState.message
     },
     showETA() {
-      // Show ETA for all progress including reindexing
       return this.migrationState.progress > 0
     },
     estimatedTimeRemaining() {
@@ -85,11 +84,9 @@ export default defineComponent({
       const remaining = this.migrationState.total - this.migrationState.progress
       if (remaining <= 0) return null
 
-      // Use all available history for more stable estimate
       const history = this.progressHistory
       if (history.length < 3) return null
 
-      // Calculate rate from first to last point (overall average)
       const firstPoint = history[0]
       const lastPoint = history[history.length - 1]
 
@@ -98,11 +95,9 @@ export default defineComponent({
 
       if (totalItemsProcessed <= 0 || totalTimeElapsed <= 0) return null
 
-      // Use overall average rate for more stable prediction
       const itemsPerSecond = totalItemsProcessed / totalTimeElapsed
       const secondsRemaining = remaining / itemsPerSecond
 
-      // Apply smoothing: round to nearest 15 seconds to reduce jitter
       const smoothedSeconds = Math.round(secondsRemaining / 15) * 15
 
       return this.formatTime(smoothedSeconds)
@@ -112,13 +107,11 @@ export default defineComponent({
   async mounted() {
     try {
       await this.checkMigrationStatus()
-      // Only start polling if migrations are actually running
       if (this.isMigrating) {
         this.startPolling()
       }
     } catch (error) {
       console.error('Failed to check migration status:', error)
-      // Don't block the UI if migration check fails
     }
   },
 
@@ -135,16 +128,13 @@ export default defineComponent({
           this.migrationState = migration
           this.isMigrating = migration.is_running
 
-          // Track progress history for ETA calculation
           if (migration.is_running && migration.progress > 0) {
             const now = Date.now()
 
-            // Initialize start time on first progress
             if (!this.startTime) {
               this.startTime = now
             }
 
-            // Record progress if it changed
             if (migration.progress !== this.lastProgress) {
               this.progressHistory.push({
                 progress: migration.progress,
@@ -153,14 +143,12 @@ export default defineComponent({
               this.lastProgress = migration.progress
               this.lastUpdateTime = now
 
-              // Keep more history for better averaging (last 20 updates)
               if (this.progressHistory.length > 20) {
                 this.progressHistory.shift()
               }
             }
           }
 
-          // Stop polling if migrations are complete
           if (!migration.is_running) {
             this.stopPolling()
           }

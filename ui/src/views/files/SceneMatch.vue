@@ -12,7 +12,7 @@
     <div class="modal-card">
       <header class="modal-card-head">
         <p class="modal-card-title">{{ $t("Match file to scene") }}</p>
-        <button class="delete" @click="close" aria-label="close"></button>
+        <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
       <section class="modal-card-body">
         <div>
@@ -60,7 +60,7 @@
             </b-table-column>
             <b-table-column field="site" :label="$t('Site')" sortable v-slot="props">
               <a :href="props.row.scene_url" target="_blank" rel="noreferrer">{{ props.row.site }}</a><br>
-              <b-tooltip v-if="props.row.is_hidden" label="Flagged as Hidden"  :delay="250" >
+              <b-tooltip v-if="props.row.is_hidden" :label="$t('Flagged as Hidden')"  :delay="250" >
                 <b-tag type="is-info is-light" >
                   <b-icon pack="mdi" icon="eye-off-outline" size="is-small" style="margin-right:0.1em"/>                
                 </b-tag>&nbsp;
@@ -103,8 +103,8 @@
         </div>
       </section>
     </div>
-    <a class="prev" @click="prevFile" title="Keyboard shortcut: O">&#10094;</a>
-    <a class="next" @click="nextFile" title="Keyboard shortcut: P">&#10095;</a>
+    <a class="prev" @click="prevFile" :title="$t('Keyboard shortcut: O')">&#10094;</a>
+    <a class="next" @click="nextFile" :title="$t('Keyboard shortcut: P')">&#10095;</a>
   </div>
 </template>
 

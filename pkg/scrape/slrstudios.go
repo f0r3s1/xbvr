@@ -694,7 +694,7 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 			}(sceneID, sceneLabel)
 			return true
 		})
-		models.PruneUpcoming(scraperID, listed)
+		pruneUpcoming(scraperID, listed)
 	}
 
 	// Track whether scrape was successful (studio code found and scenes fetched)

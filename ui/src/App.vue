@@ -51,15 +51,13 @@ export default defineComponent({
   components: { Navbar, Socket, QuickFind, GlobalEvents, SceneDetails, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
 
   mounted () {
-    // Apply saved theme immediately from localStorage to avoid flash on load
+    // apply the saved theme before the server answers to avoid a flash
     const saved = localStorage.getItem('xbvr-theme') || 'auto'
     this.applyTheme(saved)
 
-    // Scene cards look up site logos in this list; it used to be loaded only by
-    // Options -> Scrapers, so logos stayed blank until that page was visited.
+    // scene cards need the site list for logos, so load it at startup
     if (!this.$store.state.optionsSites.items.length) this.$store.dispatch('optionsSites/load')
 
-    // Listen for OS preference changes (for auto mode)
     this._darkMQ = window.matchMedia('(prefers-color-scheme: dark)')
     this._darkMQHandler = () => {
       if ((this.$store.state.optionsWeb.web.theme || 'auto') === 'auto') {
@@ -68,9 +66,7 @@ export default defineComponent({
     }
     this._darkMQ.addEventListener('change', this._darkMQHandler)
 
-    // A navbar click while a modal is open lands on the modal backdrop, which only
-    // closed the modal. Send it on to the navbar link instead (the route change
-    // closes the modal). The current page's link still just closes the modal.
+    // a navbar click while a modal is open hits the backdrop; forward it to the link
     this._modalNavClick = e => {
       if (!e.target.closest || !e.target.closest('.modal-background')) return
       const link = document.elementsFromPoint(e.clientX, e.clientY)
@@ -83,7 +79,6 @@ export default defineComponent({
     }
     document.addEventListener('click', this._modalNavClick, true)
 
-    // Load from server — watch will apply if different from localStorage
     this.$store.dispatch('optionsWeb/load')
   },
 

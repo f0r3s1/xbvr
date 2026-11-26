@@ -11,5 +11,13 @@ func emitUpcoming(scraperID string, scenes []models.ScrapedScene, out chan<- mod
 		listed = append(listed, sc.HomepageURL)
 		out <- sc
 	}
+	pruneUpcoming(scraperID, listed)
+}
+
+// pruneUpcoming skips an empty list (a failed or changed page) and a cancelled scrape, which would otherwise drop every announcement.
+func pruneUpcoming(scraperID string, listed []string) {
+	if len(listed) == 0 || ScrapeCancelled() {
+		return
+	}
 	models.PruneUpcoming(scraperID, listed)
 }

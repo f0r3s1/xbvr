@@ -3,58 +3,58 @@
     <div class="settings-list" v-if="!isLoading">
       <div class="settings-row">
         <div class="row-text">
-          <strong>Images</strong>
-          <p>Cache of remote images that were requested at least once. Least recently used images are removed above the maximum size (0 = unlimited).</p>
+          <strong>{{ $t('Images') }}</strong>
+          <p>{{ $t('Cache of remote images that were requested at least once. Least recently used images are removed above the maximum size (0 = unlimited).') }}</p>
         </div>
         <span class="row-size">{{ prettyBytes(sizes.images) }}</span>
         <div class="row-actions">
           <b-field class="max-size" :title="'Max size in GB'">
             <b-input v-model.number="imageMaxGB" type="number" min="0" size="is-small" @blur="saveImageMaxGB" @keyup.enter="saveImageMaxGB" />
-            <p class="control"><span class="button is-static is-small">GB</span></p>
+            <p class="control"><span class="button is-static is-small">{{ $t('GB') }}</span></p>
           </b-field>
-          <b-button size="is-small" @click="resetCache('images')">Reset</b-button>
+          <b-button size="is-small" @click="resetCache('images')">{{ $t('Reset') }}</b-button>
         </div>
       </div>
       <div class="settings-row">
         <div class="row-text">
-          <strong>Video previews</strong>
-          <p>Generated on demand for local files. Remove them to regenerate previews with new settings.</p>
+          <strong>{{ $t('Video previews') }}</strong>
+          <p>{{ $t('Generated on demand for local files. Remove them to regenerate previews with new settings.') }}</p>
         </div>
         <span class="row-size">{{ prettyBytes(sizes.previews) }}</span>
         <div class="row-actions">
-          <b-button size="is-small" @click="resetCache('previews')">Reset</b-button>
+          <b-button size="is-small" @click="resetCache('previews')">{{ $t('Reset') }}</b-button>
         </div>
       </div>
       <div class="settings-row">
         <div class="row-text">
-          <strong>Search index</strong>
+          <strong>{{ $t('Search index') }}</strong>
           <span class="row-note">{{ searchInprogress ? 'Indexing…' : indexSceneCount + ' scenes indexed' }}</span>
-          <p>Remove the search index when finding or matching files misbehaves.</p>
+          <p>{{ $t('Remove the search index when finding or matching files misbehaves.') }}</p>
         </div>
         <span class="row-size">{{ prettyBytes(sizes.searchIndex) }}</span>
         <div class="row-actions">
-          <b-button size="is-small" @click="resetCache('searchIndex')">Reset</b-button>
-          <b-button size="is-small" @click="indexRescan">Rescan</b-button>
+          <b-button size="is-small" @click="resetCache('searchIndex')">{{ $t('Reset') }}</b-button>
+          <b-button size="is-small" @click="indexRescan">{{ $t('Rescan') }}</b-button>
         </div>
       </div>
       <div class="settings-row">
         <div class="row-text">
-          <strong>Scene status</strong>
-          <p>Refresh scenes that aren't marked available or scripted despite having such files.</p>
+          <strong>{{ $t('Scene status') }}</strong>
+          <p>{{ $t('Refresh scenes that aren\'t marked available or scripted despite having such files.') }}</p>
         </div>
         <span class="row-size"></span>
         <div class="row-actions">
-          <b-button size="is-small" @click="taskRefresh">Refresh</b-button>
+          <b-button size="is-small" @click="taskRefresh">{{ $t('Refresh') }}</b-button>
         </div>
       </div>
       <div class="settings-row">
         <div class="row-text">
-          <strong>Fix inconsistencies</strong>
-          <p>Repairs files matched to deleted or missing scenes, and scenes whose size or availability no longer matches their files.</p>
+          <strong>{{ $t('Fix inconsistencies') }}</strong>
+          <p>{{ $t('Repairs files matched to deleted or missing scenes, and scenes whose size or availability no longer matches their files.') }}</p>
         </div>
         <span class="row-size">{{ fixStatusText }}</span>
         <div class="row-actions">
-          <b-button size="is-small" :loading="fixRunning" :disabled="fixRunning" @click="fixInconsistencies">Fix all</b-button>
+          <b-button size="is-small" :loading="fixRunning" :disabled="fixRunning" @click="fixInconsistencies">{{ $t('Fix all') }}</b-button>
         </div>
       </div>
     </div>
@@ -136,9 +136,9 @@ export default defineComponent({
     },
     fixInconsistencies () {
       this.$buefy.dialog.confirm({
-        title: 'Fix inconsistencies',
-        message: 'Scan the library and apply all fixes (re-match/unmatch orphaned files, reset stale scene status)?',
-        confirmText: 'Fix All',
+        title: this.$t('Fix inconsistencies'),
+        message: this.$t('Scan the library and apply all fixes (re-match/unmatch orphaned files, reset stale scene status)?'),
+        confirmText: this.$t('Fix All'),
         type: 'is-warning',
         onConfirm: async () => {
           await ky.post('/api/inconsistencies/fixall', { json: {} })

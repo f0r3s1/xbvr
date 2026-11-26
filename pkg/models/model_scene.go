@@ -789,6 +789,36 @@ func QueryScenes(r RequestSceneList, enablePreload bool) ResponseSceneList {
 	return out
 }
 
+// QuerySceneCards loads only what scene cards show: the files, plus how many cuepoints each scene has.
+func QuerySceneCards(r RequestSceneList) (ResponseSceneList, map[uint]int) {
+	r.Limit = optional.NewInt(r.Limit.OrElse(100))
+
+	db, _ := GetDB()
+	defer db.Close()
+
+	preCountTx, finalTx := queryScenes(db, r)
+	var out ResponseSceneList
+	countScenes(preCountTx, r, &out)
+	finalTx.Preload("Files").Find(&out.Scenes)
+
+	cuepoints := map[uint]int{}
+	if len(out.Scenes) > 0 {
+		ids := make([]uint, len(out.Scenes))
+		for i := range out.Scenes {
+			ids[i] = out.Scenes[i].ID
+		}
+		var rows []struct {
+			SceneID uint
+			Count   int
+		}
+		db.Model(&SceneCuepoint{}).Select("scene_id, count(*) as count").Where("scene_id IN (?)", ids).Group("scene_id").Scan(&rows)
+		for _, row := range rows {
+			cuepoints[row.SceneID] = row.Count
+		}
+	}
+	return out, cuepoints
+}
+
 // countScenes fills the result total and every dlState tab count in one scan.
 func countScenes(preCountTx *gorm.DB, r RequestSceneList, out *ResponseSceneList) {
 	resultCond, resultArgs := "not scenes.is_hidden", []interface{}{}

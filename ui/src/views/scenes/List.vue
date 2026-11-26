@@ -39,7 +39,7 @@
     <SiteHeader/>
 
     <div class="columns is-multiline list-grid">
-      <div :class="['column', 'is-multiline', cardSizeClass]"
+      <div :class="['column', 'is-multiline', 'card-column', cardSizeClass]"
            v-for="item in (showSkeleton ? [] : items)" :key="item.id">
         <SceneCard :item="item"/>
       </div>
@@ -58,7 +58,7 @@
 
     <div class="column is-full loading-more" v-if="isLoadingMore">
       <b-icon pack="mdi" icon="loading" custom-class="mdi-spin" size="is-medium"></b-icon>
-      <span>Loading more...</span>
+      <span>{{ $t('Loading more...') }}</span>
     </div>
     <div class="column is-full" v-if="!infiniteScrollEnabled && items.length < total">
       <b-button type="is-primary" @click="loadMore" :loading="isLoadingMore" expanded>{{$t('Load More')}}</b-button>
@@ -69,6 +69,7 @@
 
 <script>
 import { defineComponent } from 'vue';
+import { skeletonRows } from '../../skeleton'
 
 import SceneCard from './SceneCard'
 import SiteHeader from './SiteHeader.vue'
@@ -190,7 +191,8 @@ export default defineComponent({
     // Two rows of placeholders for the current card size.
     skeletonCount () {
       const perRow = { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2 }[this.$store.state.sceneList.filters.cardSize] || 5
-      return perRow * 2
+      const [w, h] = (this.$store.state.optionsWeb.web.sceneCardAspectRatio || '16:9').split(':').map(Number)
+      return perRow * skeletonRows(perRow, h / w, 60)
     },
     skeletonAspect () {
       return (this.$store.state.optionsWeb.web.sceneCardAspectRatio || '16:9').replace(':', ' / ')
@@ -243,8 +245,11 @@ export default defineComponent({
     async loadMore () {
       if (this.isLoadingMore || this.items.length >= this.total) return
       this.isLoadingMore = true
-      await this.$store.dispatch('sceneList/load', { offset: this.$store.state.sceneList.offset })
-      this.isLoadingMore = false
+      try {
+        await this.$store.dispatch('sceneList/load', { offset: this.$store.state.sceneList.offset })
+      } finally {
+        this.isLoadingMore = false
+      }
     },
     handleScroll () {
       if (this.debounceTimeout) return
@@ -285,6 +290,12 @@ export default defineComponent({
 </script>
 
 <style scoped>
+/* off-screen cards skip layout and paint, so a long list stays as fast as the first page */
+.card-column {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
   /* results | filter tabs (centred) | card size: both sides grow equally so the
      tabs sit in the middle of the toolbar */
   .toolbar-total {

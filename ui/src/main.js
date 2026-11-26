@@ -5,6 +5,7 @@ import store from './store'
 import i18n from './i18n'
 
 import vueDebounce from 'vue-debounce'
+import queuedSrc from './imageQueue'
 
 import Buefy from '@ntohq/buefy-next'
 import '@ntohq/buefy-next/dist/buefy.css'
@@ -27,5 +28,16 @@ app.use(store)
 app.use(i18n)
 app.use(Buefy)
 app.directive('debounce', vueDebounce({ lock: true }))
+app.directive('queued-src', queuedSrc)
+
+// a 401 means the session ended (expired, logged out, password changed): go to the login page
+const fetchWithLogin = window.fetch.bind(window)
+window.fetch = async (...args) => {
+  const res = await fetchWithLogin(...args)
+  if (res.status === 401 && new URL(res.url, location.href).origin === location.origin) {
+    location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search + location.hash)
+  }
+  return res
+}
 
 app.mount('#app')

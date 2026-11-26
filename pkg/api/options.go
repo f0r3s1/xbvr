@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,7 +17,6 @@ import (
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 	"github.com/putdotio/go-putio"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -236,6 +236,13 @@ func (i ConfigResource) WebService() *restful.WebService {
 		Produces(restful.MIME_JSON)
 
 	ws.Route(ws.GET("/version-check").To(i.versionCheck).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	ws.Route(ws.GET("/apikey").To(i.getAPIKey).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+	ws.Route(ws.POST("/apikey").To(i.createAPIKey).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+	ws.Route(ws.DELETE("/apikey").To(i.deleteAPIKey).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.GET("/state").To(i.getState).
@@ -1235,4 +1242,17 @@ func (i ConfigResource) deleteCollectorConfig(req *restful.Request, resp *restfu
 	var kv models.KV
 	kv.Key = r.DomainKey
 	kv.Delete()
+}
+
+func (i ConfigResource) getAPIKey(req *restful.Request, resp *restful.Response) {
+	resp.WriteHeaderAndEntity(http.StatusOK, map[string]bool{"set": storedAPIKeyHash() != "", "loginRequired": AuthRequired()})
+}
+
+func (i ConfigResource) createAPIKey(req *restful.Request, resp *restful.Response) {
+	resp.WriteHeaderAndEntity(http.StatusOK, map[string]string{"key": newAPIKey()})
+}
+
+func (i ConfigResource) deleteAPIKey(req *restful.Request, resp *restful.Response) {
+	setAPIKeyHash("")
+	resp.WriteHeaderAndEntity(http.StatusOK, map[string]bool{"set": false})
 }

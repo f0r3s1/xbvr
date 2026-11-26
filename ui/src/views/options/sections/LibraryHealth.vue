@@ -2,22 +2,19 @@
   <OptionsSection :title="$t('Library Health')">
     <div class="content">
 
-      <!-- No report yet, not running -->
       <div v-if="!report && !isRunning">
         <p>
-          Your library is checked automatically in the background once a week (change or turn it off in Task Schedules)
-          for data integrity issues, duplicate actors, orphaned records, missing files and stale metadata.
+          {{ $t('Your library is checked automatically in the background once a week (change or turn it off in Task Schedules) for data integrity issues, duplicate actors, orphaned records, missing files and stale metadata.') }}
         </p>
         <b-button type="is-primary" @click="startScan">
-          Check now
+          {{ $t('Check now') }}
         </b-button>
       </div>
 
-      <!-- Running: progress bar -->
       <div v-if="isRunning" class="progress-section">
         <div style="margin-bottom: 0.5rem;">
           <span v-if="progress.background" class="tag is-success is-light is-small" style="margin-right: 0.4rem;"
-                title="Throttled to about 20% of one CPU core">Background · low power</span>
+                :title="$t('Throttled to about 20% of one CPU core')">{{ $t('Background · low power') }}</span>
           <strong>{{ progress.step }}</strong>
           <span class="has-text-grey" style="margin-left: 0.5rem;">
             Step {{ progress.step_num }} of {{ progress.total_steps }}
@@ -27,11 +24,10 @@
           {{ Math.round(progress.percent) }}%
         </b-progress>
         <b-button type="is-danger" outlined size="is-small" @click="cancelScan" style="margin-top: 0.5rem;">
-          Cancel
+          {{ $t('Cancel') }}
         </b-button>
       </div>
 
-      <!-- Report ready -->
       <div v-if="report && !isRunning">
         <div class="columns is-multiline" style="margin-bottom: 1rem;">
           <div class="column is-narrow" v-for="(val, key) in statCards" :key="key">
@@ -45,7 +41,7 @@
               <span class="health-when-text" :title="report.generated_at">
                 {{ report.auto ? 'Checked automatically' : 'Checked' }} {{ checkedAgo }}
               </span>
-              <b-button size="is-small" @click="startScan">Check now</b-button>
+              <b-button size="is-small" @click="startScan">{{ $t('Check now') }}</b-button>
             </div>
           </div>
         </div>
@@ -61,7 +57,7 @@
             {{ report.summary.info }} info
           </span>
           <span class="tag is-success" v-if="totalIssues === 0">
-            All clear
+            {{ $t('All clear') }}
           </span>
         </div>
 
@@ -165,7 +161,6 @@ export default defineComponent({
   },
 
   watch: {
-    // When progress says done, fetch the report
     'progress.running' (val, oldVal) {
       if (!val && oldVal && this.progress.step === 'done') {
         this.fetchReport()
@@ -201,10 +196,9 @@ export default defineComponent({
       this.report = null
       try {
         await ky.post('/api/health/scan', { json: {}, timeout: 10000 }).json()
-        // Poll as fallback in case WebSocket progress doesn't arrive
         this.pollForCompletion()
       } catch {
-        this.$buefy.toast.open({ message: 'Failed to start health check', type: 'is-danger' })
+        this.$buefy.toast.open({ message: this.$t('Failed to start health check'), type: 'is-danger' })
       }
     },
     pollForCompletion () {
@@ -213,7 +207,6 @@ export default defineComponent({
         try {
           const data = await ky.get('/api/health/report', { timeout: 5000 }).json()
           if (data.running) {
-            // Update progress from polling if WS isn't delivering
             if (!this.progress.running) {
               this.$store.commit('health/setProgress', { ...this.progress, running: true, step: 'Scanning...' })
             }
@@ -257,7 +250,7 @@ export default defineComponent({
         await ky.post('/api/health/fix', { json: { action: issue.fix_action }, timeout: 10000 }).json()
         this.$buefy.toast.open({ message: `${issue.fix_label} started — rescan when complete`, type: 'is-success' })
       } catch {
-        this.$buefy.toast.open({ message: 'Fix failed', type: 'is-danger' })
+        this.$buefy.toast.open({ message: this.$t('Fix failed'), type: 'is-danger' })
       }
       this.fixingAction = null
     },

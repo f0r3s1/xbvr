@@ -6,7 +6,8 @@ import path from 'path'
 const videojsTags = new Set(['video-player', 'video-skin'])
 
 const api = process.env.XBVR_API || 'http://localhost:9999'
-const ws = process.env.XBVR_WS || 'ws://localhost:9998'
+// through the app's own /ws/ proxy, which checks the login (the raw WAMP port only listens locally when a login is set)
+const ws = process.env.XBVR_WS || api.replace(/^http/, 'ws')
 
 export default defineConfig({
   plugins: [
@@ -51,6 +52,11 @@ export default defineConfig({
       '/imghm': { target: api, changeOrigin: true },
       '/download': { target: api, changeOrigin: true },
       '/myfiles': { target: api, changeOrigin: true },
+      '/login': { target: api, changeOrigin: true },
+      '/logout': { target: api, changeOrigin: true },
+      '/healthz': { target: api, changeOrigin: true },
+      '/heresphere': { target: api, changeOrigin: true },
+      '/deovr': { target: api, changeOrigin: true },
     },
   },
 })

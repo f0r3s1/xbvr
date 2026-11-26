@@ -31,13 +31,13 @@ export default defineComponent({
         maxRetries: 0,
         onClose: () => { this.wsStatus = 'disconnected' },
         onReconnect: () => { this.wsStatus = 'connecting' },
-        onReconnectSuccess: async () => {
+        // Wampy renews the subscriptions itself; only the missed task state needs reloading
+        onReconnectSuccess: () => {
           this.wsStatus = 'connected'
-          await this._subscribe(ws)
+          this.loadTaskStatus()
         },
       })
 
-      // Retry initial connection until Go backend is ready
       while (true) {
         try {
           await ws.connect()
@@ -93,7 +93,9 @@ export default defineComponent({
             this.$store.state.messages.runningScrapers.push(eventData.argsDict.data.scraperID)
           }
           if (eventData.argsDict.data.completed) {
-            this.$store.state.messages.runningScrapers.splice(this.$store.state.messages.runningScrapers.indexOf(eventData.argsDict.data.scraperID), 1)
+            const running = this.$store.state.messages.runningScrapers
+            const idx = running.indexOf(eventData.argsDict.data.scraperID)
+            if (idx !== -1) running.splice(idx, 1)
           }
         }
 
@@ -132,6 +134,3 @@ export default defineComponent({
   }
 });
 </script>
-
-<style scoped>
-</style>

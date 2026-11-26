@@ -2,42 +2,41 @@
   <OptionsSection :title="$t('Advanced')" :loading="isLoading">
     <div class="content">
       <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
-            <b-tab-item label="Scene Details"/>
-            <b-tab-item label="Actor Settings"/>
-            <b-tab-item label="Create Custom Site"/>
+            <b-tab-item :label="$t('Scene Details')"/>
+            <b-tab-item :label="$t('Actor Settings')"/>
+            <b-tab-item :label="$t('Create Custom Site')"/>
             <b-tab-item :label="$t('Alternate Sites')"/>
             <b-tab-item :label="$t('Proxy')"/>
             <b-tab-item :label="$t('Cookies/Headers')"/>
+            <b-tab-item :label="$t('API key')"/>
       </b-tabs>
 
-      <!-- Screen Details Tab -->
       <div class="columns" v-if="activeTab == 0">
         <div class="column">
           <section>
             <b-field>
               <b-switch v-model="showInternalSceneId" type="is-default">
-                show Internal Scene Id
+                {{ $t('show Internal Scene Id') }}
               </b-switch>
             </b-field>
             <b-field>
               <b-switch v-model="showHSPApiLink" type="is-default">
-                show Heresphere Api Link
+                {{ $t('show Heresphere Api Link') }}
               </b-switch>
             </b-field>
             <b-field>
               <b-tooltip :label="$t('Only required when troubleshooting search issues, this will enable a Tab in the Scene Details to display what search fields exist and their values for a scene')" :delay="500" type="is-warning">
               <b-switch v-model="showSceneSearchField" type="is-default">
-                show Scene Search Fields
+                {{ $t('show Scene Search Fields') }}
               </b-switch>
               </b-tooltip>
             </b-field>
             <b-field>
-              <b-button type="is-primary" @click="save">Save</b-button>
+              <b-button type="is-primary" @click="save">{{ $t('Save') }}</b-button>
             </b-field>
           </section>
         </div>
       </div>
-      <!-- Actor Related Settings -->
       <div class="columns" v-if="activeTab == 1">
         <div class="column">
           <section>
@@ -54,7 +53,7 @@
               </b-tooltip>
             </b-field>
             <b-field :label="$t('Stashdb Api Key')" label-position="on-border">
-              <b-input v-model="stashApiKey" placeholder="Visit https://discord.com/invite/2TsNFKt to sign up to Stashdb" type="password"></b-input>
+              <b-input v-model="stashApiKey" :placeholder="$t('Visit https://discord.com/invite/2TsNFKt to sign up to Stashdb')" type="password"></b-input>
             </b-field>
             <b-field>
               <b-tooltip :active="stashApiKey==''" :label="$t('Enter a StashApi key to enable')" >
@@ -65,13 +64,12 @@
               <b-button type="is-primary" @click="scrapeXbvrActors">{{ $t('Scrape Actor Details from XBVR Sites') }}</b-button>
             </b-field>
             <b-field>
-              <b-button type="is-primary" @click="save">Save</b-button>
+              <b-button type="is-primary" @click="save">{{ $t('Save') }}</b-button>
             </b-field>
           </section>
         </div>
       </div>
 
-      <!-- Custom Sites Tab -->
       <div class="columns" v-if="activeTab == 2">
         <div class="column">
           <section>
@@ -101,7 +99,7 @@
             </b-field>
             <b-tooltip :label="$t('Restart XBVR to load new Sites')" :delay="500" type="is-warning">
               <b-field>
-                <b-button type="is-primary" :disabled="!scraperFieldsValid" @click="saveScraper">Save</b-button>
+                <b-button type="is-primary" :disabled="!scraperFieldsValid" @click="saveScraper">{{ $t('Save') }}</b-button>
               </b-field>
             </b-tooltip>
           </section>
@@ -114,36 +112,36 @@
             <b-field>
               <b-tooltip :label="$t('Scenes from Alternate Sites will be matched after Scene Scraping')" :delay="500">
                 <b-switch v-model="linkScenesAfterSceneScraping" type="is-default">
-                  Link Scenes after Scene Scraping
+                  {{ $t('Link Scenes after Scene Scraping') }}
                 </b-switch>
               </b-tooltip>
             </b-field>
             <b-field>
               <b-tooltip :label="$t('If a file is not matched to a scene, then try scenes from Alternate Sites')" :delay="500">
                 <b-switch v-model="useAltSrcInFileMatching" type="is-default">
-                  Include Scenes from Alternate Sites in File Matching
+                  {{ $t('Include Scenes from Alternate Sites in File Matching') }}
                 </b-switch>
               </b-tooltip>
             </b-field>
             <b-field>
               <b-tooltip :label="$t('When filtering for Scenes with Scripts or sorting by Script Published Date, scenes from Alternate Sites will be included. Note: Slows these queries')" multiline :delay="500" type="is-warning">
                 <b-switch v-model="useAltSrcInScriptFilters" type="is-default">
-                  Include Scenes from Alternate Sites when filtering/sorting Scenes for Scripts
+                  {{ $t('Include Scenes from Alternate Sites when filtering/sorting Scenes for Scripts') }}
                 </b-switch>
               </b-tooltip>
             </b-field>
             <b-tooltip :label="$t('Do not link scenes prior to the specified date.  The quality of metadata of older scenes is often poor and causes mismatches')"
                 :delay="500" type="is-primary" multilined size="is-large" position="is-bottom">
-                <b-field label="Ignore Scenes Released Prior To">
+                <b-field :label="$t('Ignore Scenes Released Prior To')">
                   <b-datepicker v-model="ignoreReleasedBefore" :icon-right="ignoreReleasedBefore ? 'close-circle' : ''" icon-right-clickable @icon-right-click="ignoreReleasedBefore = null">
                     <b-button
-                        label="Today"
+                        :label="$t('Today')"
                         type="is-primary"
                         icon-left="calendar-today"
                         @click="ignoreReleasedBefore = new Date()" />
 
                     <b-button
-                        label="Clear"
+                        :label="$t('Clear')"
                         type="is-danger"
                         icon-left="close"
                         outlined
@@ -152,25 +150,24 @@
                 </b-field>
               </b-tooltip>
             <b-field>
-              <b-button type="is-primary" @click="clearAltSrcKeepEdits" style="margin-right: 1em;">Clear scene links - keep edits</b-button>
-              <b-button type="is-primary" @click="clearAltSrc" style="margin-right: 1em;">Clear scene links</b-button>
-              <b-button type="is-primary" @click="relinkAltSrc" style="margin-right: 1em;">Re-link scenes</b-button>
+              <b-button type="is-primary" @click="clearAltSrcKeepEdits" style="margin-right: 1em;">{{ $t('Clear scene links - keep edits') }}</b-button>
+              <b-button type="is-primary" @click="clearAltSrc" style="margin-right: 1em;">{{ $t('Clear scene links') }}</b-button>
+              <b-button type="is-primary" @click="relinkAltSrc" style="margin-right: 1em;">{{ $t('Re-link scenes') }}</b-button>
             </b-field>
             <b-field>
-              <b-button type="is-primary" @click="save">Save</b-button>
+              <b-button type="is-primary" @click="save">{{ $t('Save') }}</b-button>
             </b-field>
           </section>
         </div>
       </div>
 
-      <!-- Proxy for scraper-->
       <div class="columns" v-if="activeTab == 4">
         <div class="column">
           <section>
             <h4 class="options-subtitle">{{ $t('Network Proxy') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>Network Proxy</strong> routes ALL scraper traffic through an HTTP/SOCKS proxy server.</p>
-              <p>Use this if you're behind a corporate firewall or want to route traffic through a VPN.</p>
+              <p><strong>{{ $t('Network Proxy') }}</strong> {{ $t('routes ALL scraper traffic through an HTTP/SOCKS proxy server.') }}</p>
+              <p>{{ $t('Use this if you\'re behind a corporate firewall or want to route traffic through a VPN.') }}</p>
             </b-message>
             <b-field :label="$t('HTTP/SOCKS Proxy')" label-position="on-border">
               <b-input v-model="scraperProxy" placeholder="http://proxy:8080 or socks5://proxy:1080"></b-input>
@@ -180,8 +177,8 @@
 
             <h4 class="options-subtitle">{{ $t('FlareSolverr') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>FlareSolverr</strong> helps bypass Cloudflare protection using a headless browser.</p>
-              <p>Set the address here, then enable per-site in the <strong>Scrapers</strong> page using the <b-icon icon="fire" size="is-small"/> toggle.</p>
+              <p><strong>{{ $t('FlareSolverr') }}</strong> {{ $t('helps bypass Cloudflare protection using a headless browser.') }}</p>
+              <p>{{ $t('Set the address here, then enable per-site in the') }} <strong>{{ $t('Scrapers') }}</strong> {{ $t('page using the') }} <b-icon icon="fire" size="is-small"/> toggle.</p>
               <p><a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank">https://github.com/FlareSolverr/FlareSolverr</a></p>
             </b-message>
             <b-field :label="$t('FlareSolverr Address')" label-position="on-border">
@@ -196,9 +193,9 @@
 
             <h4 class="options-subtitle">{{ $t('Proxy Service') }}</h4>
             <b-message type="is-info" size="is-small">
-              <p><strong>Proxy Service</strong> routes requests through a URL-based proxy.</p>
-              <p>Used for: <strong>1)</strong> Image fallback when direct access fails, <strong>2)</strong> Scraping sites that block direct access (enable per-site with <b-icon icon="cloud" size="is-small"/> toggle).</p>
-              <p>The proxy should accept a <code>url</code> parameter and forward the request.</p>
+              <p><strong>{{ $t('Proxy Service') }}</strong> {{ $t('routes requests through a URL-based proxy.') }}</p>
+              <p>{{ $t('Used for:') }} <strong>1)</strong> {{ $t('Image fallback when direct access fails,') }} <strong>2)</strong> {{ $t('Scraping sites that block direct access (enable per-site with') }} <b-icon icon="cloud" size="is-small"/> toggle).</p>
+              <p>{{ $t('The proxy should accept a') }} <code>url</code> {{ $t('parameter and forward the request.') }}</p>
             </b-message>
 
             <b-collapse class="card" animation="slide" :open="false">
@@ -206,7 +203,7 @@
                 <div class="card-header" role="button" style="align-items: center;">
                   <p class="card-header-title" style="display: flex; align-items: center; margin-bottom: 0; line-height: 1;">
                     <b-icon icon="code-braces" style="vertical-align: middle;"></b-icon>
-                    <span style="margin-left: 0.5em;">Example Proxy Worker Code</span>
+                    <span style="margin-left: 0.5em;">{{ $t('Example Proxy Worker Code') }}</span>
                   </p>
                   <a class="card-header-icon" style="align-items: center;">
                     <b-icon :icon="props.open ? 'menu-up' : 'menu-down'"></b-icon>
@@ -273,7 +270,7 @@
   }
 };</pre>
                 <p style="margin-top: 0.5em; font-size: 0.85em; color: #888;">
-                  Deploy as a serverless worker. Handles images, JSON, and HTML. Set <code>apikey</code> in settings.
+                  {{ $t('Deploy as a serverless worker. Handles images, JSON, and HTML. Set') }} <code>apikey</code> {{ $t('in settings.') }}
                 </p>
               </div>
             </b-collapse>
@@ -299,35 +296,34 @@
             <b-field :label="$t('API Key Value')" label-position="on-border">
               <b-input 
                 v-model="proxyApiKeyValue" 
-                placeholder="your-api-key" 
+                :placeholder="$t('your-api-key')" 
                 type="password">
               </b-input>
             </b-field>
 
             <b-field>
-              <b-button type="is-primary" @click="save">Save</b-button>
+              <b-button type="is-primary" @click="save">{{ $t('Save') }}</b-button>
             </b-field>
           </section>
         </div>
       </div>
 
-      <!-- Headers/Cookies tab -->
       <div class="columns" v-if="activeTab == 5">
         <div class="column">
           <section>            
             <b-field>
               <p>
-                <b><a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer">Domain Config</a></b>
-                <a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer" style="margin-left: 1em;">Wiki</a>
+                <b><a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer">{{ $t('Domain Config') }}</a></b>
+                <a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer" style="margin-left: 1em;">{{ $t('Wiki') }}</a>
               </p>
               <b-field>
-                <b-tooltip label="Select a file to import config for a scraper or trailers"
+                <b-tooltip :label="$t('Select a file to import config for a scraper or trailers')"
                   type="is-primary is-light" :delay="1000" style="margin-left: 1em;" >
                   <b-field class="file is-primary" :class="{'has-name': !!file}">
                     <b-upload v-model="file" class="file-label" icon-left="upload" size="is-small">
                         <span class="file-cta">
                             <b-icon class="file-icon" icon="upload" size="is-small"></b-icon>
-                            <span class="file-label">Import</span>
+                            <span class="file-label">{{ $t('Import') }}</span>
                         </span>
                         <span class="file-name" v-if="file">
                             {{ file.name }}
@@ -335,21 +331,21 @@
                     </b-upload>
                   </b-field>
                 </b-tooltip>
-                <b-button v-if="showConfigField" type="is-primary" style="margin-left: 1em;" @click="saveCollectorConfig">Save</b-button>
+                <b-button v-if="showConfigField" type="is-primary" style="margin-left: 1em;" @click="saveCollectorConfig">{{ $t('Save') }}</b-button>
                 <b-button v-if="showConfigField" type="is-primary" style="margin-left: 1em;" @click="deleteCollectorConfig" icon-right="delete"></b-button>
               </b-field>
               <b-autocomplete v-model="kvName" ref="autocompleteconfig" :data="filteredCollectorConfigList" :open-on-focus="true" :clearable="true" 
-                placeholder="e.g. domainname-scraper or domainname-trailers " 
+                :placeholder="$t('e.g. domainname-scraper or domainname-trailers')" 
                 @select="option => showConfigDetails(option)" 
                 @select-header="showAddCollectorConfig"
                 :selectable-header="true" >
                 <template #header>
-                    <a><span> Add new... </span></a>
+                    <a><span> {{ $t('Add new...') }} </span></a>
                 </template>
               </b-autocomplete>
             </b-field>
             <b-field v-if="showConfigField">
-              <p><b>Headers</b><b-button style="margin-left: 1em;" @click="addHeaderRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>              
+              <p><b>{{ $t('Headers') }}</b><b-button style="margin-left: 1em;" @click="addHeaderRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>              
             </b-field>
             <b-table v-if="showConfigField" :data="headers" >
               <b-table-column field="key" :label="$t('Key')" width="200" v-slot="props">
@@ -364,7 +360,7 @@
             </b-table>
 
             <b-field v-if="showConfigField" >
-              <p><b>Cookies</b><b-button style="margin-left: 1em;" @click="addCookieRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>
+              <p><b>{{ $t('Cookies') }}</b><b-button style="margin-left: 1em;" @click="addCookieRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>
             </b-field>
             <b-table v-if="showConfigField" :data="cookies" >
               <b-table-column field="name" :label="$t('Key')" width="200" v-slot="props">
@@ -387,7 +383,7 @@
               </b-table-column>
             </b-table>
 
-            <b-field  v-if="showConfigField" label="Request Body">
+            <b-field  v-if="showConfigField" :label="$t('Request Body')">
               <b-input v-model="body" type="textarea"></b-input>                
             </b-field>
 
@@ -395,6 +391,24 @@
         </div>
       </div>
 
+      <div class="columns" v-if="activeTab == 6">
+        <div class="column">
+          <section>
+            <p>{{ $t('Lets scripts and other apps use the XBVR API without your password. Send it as the X-API-Key header (or Authorization: Bearer). Only needed when a login is set up.') }}</p>
+            <p class="mt-2">
+              <b-tag :type="apiKey.set ? 'is-success' : 'is-light'">{{ apiKey.set ? $t('A key is active') : $t('No key') }}</b-tag>
+            </p>
+            <b-field v-if="apiKey.newKey" :label="$t('Your new key (shown only once)')" class="mt-3">
+              <b-input :model-value="apiKey.newKey" readonly expanded/>
+              <p class="control"><b-button icon-left="content-copy" @click="copyAPIKey">{{ $t('Copy') }}</b-button></p>
+            </b-field>
+            <b-field grouped class="mt-3">
+              <p class="control"><b-button type="is-primary" @click="createAPIKey">{{ apiKey.set ? $t('Replace key') : $t('Create key') }}</b-button></p>
+              <p class="control" v-if="apiKey.set"><b-button type="is-danger" outlined @click="revokeAPIKey">{{ $t('Revoke') }}</b-button></p>
+            </b-field>
+          </section>
+        </div>
+      </div>
 
     </div>
   </OptionsSection>
@@ -407,11 +421,13 @@ export default {
   name: 'InterfaceAdvanced',
   components: { OptionsSection },
   mounted () {
+    this.loadAPIKey()
     this.$store.dispatch('optionsAdvanced/load')
   },
   data () {
     return {
       activeTab: 0,
+      apiKey: { set: false, newKey: '' },
       scraperUrl: '',
       scraperName: '',
       scraperCompany: '',
@@ -428,7 +444,6 @@ export default {
     }
   },
   watch: {
-    // when a file is selected, then this will fire the upload process
     file: function () {
       try {
         if (this.file != null) {
@@ -449,6 +464,38 @@ export default {
     },
   },
   methods: {
+    async loadAPIKey () {
+      const res = await ky.get('/api/options/apikey').json().catch(() => null)
+      if (res) this.apiKey.set = res.set
+    },
+    createAPIKey () {
+      const create = async () => {
+        const res = await ky.post('/api/options/apikey', { json: {} }).json()
+        this.apiKey = { set: true, newKey: res.key }
+      }
+      if (!this.apiKey.set) return create()
+      this.$buefy.dialog.confirm({
+        message: this.$t('Replace the key? Apps using the current key stop working.'),
+        confirmText: this.$t('Replace key'),
+        type: 'is-warning',
+        onConfirm: create
+      })
+    },
+    revokeAPIKey () {
+      this.$buefy.dialog.confirm({
+        message: this.$t('Revoke the key? Apps using it stop working.'),
+        confirmText: this.$t('Revoke'),
+        type: 'is-danger',
+        onConfirm: async () => {
+          await ky.delete('/api/options/apikey').json()
+          this.apiKey = { set: false, newKey: '' }
+        }
+      })
+    },
+    copyAPIKey () {
+      navigator.clipboard?.writeText(this.apiKey.newKey)
+      this.$buefy.toast.open({ message: this.$t('Copied'), type: 'is-success' })
+    },
     save () {
       this.$store.dispatch('optionsAdvanced/save')
     },
@@ -546,13 +593,13 @@ export default {
     },
     showAddCollectorConfig() {
       this.$buefy.dialog.prompt({
-                message: `Add new config`,
+                message: this.$t('Add new config'),
                 inputAttrs: {
                     placeholder: 'domainname-scraper or domainname-trailers e.g. naughtyamerica-trailers',
                     maxlength: 20,
                     value: this.kvName
                 },
-                confirmText: 'Add',
+                confirmText: this.$t('Add'),
                 onConfirm: (value) => {                  
                     this.kvName=value
                     this.$store.state.optionsAdvanced.advanced.collectorConfigs.push({config: {body: "", cookies: [], headers: [],  other: ""},domain_key: value} )                    
@@ -568,7 +615,7 @@ export default {
             json: JSON.parse(this.uploadData)
           })
         } catch {
-          this.$buefy.toast.open({message: `Error:  Failed to import file`, type: 'is-danger', duration: 30000})
+          this.$buefy.toast.open({message: this.$t('Error:  Failed to import file'), type: 'is-danger', duration: 30000})
           return
         }
         this.file = null
@@ -742,7 +789,6 @@ export default {
       return this.$store.state.overlay.sceneMatchParams.show
     },
     filteredCollectorConfigList () {
-      // filter the list based on what has been entered so far
       if (this.$store.state.optionsAdvanced.advanced.collectorConfigs.length==0) return
 
       let matched = this.$store.state.optionsAdvanced.advanced.collectorConfigs.filter((config) => {

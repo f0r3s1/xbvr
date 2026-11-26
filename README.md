@@ -60,9 +60,25 @@ Once launched, the web UI is available at `http://127.0.0.1:9999`.
 
 Before anything else, you must allow the app to scan sites and populate its scene metadata library. Click through to Options -> Scrapers and run the scrapers for the sites you use. This can take several minutes to complete. Wait for it to finish, and then go to Options -> Storage and add the folders where your video files are stored.
 
-When that is done, your library is available in the web UI and through the DLNA server in your favourite VR player.
+When that is done, your library is available in the web UI and in DeoVR or HereSphere (point the player at `http://<server-ip>:9999`). The DLNA server is off by default; turn it on in Options -> DLNA if your player needs it.
+
+## Login and API access
+
+Set `UI_USERNAME` and `UI_PASSWORD`, or turn on the player login in Options -> Players. Either login then protects the whole app: the web UI shows a sign-in page, DeoVR and HereSphere ask for the same credentials, and every video link handed to a player carries its own token. Scripts can use an API key from Options -> Advanced -> API key, sent as the `X-API-Key` header. Docker health checks use `/healthz`, which never needs a login.
 
 Enjoy!
+
+## Tech stack
+
+This fork keeps its dependencies on current major versions, with lint and security checks on every push.
+
+| Part | What it runs on |
+| --- | --- |
+| Backend | Go 1.26+ (built with Go 1.27), go-restful v3, Bleve v2 search, SQLite or MariaDB/MySQL |
+| Web UI | Vue 3.5, Vite 8, Vue Router 5, Vuex 4, vue-i18n 11, Buefy for Vue 3 |
+| Player | Video.js 10 with its own three.js VR view (180°, 360° and fisheye) |
+| Tooling | Bun for the UI, golangci-lint and ESLint 10 in CI, Docker for every build and test |
+| Releases | Multi-arch Docker images (amd64, arm64) and binaries for Windows, macOS (Apple silicon and Intel) and Linux (x86_64, arm64, Raspberry Pi armv7) |
 
 ## Questions & Suggestions
 
@@ -146,8 +162,8 @@ esc - closes details pane
 |	`--myfiles_dir` | XBVR_MYFILESDIR | String | path to the myfiles directory for serving users own content (eg images|
 |	`--database_url` | DATABASE_URL | String | override default database path|
 |	`--web_port` | XBVR_WEB_PORT | Int | override default Web Page port 9999|
-|	`--ws_addr` | XBVR_WS_ADDR | String | override default Websocket address from the default 0.0.0.0:9998|
+|	`--ws_addr` | XBVR_WS_ADDR | String | override default Websocket address from the default 0.0.0.0:9998 (127.0.0.1:9998 when a login is set)|
 |	`--db_connection_pool_size` | DB_CONNECTION_POOL_SIZE | Int | sets the connection pool size for mariadb databases|
 |	`--concurrent_scrapers` | CONCURRENT_SCRAPERS | Int | set the number of scrapers that run concurrently default 9999|
-| | UI_USERNAME | String | set the username for UI authentication
-| | UI_PASSWORD | String | set the password for UI authentications
+| | UI_USERNAME | String | username of the login that protects the web UI, API and players
+| | UI_PASSWORD | String | password of that login

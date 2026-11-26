@@ -12,10 +12,6 @@ RUN cd ui && bunx vite build
 # ── Go build stage ──────────────────────────────────────────────────
 FROM golang:1.27-alpine AS builder
 
-ARG VERSION=CURRENT
-ARG COMMIT=HEAD
-ARG DATE=unknown
-
 WORKDIR /app
 
 RUN apk add --no-cache gcc musl-dev sqlite-dev
@@ -27,6 +23,11 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 COPY --from=ui-builder /app/ui/dist ./ui/dist
+
+# declared here, not at the top: DATE changes every build and would otherwise redo every step above
+ARG VERSION=CURRENT
+ARG COMMIT=HEAD
+ARG DATE=unknown
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
@@ -51,6 +52,6 @@ EXPOSE 9998-9999
 VOLUME /root/.config/
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -sf http://localhost:9999/ || exit 1
+    CMD curl -sf http://localhost:9999/healthz || exit 1
 
 CMD ["/docker_start.sh"]

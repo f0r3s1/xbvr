@@ -1,5 +1,7 @@
 import ky from '@/api'
 
+let filtersInFlight = null
+
 const defaultFilterState = {
   dlState: 'available',
   cardSize: localStorage.getItem('actorCardSize') || '2',  // 1 is now XS and 2 is now S
@@ -132,13 +134,16 @@ const mutations = {
 let loadSeq = 0
 
 const actions = {
-  async filters ({ state }) {
-    try {
-      state.playlists = await ky.get('/api/playlist/actor', { timeout: 30000 }).json()
-      state.filterOpts = await ky.get('/api/actor/filters', { timeout: 30000 }).json()
-    } catch (e) {
-      console.error('Failed to load actor filters:', e)
-    }
+  filters ({ state }) {
+    filtersInFlight ??= Promise.all([
+      ky.get('/api/playlist/actor', { timeout: 30000 }).json(),
+      ky.get('/api/actor/filters', { timeout: 30000 }).json()
+    ]).then(([playlists, filterOpts]) => {
+      state.playlists = playlists
+      state.filterOpts = filterOpts
+    }).catch(e => console.error('Failed to load actor filters:', e))
+      .finally(() => { filtersInFlight = null })
+    return filtersInFlight
   },
   // Lazy list: offset 0 replaces the list, the current end appends the next batch,
   // and any other offset (callers refreshing "the current page" after an edit)

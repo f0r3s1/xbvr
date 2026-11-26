@@ -282,7 +282,6 @@ export default defineComponent({
     addToAkaGroup () {
       this.$store.state.actorList.isLoading = true
       ky.post('/api/aka/add', {json: {actorList: this.cast}}).json().then(data => {        
-        // delete old aka & add new name
         this.cast = this.cast.filter(e => !e.startsWith("aka:")) 
         this.cast.push(data.akas.aka_actor.name) 
         this.$store.dispatch('actorList/filters')       
@@ -297,7 +296,6 @@ export default defineComponent({
     removeFromAkaGroup () {
       this.$store.state.actorList.isLoading = true
       ky.post('/api/aka/remove', {json: {actorList: this.cast}}).json().then(data => {        
-        // delete old aka & add new name
         this.cast = this.cast.filter(e => !e.startsWith("aka:")) 
         this.cast.push(data.akas.aka_actor.name)
         this.$store.dispatch('actorList/filters')
@@ -535,7 +533,6 @@ export default defineComponent({
           actorCnt++
         }
       }
-      // you can create a new group from a list of actors (more than one)
       return akaCastCnt == 0 && actorCnt > 1 ? false : true
     },
     disableDeleteAkaGroup() {
@@ -550,7 +547,6 @@ export default defineComponent({
         }
       }
 
-      // you can only delete a group when it is the only thing selected      
       return akaCastCnt == 1 && actorCnt == 0 > 1 ? false : true
     },
     disableAddToAkaGroup() {
@@ -565,7 +561,6 @@ export default defineComponent({
         }
       }
 
-      // you can add to a group if you select one group and one or more actors
       return akaCastCnt == 1 && actorCnt > 0 ? false : true
     },
     disableRemoveFromAkaGroup() {
@@ -580,7 +575,6 @@ export default defineComponent({
         }
       }
 
-      // you can remove from a group if you select one group and one or more actors
       return akaCastCnt == 1 && actorCnt > 0 ? false : true
 
     },

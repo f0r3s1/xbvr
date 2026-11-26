@@ -4,7 +4,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +19,7 @@ type cacheFile struct {
 }
 
 // Evict deletes files under dir until the total size is at most maxBytes.
+// While legacy files are not yet evictable they are left out of the total, so they cannot push out every variant.
 func Evict(dir string, maxBytes int64, pause time.Duration, evictLegacy bool) (removed int64) {
 	var files []cacheFile
 	var total int64
@@ -27,11 +27,15 @@ func Evict(dir string, maxBytes int64, pause time.Duration, evictLegacy bool) (r
 		if err != nil || !d.Type().IsRegular() {
 			return nil
 		}
+		variant := strings.HasSuffix(p, VariantSuffix)
+		if !variant && !evictLegacy {
+			return nil
+		}
 		fi, err := d.Info()
 		if err != nil {
 			return nil
 		}
-		files = append(files, cacheFile{p, fi.Size(), fi.ModTime(), strings.HasSuffix(p, VariantSuffix)})
+		files = append(files, cacheFile{p, fi.Size(), fi.ModTime(), variant})
 		total += fi.Size()
 		return nil
 	})
@@ -39,9 +43,6 @@ func Evict(dir string, maxBytes int64, pause time.Duration, evictLegacy bool) (r
 		return 0
 	}
 
-	if !evictLegacy {
-		files = slices.DeleteFunc(files, func(f cacheFile) bool { return !f.variant })
-	}
 	sort.Slice(files, func(i, j int) bool {
 		if files[i].variant != files[j].variant {
 			return !files[i].variant

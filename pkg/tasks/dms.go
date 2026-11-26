@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nfnt/resize"
+	"golang.org/x/image/draw"
+
 	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/dms/dlna/dms"
 	"github.com/xbapps/xbvr/ui"
@@ -120,7 +121,8 @@ func readIcon(path string, size uint) *bytes.Reader {
 }
 
 func resizeImage(imageData image.Image, size uint) *bytes.Reader {
-	img := resize.Resize(size, size, imageData, resize.Lanczos3)
+	img := image.NewNRGBA(image.Rect(0, 0, int(size), int(size)))
+	draw.CatmullRom.Scale(img, img.Bounds(), imageData, imageData.Bounds(), draw.Src, nil)
 	var buff bytes.Buffer
 	png.Encode(&buff, img)
 	return bytes.NewReader(buff.Bytes())

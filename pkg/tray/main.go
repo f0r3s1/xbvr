@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 
 	"github.com/getlantern/systray"
 	"github.com/marcsauter/single"
-	"github.com/skratchdot/open-golang/open"
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/server"
@@ -59,14 +59,30 @@ func onReady() {
 	for {
 		select {
 		case <-mOpenUI.ClickedCh:
-			go open.Run(fmt.Sprintf("http://localhost:%v", config.Config.Server.Port))
+			go openPath(fmt.Sprintf("http://localhost:%v", config.Config.Server.Port))
 		case <-mOpenConfig.ClickedCh:
-			go open.Run(common.AppDir)
+			go openPath(common.AppDir)
 		case <-mOpenLog.ClickedCh:
-			go open.Run(common.AppDir + "/xbvr.log")
+			go openPath(common.AppDir + "/xbvr.log")
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			return
 		}
+	}
+}
+
+// openPath opens a URL, folder or file with the desktop's default application.
+func openPath(target string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", target)
+	case "darwin":
+		cmd = exec.Command("open", target)
+	default:
+		cmd = exec.Command("xdg-open", target)
+	}
+	if err := cmd.Start(); err == nil {
+		go cmd.Wait()
 	}
 }

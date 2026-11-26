@@ -234,13 +234,7 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 		if err != nil || gjson.Get(builder, "status.message").String() != "Ok" {
 			log.Debugf("%s: upcoming scenes not available: %v", siteID, err)
 		} else {
-			upcoming := parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL)
-			var listed []string
-			for _, sc := range upcoming {
-				listed = append(listed, sc.HomepageURL)
-				out <- sc
-			}
-			models.PruneUpcoming(scraperID, listed)
+			emitUpcoming(scraperID, parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL), out)
 		}
 	}
 

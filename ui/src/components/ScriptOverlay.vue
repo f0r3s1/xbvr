@@ -10,11 +10,11 @@
       <div class="script-head" @pointerdown="dragStart">
         <b-icon pack="mdi" icon="drag" size="is-small" class="grip"/>
         <span class="script-title">{{ lanes.length > 1 ? 'Compare' : 'Script' }}</span>
-        <b-icon v-if="lanes.length === 1 && lanes[0].ai" pack="mdi" icon="robot-outline" size="is-small" class="script-ai" title="AI script"/>
+        <b-icon v-if="lanes.length === 1 && lanes[0].ai" pack="mdi" icon="robot-outline" size="is-small" class="script-ai" :title="$t('AI script')"/>
         <span v-if="lanes.length === 1 && options.length > 1" class="script-name" :title="lanes[0].name">{{ lanes[0].label }}</span>
         <span class="script-state">{{ status }}</span>
         <button v-if="options.length > 1" type="button" class="script-menu-btn" :class="{ 'is-open': menuOpen }"
-                title="Choose scripts to show and compare" @pointerdown.stop @click="toggleMenu">
+                :title="$t('Choose scripts to show and compare')" @pointerdown.stop @click="toggleMenu">
           <b-icon pack="mdi" icon="tune-variant" size="is-small"/>
         </button>
       </div>
@@ -27,7 +27,7 @@
                    @change="toggleShown(o.id)"/>
             <span class="lane-dot" :style="{ background: shown.includes(o.id) ? laneColour(shown.indexOf(o.id)) : 'transparent' }"></span>
             <span class="script-check-label">{{ o.label }}</span>
-            <b-icon v-if="o.ai" pack="mdi" icon="robot-outline" custom-size="mdi-14px" class="script-ai" title="AI script"/>
+            <b-icon v-if="o.ai" pack="mdi" icon="robot-outline" custom-size="mdi-14px" class="script-ai" :title="$t('AI script')"/>
           </label>
           <button type="button" class="script-star" :class="{ 'is-main': o.selected }"
                   :title="o.selected ? 'Selected script for this scene' : 'Use as the scene\'s selected script'"
@@ -40,7 +40,7 @@
       <div class="script-body">
         <canvas ref="graph" class="script-graph" :style="size.h ? null : { height: graphHeight + 'px' }"></canvas>
       </div>
-      <div class="script-resize" title="Drag to resize, double-click to reset" @pointerdown.stop="resizeStart" @dblclick.stop="resetSize">
+      <div class="script-resize" :title="$t('Drag to resize, double-click to reset')" @pointerdown.stop="resizeStart" @dblclick.stop="resetSize">
         <b-icon pack="mdi" icon="resize-bottom-right" custom-size="mdi-14px"/>
       </div>
     </div>
@@ -48,15 +48,11 @@
 </template>
 
 <script>
-// Funscript overlay for the player: a draggable panel showing the strokes around
-// the playhead (coloured by speed, like the heatmaps) and the current position.
-// Several scripts can be shown at once, one lane each on the same playhead, to
-// compare them. Off by default; on/off and the panel position are remembered.
+// Draggable funscript overlay for the player; several scripts can share the playhead in lanes to compare them
 import { defineComponent } from 'vue'
 
 const STORE_KEY = 'xbvr.scriptOverlay'
-// Fixed time scale: resizing the panel shows more or less time around the
-// playhead instead of stretching the wave (the default size shows ~6 s).
+// fixed time scale: resizing shows more or less time around the playhead instead of stretching the wave
 const PX_PER_SEC = 48
 const PAST_SHARE = 0.4 // part of the window before the playhead
 // narrower than this the wave is dropped and only the up/down bars remain
@@ -119,15 +115,13 @@ export default defineComponent({
   computed: {
 
     // short labels: drop the extension and the part all names share
-    // ("Clip.mkv.funscript" + "Clip - Script v2.funscript" -> "mkv", "Script v2")
     options () {
       const base = this.scripts.map(x => x.name.replace(/\.funscript$/i, ''))
       let pre = base[0] || ''
       for (const b of base) while (pre && !b.startsWith(pre)) pre = pre.slice(0, -1)
       return this.scripts.map((x, i) => {
         const rest = base[i].slice(pre.length).replace(/^[\s._\-\u2013()[\]]+/, '').trim()
-        // generator + version when the script says it ("AutoScript v1.0"), else the
-        // distinguishing part of the name; a bare or "_ai" name reads Original / AI
+        // generator + version when the script names it ("AutoScript v1.0"), else the distinguishing part of the name
         let label = rest
         if (x.gen) label = `${x.gen.name} v${x.gen.version}`
         else if (!rest || /^ai\d*$/i.test(rest)) label = x.ai ? 'AI' + rest.slice(2) : 'Original'
@@ -138,14 +132,13 @@ export default defineComponent({
       const s = this.scripts.find(x => x.selected)
       return s ? s.id : null
     },
-    // ids with a lane, main script first
     shown () {
       const ids = this.mainId !== null ? [this.mainId] : []
       for (const id of this.extra) if (!ids.includes(id) && this.scripts.some(s => s.id === id)) ids.push(id)
       return ids.slice(0, MAX_LANES)
     },
     lanes () {
-      if (!this.scripts.length) return [{ key: this.url, url: this.url, label: 'Script', name: '', ai: false }]
+      if (!this.scripts.length) return [{ key: this.url, url: this.url, label: this.$t('Script'), name: '', ai: false }]
       return this.shown.map(id => {
         const o = this.options.find(x => x.id === id)
         return { key: 'f' + id, url: scriptUrl(id), label: o.label, name: o.name, ai: o.ai }
@@ -171,7 +164,6 @@ export default defineComponent({
 
   watch: {
     lanes () { if (this.enabled) this.fetchLanes() },
-    // a new scene resets the comparison
     url () { this.extra = []; this.menuOpen = false },
     enabled (on) {
       this.savePrefs()
@@ -208,7 +200,6 @@ export default defineComponent({
       return LANE_COLOURS[i % LANE_COLOURS.length]
     },
     // open the checklist on the side of the panel that has room inside the player
-    // (to the right when the panel sits at the left edge, upward near the bottom)
     toggleMenu () {
       this.menuOpen = !this.menuOpen
       if (!this.menuOpen) return
@@ -275,7 +266,6 @@ export default defineComponent({
       this.status = st.includes('loading') ? 'loading' : (this.lanes.length === 1 ? (st[0] || '') : '')
     },
 
-    // index of the last action at or before t
     indexAt (a, t) {
       let lo = 0
       let hi = a.length - 1
@@ -344,7 +334,6 @@ export default defineComponent({
           const y = p => top + pad + (1 - p / 100) * (laneH - pad * 2)
           const a = (this.cache.get(lane.url) || {}).actions || []
 
-          // lane background line + separator
           ctx.strokeStyle = 'rgba(255,255,255,0.08)'
           ctx.lineWidth = 1
           ctx.beginPath()
@@ -396,7 +385,6 @@ export default defineComponent({
             ctx.beginPath()
             ctx.arc(px, y(cur), multi ? 3 : 3.5, 0, Math.PI * 2)
             ctx.fill()
-            // position meter for this lane
             const mx = w - meterW
             const mTop = top + pad
             const mH = laneH - pad * 2
@@ -406,7 +394,6 @@ export default defineComponent({
             ctx.fillRect(mx, mTop + mH * (1 - cur / 100), meterW, mH * (cur / 100))
           }
 
-          // lane label (compare mode)
           if (multi) {
             ctx.font = '600 10px system-ui, sans-serif'
             const label = (lane.ai && !/^AI/.test(lane.label) ? 'AI · ' : '') + lane.label
@@ -422,7 +409,6 @@ export default defineComponent({
           }
         })
 
-        // playhead across all lanes
         ctx.strokeStyle = 'rgba(255,255,255,0.55)'
         ctx.lineWidth = 1
         ctx.beginPath()
@@ -459,8 +445,7 @@ export default defineComponent({
       const box = this.$el.getBoundingClientRect()
       const r = panel.getBoundingClientRect()
       this.dragging = { dx: e.clientX - r.left, dy: e.clientY - r.top, box, w: r.width, h: r.height }
-      // capture phase: the overlay stops pointer events from bubbling (so the
-      // player does not toggle play), which must not swallow the drag's end
+      // capture phase: the overlay stops bubbling so play does not toggle, which must not swallow the drag end
       window.addEventListener('pointermove', this.dragMove, true)
       window.addEventListener('pointerup', this.dragEnd, true)
       e.preventDefault()
@@ -493,7 +478,6 @@ export default defineComponent({
       const d = this.resizing
       if (!d) return
       // smallest: room for the header and ~24 px per lane
-      // (below COMPACT_W wide only the up/down bars are drawn, so it can go small)
       const narrow = e.clientX + d.dx - d.left < COMPACT_W
       const minH = narrow ? 74 : 34 + this.lanes.length * 24
       // narrowest: the bars (14 px each, 6 px apart) or the header's grip + menu button

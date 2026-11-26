@@ -7,7 +7,7 @@
       </template>
       <b-input v-if="columnCount == undefined || columnCount == 1" :class="`list-editor-input list-editor-input-${type}-${i}`" :modelValue="item" @blur="blur(i)" :placeholder=getPlaceholder(1) />
       <p class="control">
-        <!--<b-button type="is-danger" @click="deleteRow(i)">Delete</b-button>-->
+        <!--<b-button type="is-danger" @click="deleteRow(i)">{{ $t('Delete') }}</b-button>-->
         <b-button type="is-light" @click="deleteRow(i)" icon-right="delete" />
       </p>
       <p class="control">

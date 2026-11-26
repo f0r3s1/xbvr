@@ -30,26 +30,31 @@
         <span class="health-dot"></span>
         <span class="health-label">{{ health.background ? 'Background check' : 'Health check' }}</span>
       </b-navbar-item>
-      <b-navbar-item v-if="hasStatusMessages">
-        <table style="font-size:0.9em">
-          <tr v-if="Object.keys(lastRescanMessage).length !== 0">
-            <th><span :class="[lockRescan ? 'pulsate' : '']">{{$t('Files')}} →</span></th>
-            <td>
-              {{lastRescanMessage.message}}
-              <b-button size="is-small" class="ml-2" @click="$store.state.messages.lastRescanMessage = {}">×</b-button>
-            </td>
-          </tr>
-          <tr v-if="Object.keys(lastScrapeMessage).length !== 0">
-            <th><span :class="[lockScrape ? 'pulsate' : '']">{{$t('Data')}} →</span></th>
-            <td>
-              {{lastScrapeMessage.message}}
-              <b-button v-if="lockScrape" size="is-small" type="is-danger" class="ml-2" :disabled="stopping" @click="stopScrape">
-                {{ stopping ? $t('Stopping…') : $t('Stop') }}
-              </b-button>
-              <b-button v-else size="is-small" class="ml-2" @click="$store.state.messages.lastScrapeMessage = {}">×</b-button>
-            </td>
-          </tr>
-        </table>
+      <b-navbar-item v-if="hasStatusMessages" tag="div" class="task-status">
+        <div v-if="Object.keys(lastRescanMessage).length !== 0" class="task-row">
+          <span class="task-text">
+            <span class="task-label" :class="{ 'is-running': lockRescan }">{{ $t('Files') }}</span>
+            <span class="task-message" :title="lastRescanMessage.message">{{ lastRescanMessage.message }}</span>
+          </span>
+          <button class="task-dismiss" :aria-label="$t('Dismiss')" @click="$store.state.messages.lastRescanMessage = {}">
+            <b-icon pack="mdi" icon="close" size="is-small"/>
+          </button>
+        </div>
+        <div v-if="Object.keys(lastScrapeMessage).length !== 0" class="task-row">
+          <span class="task-text">
+            <span class="task-label" :class="{ 'is-running': lockScrape }">{{ $t('Data') }}</span>
+            <span class="task-message" :title="lastScrapeMessage.message">{{ lastScrapeMessage.message }}</span>
+          </span>
+          <button v-if="lockScrape" class="task-stop" :disabled="stopping" @click="stopScrape">
+            {{ stopping ? $t('Stopping…') : $t('Stop') }}
+          </button>
+          <button v-else class="task-dismiss" :aria-label="$t('Dismiss')" @click="$store.state.messages.lastScrapeMessage = {}">
+            <b-icon pack="mdi" icon="close" size="is-small"/>
+          </button>
+        </div>
+      </b-navbar-item>
+      <b-navbar-item v-if="loginRequired" href="/logout" :title="$t('Log out')" class="logout-link">
+        <b-icon pack="mdi" icon="logout" size="is-small"/>
       </b-navbar-item>
     </template>
   </b-navbar>
@@ -65,7 +70,8 @@ export default defineComponent({
     return {
       currentVersion: '',
       latestVersion: '',
-      stopping: false
+      stopping: false,
+      loginRequired: false
     }
   },
 
@@ -123,6 +129,7 @@ export default defineComponent({
   },
 
   mounted () {
+    ky.get('/api/options/apikey').json().then(d => { this.loginRequired = d.loginRequired }).catch(() => {})
     ky.get('/api/options/version-check').json().then(data => {
       this.currentVersion = data.current_version
       this.latestVersion = data.latest_version
@@ -147,6 +154,91 @@ export default defineComponent({
 </script>
 
 <style>
+/* stays within the navbar's height so the sticky list header below keeps its place */
+.task-status {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  width: min(440px, 38vw);
+  max-height: 3.25rem;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+.task-text {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.task-row {
+  display: contents;
+}
+.task-label {
+  flex-shrink: 0;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.task-label.is-running::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7957d5;
+  animation: task-pulse 1s ease-in-out infinite;
+}
+@keyframes task-pulse { 50% { opacity: 0.3; } }
+.task-message {
+  min-width: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+.task-dismiss, .task-stop {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.task-dismiss {
+  width: 18px;
+  height: 18px;
+  opacity: 0.55;
+}
+.task-dismiss:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.18);
+}
+.task-stop {
+  padding: 0 7px;
+  line-height: 1.35;
+  color: #d93f5a;
+  border: 1px solid currentColor;
+}
+.task-stop:hover:not(:disabled) {
+  background: rgba(217, 63, 90, 0.12);
+}
+.logout-link {
+  opacity: 0.6;
+}
+.logout-link:hover {
+  opacity: 1;
+}
 .health-indicator {
   display: flex !important;
   align-items: center;
@@ -200,25 +292,4 @@ export default defineComponent({
     opacity: 0.5;
   }
 
-  th {
-    padding-right: 1em;
-  }
-
-  .pulsate {
-    -webkit-animation: pulsate 0.5s linear;
-    -webkit-animation-iteration-count: infinite;
-    opacity: 0.5;
-  }
-
-  @-webkit-keyframes pulsate {
-    0% {
-      opacity: 0.5;
-    }
-    50% {
-      opacity: 1.0;
-    }
-    100% {
-      opacity: 0.5;
-    }
-  }
 </style>

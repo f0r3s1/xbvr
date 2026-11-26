@@ -1,33 +1,15 @@
 <template>
-  <a :class="buttonClass"
-    @click="toggleState()"
-     :data-tooltip="item.needs_update ? 'Do not refresh scene' : 'Refresh scene on next scrape'">
-    <b-icon pack="mdi" icon="refresh" size="is-small"/>
-  </a>
+  <ToggleButton :item="item" field="needs_update" icon="refresh"
+    on-tooltip="Do not refresh scene" off-tooltip="Refresh scene on next scrape"/>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
+import { defineComponent } from 'vue'
+import ToggleButton from './ToggleButton.vue'
 
 export default defineComponent({
   name: 'RefreshButton',
-  props: { item: Object },
-
-  computed: {
-    buttonClass () {
-      if (this.item.needs_update) {
-        return 'button is-dark is-small'
-      }
-      return 'button is-dark is-outlined is-small'
-    }
-  },
-
-  methods: {
-    toggleState() {
-      let currentToggle=this.item.needs_update
-      this.$store.commit('sceneList/toggleSceneList', {scene_id: this.item.scene_id, list: 'needs_update'})
-      this.item.needs_update=!currentToggle
-    }
-  },
-});
+  components: { ToggleButton },
+  props: { item: Object }
+})
 </script>

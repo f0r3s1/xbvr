@@ -2,28 +2,28 @@
   <OptionsSection :title="$t('Import/Export database data')">
     <div class="content">
       <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
-            <b-tab-item label="Import" icon="upload"/>
-            <b-tab-item label="Export" icon="download"/>
+            <b-tab-item :label="$t('Import')" icon="upload"/>
+            <b-tab-item :label="$t('Export')" icon="download"/>
         </b-tabs>
       <b-tabs v-model="activeSubTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
-            <b-tab-item label="Scene Data"/>
-            <b-tab-item label="Actor Data"/>
-            <b-tab-item label="Settings/Misc Data"/>
+            <b-tab-item :label="$t('Scene Data')"/>
+            <b-tab-item :label="$t('Actor Data')"/>
+            <b-tab-item :label="$t('Settings/Misc Data')"/>
         </b-tabs>
       <h4 v-if="activeSubTab==0" class="options-subtitle">{{ isImport ? "Import Scene Data" : "Export Scene Data"}}</h4>
       <b-field grouped v-if="activeSubTab == 0">
           <b-tooltip
-            label="Select which studios are considered"
+            :label="$t('Select which studios are considered')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
               <b-radio v-model="allSites"
                 name="allSites"
                 native-value="true">
-                All Studios
+                {{ $t('All Studios') }}
             </b-radio>
             <b-radio v-model="allSites"
                 name="allSites"
                 native-value="false">
-                Only Studios enabled on Scrapers page
+                {{ $t('Only Studios enabled on Scrapers page') }}
             </b-radio>
           </b-tooltip>
       </b-field>
@@ -36,11 +36,11 @@
       </b-field>
       <b-field v-if="isExport && activeSubTab == 0">
           <b-tooltip
-            label="Only includes scenes matching the Saved Search criteria."
+            :label="$t('Only includes scenes matching the Saved Search criteria.')"
             size="is-large" type="is-primary is-light" multilined :delay="1000">
             <b-field style="margin-top:5px">
-              <span style="margin-right:1em"><p>Filter by Saved Search:</p></span>
-              <b-select placeholder="Saved Search" size="is-small" expanded v-model="currentPlaylist">
+              <span style="margin-right:1em"><p>{{ $t('Filter by Saved Search:') }}</p></span>
+              <b-select :placeholder="$t('Saved Search')" size="is-small" expanded v-model="currentPlaylist">
                   <option v-for="(obj, idx) in this.$store.state.sceneList.playlists" :value="obj.id" :key="idx">
                     {{ obj.name }}
                   </option>
@@ -51,104 +51,104 @@
       <div class="block" style="margin-top:20px" v-if="activeSubTab == 0">
         <b-field>
           <b-tooltip
-            label="Include the main scene data, eg title, site, cast, tags, filenames, images, favorites, star ratings, etc"
+            :label="$t('Include the main scene data, eg title, site, cast, tags, filenames, images, favorites, star ratings, etc')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeScenes">Include Scene Data</b-switch>
+            <b-switch v-model="includeScenes">{{ $t('Include Scene Data') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Include Cuepoint data you have entered for a scene"
+            :label="$t('Include Cuepoint data you have entered for a scene')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeCuepoints">Include Cuepoints</b-switch>
+            <b-switch v-model="includeCuepoints">{{ $t('Include Cuepoints') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Include your history of watched scenes"
+            :label="$t('Include your history of watched scenes')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeHistory">Include Watch History</b-switch>
+            <b-switch v-model="includeHistory">{{ $t('Include Watch History') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Include scene edit data. Edits allows XBVR to reapply your changes to scene data. These would be lost if a scene is rescraped"
+            :label="$t('Include scene edit data. Edits allows XBVR to reapply your changes to scene data. These would be lost if a scene is rescraped')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeActions">Include Scene Edits</b-switch>
+            <b-switch v-model="includeActions">{{ $t('Include Scene Edits') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Include details of files matched to a scene."
+            :label="$t('Include details of files matched to a scene.')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeFileLinks"><p>Include Matched Files</p></b-switch>
+            <b-switch v-model="includeFileLinks"><p>{{ $t('Include Matched Files') }}</p></b-switch>
           </b-tooltip>
         </b-field>
-        <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleSceneIncludes()">Toggle Includes</b-button>
+        <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleSceneIncludes()">{{ $t('Toggle Includes') }}</b-button>
       </div>
       <hr />
       <div v-if="activeSubTab==1">
         <h4 class="options-subtitle">{{ isImport ? "Import Actor Data" : "Export Actor Data"}}</h4>
         <b-field>
           <b-tooltip
-            label="Includes Actors (note new actors are not created, New/Existing will apply to the fields on an existing actor record.)"
+            :label="$t('Includes Actors (note new actors are not created, New/Existing will apply to the fields on an existing actor record.)')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeActors">Include Actors</b-switch>
+            <b-switch v-model="includeActors">{{ $t('Include Actors') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Includes your Actor Aka Groups"
+            :label="$t('Includes your Actor Aka Groups')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeActorAkas">Include Actor Aka Groups</b-switch>
+            <b-switch v-model="includeActorAkas">{{ $t('Include Actor Aka Groups') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Includes your Actor Edits"
+            :label="$t('Includes your Actor Edits')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="inclActorActions">Include Actor Edits</b-switch>
+            <b-switch v-model="inclActorActions">{{ $t('Include Actor Edits') }}</b-switch>
           </b-tooltip>
         </b-field>
-        <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleActorIncludes()">Toggle Includes</b-button>
+        <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleActorIncludes()">{{ $t('Toggle Includes') }}</b-button>
       </div>
       <h4 v-if="activeSubTab==2" class="options-subtitle">{{ isImport ? "Import Settings" : "Export Settings"}}</h4>
       <div class="block" v-if="activeSubTab == 2">
         <b-field>
           <b-tooltip
-            label="Includes your Tag Groups"
+            :label="$t('Includes your Tag Groups')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeTagGroups">Include Tag Groups</b-switch>
+            <b-switch v-model="includeTagGroups">{{ $t('Include Tag Groups') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Includes your Saved Search definitions"
+            :label="$t('Includes your Saved Search definitions')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includePlaylists">Include Saved Searches</b-switch>
+            <b-switch v-model="includePlaylists">{{ $t('Include Saved Searches') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Include Storage Path data setup in Options/Storage"
+            :label="$t('Include Storage Path data setup in Options/Storage')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeVolumes">Include Storage Paths</b-switch>
+            <b-switch v-model="includeVolumes">{{ $t('Include Storage Paths') }}</b-switch>
           </b-tooltip>
         </b-field>
         <b-field>
           <b-tooltip
-            label="Include Studio Enabled settings from Option/Scrappers"
+            :label="$t('Include Studio Enabled settings from Option/Scrappers')"
             size="is-large" type="is-primary is-light" multilined :delay="1000" >
-            <b-switch v-model="includeSites">Include Scraper Settings</b-switch>
+            <b-switch v-model="includeSites">{{ $t('Include Scraper Settings') }}</b-switch>
           </b-tooltip>
         </b-field>
         <div class="columns">
           <div class="column">
             <b-field>
               <b-tooltip
-                label="Includes your External References"
+                :label="$t('Includes your External References')"
                 size="is-large" type="is-primary is-light" multilined :delay="1000" >
-                <b-switch v-model="includeExternalReferences">Include External References</b-switch>
+                <b-switch v-model="includeExternalReferences">{{ $t('Include External References') }}</b-switch>
               </b-tooltip>
             </b-field>
           </div>
@@ -170,33 +170,33 @@
           <b-tooltip
             :label="isImport ? 'Requires restarting XBVR once complete. Include XBVR Configuration Settings. Preview setting, task schedules, etc.' : 'Includes passowrds/access tokens. Includes XBVR Configuration Settings. Preview settings, task schedules, etc.'"  
             size="is-large" :type="isImport ? 'is-warning is-light' : 'is-danger is-light'" multilined :delay="300" >
-            <b-switch v-model="includeConfig">Include Config Settings</b-switch>
+            <b-switch v-model="includeConfig">{{ $t('Include Config Settings') }}</b-switch>
           </b-tooltip>
         </b-field>
-        <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleSettingsIncludes()">Toggle Includes</b-button>
+        <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleSettingsIncludes()">{{ $t('Toggle Includes') }}</b-button>
       </div>
       <hr />
       <b-field v-if="isImport">
         <b-tooltip
-          label="Select if import source is a file or url. Large bundle files should be imported via a url."
+          :label="$t('Select if import source is a file or url. Large bundle files should be imported via a url.')"
           size="is-large" type="is-primary is-light" multilined :delay="1000">
           <b-switch v-model="fileBundleSource"><p>{{ fileBundleSource ? 'Import bundle from file' : 'Import bundle from url' }}</p></b-switch>
         </b-tooltip>
         <b-tooltip
-          label="Activate to overwite existing data, otherwise only new records will be added"
+          :label="$t('Activate to overwite existing data, otherwise only new records will be added')"
           size="is-large" type="is-primary is-light" multilined :delay="1000">
-          <b-switch v-model="overwrite"><p>Overwrite existing data</p></b-switch>
+          <b-switch v-model="overwrite"><p>{{ $t('Overwrite existing data') }}</p></b-switch>
         </b-tooltip>
       </b-field>
       <b-field>
         <b-tooltip v-if="isImport && fileBundleSource"
-            label="Select a file to import."
+            :label="$t('Select a file to import.')"
             size="is-large" type="is-primary is-light" multilined :delay="1000">
           <b-field class="file is-primary" :class="{'has-name': !!file}">
             <b-upload v-model="file" class="file-label" icon-left="upload">
                 <span class="file-cta">
                     <b-icon class="file-icon" icon="upload" size="is-small"></b-icon>
-                    <span class="file-label">Import</span>
+                    <span class="file-label">{{ $t('Import') }}</span>
                 </span>
                 <span class="file-name" v-if="file">
                     {{ file.name }}
@@ -205,17 +205,17 @@
           </b-field>
         </b-tooltip>
         <b-field v-if="isImport && !fileBundleSource">
-          <b-input type="url" v-model="bundleUrl" placeholder="eg https://localhost:9999/myfiles/xbvr-content-bundle.json"
+          <b-input type="url" v-model="bundleUrl" :placeholder="$t('eg https://localhost:9999/myfiles/xbvr-content-bundle.json')"
             @update:modelValue="validateUrl" :class="{ 'is-danger': urlError }">
           </b-input>
           <p class="help is-danger" v-if="urlError">{{ urlError }}</p>
-          <b-button type="is-primary" @click="restoreContent" :disabled="urlError!='' || bundleUrl==''">Import</b-button>
+          <b-button type="is-primary" @click="restoreContent" :disabled="urlError!='' || bundleUrl==''">{{ $t('Import') }}</b-button>
         </b-field>
 
           <b-tooltip  v-if="activeTab == 1"
-            label="Generating the data for a large number of scenes is time consuming, montior progress in the status messages in the top right of the browser."
+            :label="$t('Generating the data for a large number of scenes is time consuming, montior progress in the status messages in the top right of the browser.')"
             size="is-large" type="is-primary is-light" multilined :delay="1000">
-            <b-button type="is-primary"  @click="backupContent" icon-left="download">Export
+            <b-button type="is-primary"  @click="backupContent" icon-left="download">{{ $t('Export') }}
             </b-button>
           </b-tooltip>
         <b-tooltip style="margin-left: 10px"            
@@ -225,7 +225,7 @@
             <b-upload v-model="testfile" class="file-label">
                 <span class="file-cta">
                     <b-icon class="file-icon" icon="upload" size="is-small"></b-icon>
-                    <span class="file-label">Test</span>
+                    <span class="file-label">{{ $t('Test') }}</span>
                 </span>
                 <span class="file-name" v-if="progressMsg">
                     {{ progressMsg }}
@@ -319,7 +319,7 @@ export default defineComponent({
     },
     testfile: function () {
       try {
-        this.$buefy.toast.open({message: `Loading: ` + this.testfile.name, type: 'is-primary', duration: 30000})
+        this.$buefy.toast.open({message: this.$t('Loading: ') + this.testfile.name, type: 'is-primary', duration: 30000})
         if (this.testfile != null) {
           this.progressMsg = "Uploading " + this.testfile.name
           const reader = new FileReader()
@@ -328,7 +328,7 @@ export default defineComponent({
               this.progressMsg = "File uploaded, converting to Json " + this.testfile.name
               this.uploadData = JSON.stringify(JSON.parse(event.target.result))          
               this.progressMsg = ""
-              this.$buefy.toast.open({message: `Success Loading: ` + this.testfile.name, type: 'is-success', duration: 5000})
+              this.$buefy.toast.open({message: this.$t('Success Loading: ') + this.testfile.name, type: 'is-success', duration: 5000})
           } catch (error) {
             this.progressMsg = "Error: " + error.message            
             this.$buefy.toast.open({message: `Error:  ${error.message}`, type: 'is-danger', duration: 30000})    

@@ -292,7 +292,7 @@ func scrapeVRSpyUpcoming(knownScenes []string, out chan<- models.ScrapedScene) {
 			out <- sc
 		}
 	}
-	models.PruneUpcoming(scraperID, listed)
+	pruneUpcoming(scraperID, listed)
 }
 
 func parseVRSpyUpcoming(graphqlJSON string) []models.ScrapedScene {

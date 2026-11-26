@@ -146,7 +146,8 @@ func formatCronSchedule(schedule config.CronSchedule) string {
 	}
 
 	start := clamp(schedule.HourStart, 0, 23)
-	end := clamp(schedule.HourEnd, 0, 47) % 24 // the UI slider spans two days
+	rawEnd := clamp(schedule.HourEnd, 0, 47) // the UI slider spans two days
+	end := rawEnd % 24
 	minute := clamp(schedule.MinuteStart, 0, 59)
 	step := ""
 	if interval > 1 {
@@ -154,7 +155,10 @@ func formatCronSchedule(schedule config.CronSchedule) string {
 	}
 
 	hours := ""
-	if start > end {
+	if rawEnd-start >= 23 {
+		// a window of a whole day runs around the clock, aligned on the start hour
+		hours = fmt.Sprintf("%v-23%v", start%interval, step)
+	} else if start > end {
 		afterMidnightStart := (interval - ((24 - start) % interval)) % interval
 		if afterMidnightStart <= end {
 			hours = fmt.Sprintf("%v-%v%v,%v-23%v", afterMidnightStart, end, step, start, step)

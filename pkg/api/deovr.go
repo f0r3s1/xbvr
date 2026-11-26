@@ -225,14 +225,14 @@ func setDeoPlayerHost(req *restful.Request) {
 }
 
 func restfulAuthFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-	if isDeoAuthEnabled() {
+	if AuthRequired() {
 		authState := "0"
 
 		username, _ := req.BodyParameter("login")
 		password, _ := req.BodyParameter("password")
 
 		if username != "" && password != "" {
-			if deoCredentialsValid(username, password) {
+			if CredentialsValid(username, password) {
 				authState = "1"
 			} else {
 				authState = "-1"
@@ -331,7 +331,7 @@ func (i DeoVRResource) getDeoFile(req *restful.Request, resp *restful.Response) 
 				Height:     height,
 				Width:      width,
 				Size:       file.Size,
-				URL:        fmt.Sprintf("%v/api/dms/file/%v%v", requestBaseURL(req), file.ID, dnt),
+				URL:        withMediaToken(fmt.Sprintf("%v/api/dms/file/%v%v", requestBaseURL(req), file.ID, dnt)),
 			},
 		},
 	})
@@ -406,7 +406,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 		})
 	}
 
-	var videoLength float64
+	videoLength := float64(scene.Duration) * 60
 
 	var sources []DeoSceneEncoding
 	var sourcesSpatial []DeoSceneEncoding
@@ -430,7 +430,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 					Height:     height,
 					Width:      width,
 					Size:       file.Size,
-					URL:        fmt.Sprintf("%v/api/dms/file/%v/%v%v", requestBaseURL(req), file.ID, scene.GetFunscriptTitle(), dnt),
+					URL:        withMediaToken(fmt.Sprintf("%v/api/dms/file/%v/%v%v", requestBaseURL(req), file.ID, scene.GetFunscriptTitle(), dnt)),
 				},
 			},
 		}
@@ -440,7 +440,9 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 			sourcesSpatial = append(sourcesSpatial, source)
 		}
 
-		videoLength = file.VideoDuration
+		if i == 0 && file.VideoDuration > 0 {
+			videoLength = file.VideoDuration
+		}
 
 		// Test scene w/multiple videos for different projection types
 		if (i > 0) && (file.VideoProjection != videoFiles[i-1].VideoProjection) {
@@ -460,7 +462,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 		if strings.HasSuffix(file.Filename, ".funscript") {
 			deoScriptFiles = append(deoScriptFiles, DeoSceneScriptFile{
 				Title: file.Filename,
-				URL:   fmt.Sprintf("%v/api/dms/file/%v", requestBaseURL(req), file.ID),
+				URL:   withMediaToken(fmt.Sprintf("%v/api/dms/file/%v", requestBaseURL(req), file.ID)),
 			})
 		}
 	}
@@ -476,7 +478,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 	for _, file := range hspFiles {
 		deoHSPFiles = append(deoHSPFiles, DeoSceneHSPFile{
 			Title: file.Filename,
-			URL:   fmt.Sprintf("%v/api/dms/file/%v", requestBaseURL(req), file.ID),
+			URL:   withMediaToken(fmt.Sprintf("%v/api/dms/file/%v", requestBaseURL(req), file.ID)),
 		})
 	}
 
@@ -549,7 +551,7 @@ func (i DeoVRResource) getDeoScene(req *restful.Request, resp *restful.Response)
 	}
 
 	if scene.HasVideoPreview {
-		deoScene.VideoPreview = fmt.Sprintf("%v/api/dms/preview/%v", requestBaseURL(req), scene.SceneID)
+		deoScene.VideoPreview = withMediaToken(fmt.Sprintf("%v/api/dms/preview/%v", requestBaseURL(req), scene.SceneID))
 	}
 
 	if gjson.Valid(scene.ChromaKey) || hasAlpha {

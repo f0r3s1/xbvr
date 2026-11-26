@@ -16,14 +16,14 @@
 
     <div class="modal-card" style="height: 80vh; width: 60vw; left: 10vw">
       <header class="modal-card-head">
-        <p class="modal-card-title">Search Stashdb Actors</p>
-        <button class="delete" @click="close" aria-label="close"></button>
+        <p class="modal-card-title">{{ $t('Search Stashdb Actors') }}</p>
+        <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
 
       <div class="modal-card-body">
         <div >
-          <b-field label="Find actor...">
-            <b-input v-model="queryString" placeholder="Find actor..." @update:modelValue="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
+          <b-field :label="$t('Find actor...')">
+            <b-input v-model="queryString" :placeholder="$t('Find actor...')" @update:modelValue="debouncedSearch" :loading="isFetching" custom-class="is-large"/>
           </b-field>
     
         <b-table v-if="searchResults.length" :data="searchResults" @click="onRowSelected" >
@@ -53,7 +53,7 @@
                     </div>
                   <div v-if="props.row.DOB">
                     <span class="smaller-text">
-                      <strong>Birth Date:</strong>
+                      <strong>{{ $t('Birth Date:') }}</strong>
                     </span>
                   </div>
                   <div v-if="props.row.DOB">
@@ -61,7 +61,7 @@
                   </div>
                   <div>
                     <span class="smaller-text">
-                      <strong>Score:</strong> {{ props.row.Weight }}
+                      <strong>{{ $t('Score:') }}</strong> {{ props.row.Weight }}
                     </span>
                   </div>
                   <div>
@@ -77,7 +77,7 @@
                     </strong>
                   </div>
                   <div>
-                    <strong>Aliases:</strong>
+                    <strong>{{ $t('Aliases:') }}</strong>
                     <b-tag v-for="alias in props.row.Aliases" :key="alias.Alias" :class="{ 'is-primary': alias.Matched }"  style="margin-right: 2px;"> {{ alias.Alias }}</b-tag>
                   </div>
                   <div>                    
@@ -103,15 +103,8 @@ import { GlobalEvents } from 'vue-global-events'
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 import { format, parseISO } from 'date-fns'
+import { debounce } from '../../debounce'
 
-function debounce(func, wait) {
-  let timeout;
-  return function(...args) {
-    const context = this;
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(context, args), wait);
-  };
-}
 
 export default defineComponent({
   name: 'SearchStashdbActors',
@@ -132,7 +125,7 @@ export default defineComponent({
   },
 
   created() {
-    this.debouncedSearch = debounce(this.searchStashdb, 750); // 750ms delay
+    this.debouncedSearch = debounce(this.searchStashdb, 750);
   },
 
   mounted () {
@@ -149,7 +142,7 @@ export default defineComponent({
       this.$store.commit('overlay/hideSearchStashdbActors')
     },
     searchStashdb() {
-      this.$buefy.toast.open({message: `Searching Actors`, type: 'is-primary', duration: 5000})
+      this.$buefy.toast.open({message: this.$t('Searching Actors'), type: 'is-primary', duration: 5000})
         ky.get('/api/extref/stashdb/searchactor/' + this.actor.id + "?q=" + this.queryString, {timeout: 6e6}).json().then(data => {
             this.searchResults = Object.values(data.Results).sort((a, b) => b.Weight - a.Weight)
             this.isModalActive = true

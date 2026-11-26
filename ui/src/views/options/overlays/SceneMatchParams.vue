@@ -8,14 +8,13 @@
     <div class="modal-card" v-if="site != null">
       <header class="modal-card-head">
         <p class="modal-card-title">{{ $t("Matching parameters")}}: {{ site.name }}</p>        
-        <button class="delete" @click="close" aria-label="close"></button>
+        <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
       <section class="modal-card-body" v-if="params != null">
         
-        <!-- Selection Criteria -->
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Selection Criteria</p>
+            <p class="card-header-title">{{ $t('Selection Criteria') }}</p>
           </header>
           <div class="card-content">
             <div class="columns is-multiline">
@@ -40,12 +39,12 @@
                   <b-field :label="$t('Ignore Before Date')">
                     <b-datepicker v-model="ignoreReleasedBefore" :icon-right="ignoreReleasedBefore ? 'close-circle' : ''" icon-right-clickable @icon-right-click="clearDate">                    
                       <b-button
-                          label="Today"
+                          :label="$t('Today')"
                           type="is-primary"
                           icon-left="calendar-today"
                           @click="ignoreReleasedBefore = new Date()" />
                       <b-button
-                          label="Clear"
+                          :label="$t('Clear')"
                           type="is-danger"
                           icon-left="close"
                           outlined
@@ -58,19 +57,18 @@
           </div>
         </div>      
         
-        <!-- Release Date Searching -->
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Release Date Searching</p>
+            <p class="card-header-title">{{ $t('Release Date Searching') }}</p>
           </header>
           <div class="card-content">
             <div class="columns is-multiline">
               <div class="column is-one-third">
-                <b-field label="Match Type">
+                <b-field :label="$t('Match Type')">
                   <b-select required v-model="params.released_match_type">
-                    <option value="should">Should match</option>
-                    <option value="must">Must</option>
-                    <option value="do not">Do not</option>
+                    <option value="should">{{ $t('Should match') }}</option>
+                    <option value="must">{{ $t('Must') }}</option>
+                    <option value="do not">{{ $t('Do not') }}</option>
                   </b-select>
                 </b-field>
               </div>
@@ -103,10 +101,9 @@
           </div>
         </div>
 
-        <!-- Title Searching -->
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Title Searching</p>
+            <p class="card-header-title">{{ $t('Title Searching') }}</p>
           </header> 
           <div class="card-content">
             <div class="columns is-multiline">
@@ -124,19 +121,18 @@
           </div>
         </div>
 
-        <!-- Duration Searching -->
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Duration Searching</p>
+            <p class="card-header-title">{{ $t('Duration Searching') }}</p>
           </header>
           <div class="card-content">
             <div class="columns is-multiline">
               <div class="column is-one-third">
                 <b-field :label="$t('Match Type')">
                   <b-select required v-model="params.duration_match_type">
-                    <option value="should">Should match</option>
-                    <option value="must">Must</option>
-                    <option value="do not">Do not</option>
+                    <option value="should">{{ $t('Should match') }}</option>
+                    <option value="must">{{ $t('Must') }}</option>
+                    <option value="do not">{{ $t('Do not') }}</option>
                   </b-select>
                 </b-field>
               </div>
@@ -160,19 +156,18 @@
           </div>
         </div>
 
-        <!-- Cast Searching -->
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Cast Searching</p>
+            <p class="card-header-title">{{ $t('Cast Searching') }}</p>
           </header>
           <div class="card-content">
             <div class="columns is-multiline">
               <div class="column is-one-third">
                 <b-field :label="$t('Match Type')">
                   <b-select required v-model="params.cast_match_type">
-                    <option value="should">Should match</option>
-                    <option value="must">Must</option>
-                    <option value="do not">Do not</option>
+                    <option value="should">{{ $t('Should match') }}</option>
+                    <option value="must">{{ $t('Must') }}</option>
+                    <option value="do not">{{ $t('Do not') }}</option>
                   </b-select>
                 </b-field>
               </div>
@@ -185,19 +180,18 @@
           </div>
         </div>
 
-        <!-- Description Searching -->
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Description Searching</p>
+            <p class="card-header-title">{{ $t('Description Searching') }}</p>
           </header>
           <div class="card-content">
             <div class="columns is-multiline">
               <div class="column is-one-third">
                 <b-field :label="$t('Match Type')">
                   <b-select required v-model="params.desc_match_type">
-                    <option value="should">Should match</option>
-                    <option value="must">Must</option>
-                    <option value="do not">Do not</option>
+                    <option value="should">{{ $t('Should match') }}</option>
+                    <option value="must">{{ $t('Must') }}</option>
+                    <option value="do not">{{ $t('Do not') }}</option>
                   </b-select>
                 </b-field>
               </div>
@@ -212,7 +206,7 @@
 
       </section>
       <footer class="modal-card-foot">
-        <b-button type="is-primary" @click="saveSettings">Save settings</b-button>
+        <b-button type="is-primary" @click="saveSettings">{{ $t('Save settings') }}</b-button>
       </footer>
     </div>
   </div>
@@ -267,7 +261,7 @@ export default defineComponent({
       if (this.ignoreReleasedBefore != null) {        
         const formattedDate = this.ignoreReleasedBefore.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric',});
         this.$buefy.dialog.confirm({
-          title: 'Clear existing links',
+          title: this.$t('Clear existing links'),
           message: `Do you also wish to clear links from <strong>${formattedDate}</strong>`,
           type: 'is-info is-wide',
           hasIcon: true,

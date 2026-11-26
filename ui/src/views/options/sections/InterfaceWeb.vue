@@ -3,15 +3,13 @@
     <div class="content">
 
       <div class="settings-layout">
-        <!-- Left: Settings -->
         <div class="settings-col">
 
-          <!-- Scene Cards -->
           <div class="settings-group">
-            <h5 class="group-title">Scene Cards</h5>
+            <h5 class="group-title">{{ $t('Scene Cards') }}</h5>
             <div class="settings-row">
               <div class="setting-item">
-                <label class="setting-label">Aspect Ratio</label>
+                <label class="setting-label">{{ $t('Aspect Ratio') }}</label>
                 <b-select size="is-small" v-model="sceneCardAspectRatio">
                   <option>1:1</option>
                   <option>3:2</option>
@@ -19,11 +17,11 @@
                 </b-select>
               </div>
               <div class="setting-item">
-                <label class="setting-label">Date Format</label>
+                <label class="setting-label">{{ $t('Date Format') }}</label>
                 <b-select size="is-small" v-model="dateFormat">
                   <option value="yyyy-MM-dd">2025-01-15</option>
-                  <option value="MMM d, yyyy">Jan 15, 2025</option>
-                  <option value="MMMM d, yyyy">January 15, 2025</option>
+                  <option value="MMM d, yyyy">{{ $t('Jan 15, 2025') }}</option>
+                  <option value="MMMM d, yyyy">{{ $t('January 15, 2025') }}</option>
                   <option value="dd/MM/yyyy">15/01/2025</option>
                   <option value="MM/dd/yyyy">01/15/2025</option>
                 </b-select>
@@ -31,27 +29,27 @@
             </div>
             <div class="settings-row" style="margin-top: 0.5rem">
               <div class="setting-item">
-                <label class="setting-label">Buttons</label>
+                <label class="setting-label">{{ $t('Buttons') }}</label>
                 <b-select size="is-small" v-model="cardButtonStyle">
-                  <option value="classic">Classic</option>
-                  <option value="glass">Liquid glass</option>
+                  <option value="classic">{{ $t('Classic') }}</option>
+                  <option value="glass">{{ $t('Liquid glass') }}</option>
                 </b-select>
               </div>
             </div>
             <div class="settings-row" style="margin-top: 0.5rem">
               <div class="setting-item">
                 <b-switch v-model="sceneCardScaleToFit" type="is-dark" size="is-small">
-                  Scale to fit
+                  {{ $t('Scale to fit') }}
                 </b-switch>
               </div>
               <div class="setting-item">
                 <b-switch v-model="showSiteLogo" type="is-dark" size="is-small">
-                  Show site logo
+                  {{ $t('Show site logo') }}
                 </b-switch>
               </div>
             </div>
             <div class="setting-item slider-item">
-              <label class="setting-label">Unavailable scene opacity</label>
+              <label class="setting-label">{{ $t('Unavailable scene opacity') }}</label>
               <div class="slider-wrap">
                 <b-slider :min="0" :max="100" :step="10" :tooltip="false" v-model="isAvailOpacity" size="is-small"></b-slider>
                 <span class="slider-value">{{ isAvailOpacity }}%</span>
@@ -59,57 +57,54 @@
             </div>
           </div>
 
-          <!-- Upcoming Scenes -->
           <div class="settings-group">
-            <h5 class="group-title">Upcoming Scenes</h5>
+            <h5 class="group-title">{{ $t('Upcoming Scenes') }}</h5>
             <div class="settings-row">
               <div class="setting-item">
                 <b-switch v-model="showUpcoming" type="is-dark" size="is-small">
-                  Show in scene list
+                  {{ $t('Show in scene list') }}
                 </b-switch>
               </div>
               <div class="setting-item" v-if="showUpcoming">
-                <label class="setting-label">Releasing within</label>
+                <label class="setting-label">{{ $t('Releasing within') }}</label>
                 <b-select size="is-small" v-model="upcomingDays">
-                  <option :value="7">1 week</option>
-                  <option :value="14">2 weeks</option>
-                  <option :value="30">1 month</option>
-                  <option :value="90">3 months</option>
-                  <option :value="0">Any time</option>
+                  <option :value="7">{{ $t('1 week') }}</option>
+                  <option :value="14">{{ $t('2 weeks') }}</option>
+                  <option :value="30">{{ $t('1 month') }}</option>
+                  <option :value="90">{{ $t('3 months') }}</option>
+                  <option :value="0">{{ $t('Any time') }}</option>
                 </b-select>
               </div>
             </div>
-            <p class="setting-hint">Scenes VRBangers sites, VRSpy and SLR studios announce before release. Picked up by the next scrape.</p>
+            <p class="setting-hint">{{ $t('Scenes VRBangers sites, VRSpy and SLR studios announce before release. Picked up by the next scrape.') }}</p>
           </div>
 
-          <!-- Visible Buttons -->
           <div class="settings-group">
-            <h5 class="group-title">Visible Buttons</h5>
+            <h5 class="group-title">{{ $t('Visible Buttons') }}</h5>
             <div class="toggle-grid">
-              <b-switch v-model="sceneHidden" type="is-danger" size="is-small">Hidden</b-switch>
-              <b-switch v-model="sceneWatchlist" type="is-default" size="is-small">Watchlist</b-switch>
-              <b-switch v-model="sceneFavourite" type="is-danger" size="is-small">Favourite</b-switch>
-              <b-switch v-model="sceneWishlist" type="is-info" size="is-small">Wishlist</b-switch>
-              <b-switch v-model="sceneTrailerlist" type="is-default" size="is-small">Trailer List</b-switch>
-              <b-switch v-model="sceneWatched" type="is-dark" size="is-small">Watched</b-switch>
-              <b-switch v-model="sceneEdit" type="is-dark" size="is-small">Edit</b-switch>
-              <b-switch v-model="sceneDuration" type="is-dark" size="is-small">Duration</b-switch>
-              <b-switch v-model="sceneScriptSpeed" type="is-dark" size="is-small">Script speed</b-switch>
-              <b-switch v-model="sceneCuepoint" type="is-dark" size="is-small">Cuepoints</b-switch>
-              <b-switch v-model="hspFile" type="is-dark" size="is-small">HSP File</b-switch>
-              <b-switch v-model="subtitlesFile" type="is-dark" size="is-small">Subtitles</b-switch>
-              <b-switch v-model="ScriptHeatmap" type="is-dark" size="is-small">Heatmap</b-switch>
-              <b-switch v-if="ScriptHeatmap" v-model="AllHeatmaps" type="is-dark" size="is-small">All Heatmaps</b-switch>
-              <b-switch v-model="openInNewWindow" type="is-dark" size="is-small">Open in New Window</b-switch>
+              <b-switch v-model="sceneHidden" type="is-danger" size="is-small">{{ $t('Hidden') }}</b-switch>
+              <b-switch v-model="sceneWatchlist" type="is-default" size="is-small">{{ $t('Watchlist') }}</b-switch>
+              <b-switch v-model="sceneFavourite" type="is-danger" size="is-small">{{ $t('Favourite') }}</b-switch>
+              <b-switch v-model="sceneWishlist" type="is-info" size="is-small">{{ $t('Wishlist') }}</b-switch>
+              <b-switch v-model="sceneTrailerlist" type="is-default" size="is-small">{{ $t('Trailer List') }}</b-switch>
+              <b-switch v-model="sceneWatched" type="is-dark" size="is-small">{{ $t('Watched') }}</b-switch>
+              <b-switch v-model="sceneEdit" type="is-dark" size="is-small">{{ $t('Edit') }}</b-switch>
+              <b-switch v-model="sceneDuration" type="is-dark" size="is-small">{{ $t('Duration') }}</b-switch>
+              <b-switch v-model="sceneScriptSpeed" type="is-dark" size="is-small">{{ $t('Script speed') }}</b-switch>
+              <b-switch v-model="sceneCuepoint" type="is-dark" size="is-small">{{ $t('Cuepoints') }}</b-switch>
+              <b-switch v-model="hspFile" type="is-dark" size="is-small">{{ $t('HSP File') }}</b-switch>
+              <b-switch v-model="subtitlesFile" type="is-dark" size="is-small">{{ $t('Subtitles') }}</b-switch>
+              <b-switch v-model="ScriptHeatmap" type="is-dark" size="is-small">{{ $t('Heatmap') }}</b-switch>
+              <b-switch v-if="ScriptHeatmap" v-model="AllHeatmaps" type="is-dark" size="is-small">{{ $t('All Heatmaps') }}</b-switch>
+              <b-switch v-model="openInNewWindow" type="is-dark" size="is-small">{{ $t('Open in New Window') }}</b-switch>
             </div>
           </div>
 
-          <!-- Actor Cards -->
           <div class="settings-group">
-            <h5 class="group-title">Actor Cards</h5>
+            <h5 class="group-title">{{ $t('Actor Cards') }}</h5>
             <div class="settings-row">
               <div class="setting-item">
-                <label class="setting-label">Aspect Ratio</label>
+                <label class="setting-label">{{ $t('Aspect Ratio') }}</label>
                 <b-select size="is-small" v-model="actorCardAspectRatio">
                   <option>1:1</option>
                   <option>2:3</option>
@@ -118,49 +113,54 @@
               </div>
               <div class="setting-item">
                 <b-switch v-model="actorCardScaleToFit" type="is-dark" size="is-small">
-                  Scale to fit
+                  {{ $t('Scale to fit') }}
                 </b-switch>
               </div>
             </div>
           </div>
 
-          <!-- General -->
           <div class="settings-group">
-            <h5 class="group-title">General</h5>
+            <h5 class="group-title">{{ $t('General') }}</h5>
             <div class="settings-row">
               <div class="setting-item">
-                <label class="setting-label">Tag Sort</label>
+                <label class="setting-label">{{ $t('Tag Sort') }}</label>
                 <b-select size="is-small" v-model="tagSort">
-                  <option value="by-tag-count">By Count</option>
+                  <option value="by-tag-count">{{ $t('By Count') }}</option>
                   <option value="alphabetically">A-Z</option>
                 </b-select>
               </div>
               <div class="setting-item">
-                <label class="setting-label">Theme</label>
+                <label class="setting-label">{{ $t('Theme') }}</label>
                 <b-select size="is-small" v-model="theme">
-                  <option value="auto">Auto</option>
-                  <option value="dark">Dark</option>
-                  <option value="light">Light</option>
+                  <option value="auto">{{ $t('Auto') }}</option>
+                  <option value="dark">{{ $t('Dark') }}</option>
+                  <option value="light">{{ $t('Light') }}</option>
+                </b-select>
+              </div>
+              <div class="setting-item">
+                <label class="setting-label">{{ $t('Language') }}</label>
+                <b-select size="is-small" v-model="language">
+                  <option value="">{{ $t('Auto') }}</option>
+                  <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.name }}</option>
                 </b-select>
               </div>
               <div class="setting-item">
                 <b-switch v-model="accentColorTags" type="is-dark" size="is-small">
-                  Accent color tags
+                  {{ $t('Accent color tags') }}
                 </b-switch>
               </div>
               <div class="setting-item">
                 <b-switch v-model="updateCheck" type="is-dark" size="is-small">
-                  Check for updates
+                  {{ $t('Check for updates') }}
                 </b-switch>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Right: Live Preview -->
         <div class="preview-col">
           <div class="preview-sticky">
-            <h5 class="group-title">Preview</h5>
+            <h5 class="group-title">{{ $t('Preview') }}</h5>
             <div class="preview-card-demo">
               <SceneCard v-if="sampleScene" :item="sampleScene" demo/>
             </div>
@@ -178,6 +178,7 @@ import SceneCard from '../../scenes/SceneCard.vue'
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
+import { availableLocales, chosenLanguage, setLanguage } from '@/i18n'
 
 let saveTimer = null
 
@@ -187,6 +188,7 @@ export default defineComponent({
 
   data () {
     return {
+      chosenLocale: chosenLanguage(),
       sampleScene: null
     }
   },
@@ -228,6 +230,20 @@ export default defineComponent({
   },
 
   computed: {
+    languages () {
+      return availableLocales.map(code => {
+        let name = code
+        try { name = new Intl.DisplayNames([code], { type: 'language' }).of(code) } catch { /* unknown code: show it as is */ }
+        return { code, name }
+      })
+    },
+    language: {
+      get () { return this.chosenLocale || '' },
+      set (code) {
+        setLanguage(code || null)
+        this.chosenLocale = code || null
+      }
+    },
     tagSort: {
       get () { return this.$store.state.optionsWeb.web.tagSort },
       set (value) { this.$store.state.optionsWeb.web.tagSort = value }

@@ -1,34 +1,15 @@
 <template>
-  <a :class="buttonClass"
-     v-if="!item.is_available"
-     @click="toggleState()"
-     :data-tooltip="item.wishlist ? 'Remove from wishlist' : 'Add to wishlist'">
-    <b-icon pack="mdi" icon="oil-lamp" size="is-small"/>
-  </a>
+  <ToggleButton v-if="!item.is_available" :item="item" field="wishlist" color="info" icon="oil-lamp"
+    on-tooltip="Remove from wishlist" off-tooltip="Add to wishlist"/>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
+import { defineComponent } from 'vue'
+import ToggleButton from './ToggleButton.vue'
 
 export default defineComponent({
   name: 'WishlistButton',
-  props: { item: Object },
-
-  computed: {
-    buttonClass () {
-      if (this.item.wishlist) {
-        return 'button is-info is-small'
-      }
-      return 'button is-info is-outlined is-small'
-    }
-  },
-
-  methods: {
-    toggleState() {
-      let currentToggle = this.item.wishlist
-      this.$store.commit('sceneList/toggleSceneList', {scene_id: this.item.scene_id, list: 'wishlist'})
-      this.item.wishlist = !currentToggle
-    }
-  },
-});
+  components: { ToggleButton },
+  props: { item: Object }
+})
 </script>

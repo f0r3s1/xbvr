@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -10,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
+
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/ffprobe"
 )
@@ -76,7 +77,7 @@ func downloadFfbinaries(tool string) error {
 	}
 
 	if platformId == "" {
-		return errors.Errorf("Unknown architecture: %v/%v", runtime.GOOS, runtime.GOARCH)
+		return fmt.Errorf("Unknown architecture: %v/%v", runtime.GOOS, runtime.GOARCH)
 	}
 
 	resp, err := resty.New().R().Get("https://ffbinaries.com/api/v1/version/4.2.1")
@@ -85,7 +86,7 @@ func downloadFfbinaries(tool string) error {
 	}
 
 	if resp.StatusCode() != 200 {
-		return errors.Errorf("HTTP status code %d", resp.StatusCode())
+		return fmt.Errorf("HTTP status code %d", resp.StatusCode())
 	}
 
 	url := gjson.Get(resp.String(), "bin."+platformId+"."+tool)
@@ -113,7 +114,7 @@ func downloadFile(url, destPath string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return errors.Errorf("HTTP status code %d", resp.StatusCode)
+		return fmt.Errorf("HTTP status code %d", resp.StatusCode)
 	}
 
 	out, err := os.Create(destPath)
@@ -145,7 +146,7 @@ func unzipToDir(src, dest string) error {
 	for _, f := range r.File {
 		target := filepath.Join(destAbs, f.Name)
 		if !strings.HasPrefix(target, destAbs+string(os.PathSeparator)) && target != destAbs {
-			return errors.Errorf("unsafe path in zip: %s", f.Name)
+			return fmt.Errorf("unsafe path in zip: %s", f.Name)
 		}
 
 		if f.FileInfo().IsDir() {

@@ -145,3 +145,15 @@ func TestHeresphereTagPlayed(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestCuepointEndMs(t *testing.T) {
+	cps := []models.SceneCuepoint{{TimeStart: 10}, {TimeStart: 10}, {TimeStart: 30}, {TimeStart: 50}}
+	for i, want := range []int{29999, 29999, 49999, 120000} {
+		if got := cuepointEndMs(cps, i, 120); got != want {
+			t.Errorf("cuepoint %d: end %d, want %d", i, got, want)
+		}
+	}
+	if got := cuepointEndMs(cps, 3, 0); got != 51000 {
+		t.Errorf("unknown length: end %d, want 51000", got)
+	}
+}

@@ -474,8 +474,32 @@ func (i SceneResource) getScenes(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	out := models.QueryScenes(r, true)
-	resp.WriteHeaderAndEntity(http.StatusOK, out)
+	out, cuepoints := models.QuerySceneCards(r)
+	list := sceneListResponse{ResponseSceneList: out, Scenes: make([]sceneListItem, len(out.Scenes))}
+	for idx, s := range out.Scenes {
+		list.Scenes[idx] = sceneListItem{Scene: s, CuepointCount: cuepoints[s.ID], Slim: true}
+	}
+	resp.WriteHeaderAndEntity(http.StatusOK, list)
+}
+
+// sceneListItem drops what cards never show; the details overlay loads the full scene (slim marks that).
+type sceneListItem struct {
+	models.Scene
+	Tags          []models.Tag           `json:"tags,omitempty"`
+	Cast          []models.Actor         `json:"cast,omitempty"`
+	Cuepoints     []models.SceneCuepoint `json:"cuepoints,omitempty"`
+	History       []models.History       `json:"history,omitempty"`
+	Images        string                 `json:"images,omitempty"`
+	Synopsis      string                 `json:"synopsis,omitempty"`
+	FilenamesArr  string                 `json:"filenames_arr,omitempty"`
+	TrailerSource string                 `json:"trailer_source,omitempty"`
+	CuepointCount int                    `json:"cuepoint_count"`
+	Slim          bool                   `json:"slim"`
+}
+
+type sceneListResponse struct {
+	models.ResponseSceneList
+	Scenes []sceneListItem `json:"scenes"`
 }
 
 func (i SceneResource) toggleList(req *restful.Request, resp *restful.Response) {

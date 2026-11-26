@@ -2,7 +2,7 @@
   <div style="position: relative; min-height: 200px;">
     <div class="list-toolbar" ref="toolbar">
       <strong class="toolbar-total">{{ showSkeleton ? $t('Loading…') : total + ' results' }}</strong>
-      <nav class="letter-filter" aria-label="Filter by first letter">
+      <nav class="letter-filter" :aria-label="$t('Filter by first letter')">
         <button v-for="l in letters" :key="l.value" type="button" class="letter"
                 :class="{ 'is-active': jumpTo === l.value, 'is-all': l.value === '' }"
                 :aria-pressed="jumpTo === l.value" @click="jumpTo = l.value">{{ l.label }}</button>
@@ -10,11 +10,11 @@
       <div class="toolbar-size">
         <b-field>
           <span class="list-header-label">{{$t('Card size')}}</span>
-          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="1" size="is-small">XS</b-radio-button>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="1" size="is-small">{{ $t('XS') }}</b-radio-button>
           <b-radio-button name="actor-card-size" v-model="cardSize" native-value="2" size="is-small">S</b-radio-button>
           <b-radio-button name="actor-card-size" v-model="cardSize" native-value="3" size="is-small">M</b-radio-button>
           <b-radio-button name="actor-card-size" v-model="cardSize" native-value="4" size="is-small">L</b-radio-button>
-          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="5" size="is-small">XL</b-radio-button>
+          <b-radio-button name="actor-card-size" v-model="cardSize" native-value="5" size="is-small">{{ $t('XL') }}</b-radio-button>
         </b-field>
       </div>
     </div>
@@ -43,13 +43,14 @@
 
     <div class="loading-more" v-if="isLoadingMore">
       <b-icon pack="mdi" icon="loading" custom-class="mdi-spin" size="is-medium"></b-icon>
-      <span>Loading more...</span>
+      <span>{{ $t('Loading more...') }}</span>
     </div>
   </div>
 </template>
 
 <script>
 import { defineComponent } from 'vue';
+import { skeletonRows } from '../../skeleton'
 
 import ActorCard from './ActorCard'
 import ky from 'ky'
@@ -64,7 +65,7 @@ export default defineComponent({
       lastScrollY: 0,
       isSlowLoad: false,
       slowLoadTimer: null,
-      letters: [{ value: '', label: 'All' }]
+      letters: [{ value: '', label: this.$t('All') }]
         .concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => ({ value: l, label: l })))
         .concat([{ value: '#', label: '#' }])
     }
@@ -118,7 +119,7 @@ export default defineComponent({
     },
     skeletonCount () {
       const perRow = { 1: 8, 2: 6, 3: 5, 4: 4, 5: 3 }[this.cardSize] || 6
-      return perRow * 2
+      return perRow * skeletonRows(perRow, 1.5, 50)
     },
     skeletonAspect () {
       return (this.$store.state.optionsWeb.web.actorCardAspectRatio || '1:1').replace(':', ' / ')
@@ -280,6 +281,8 @@ export default defineComponent({
   .actor-col {
     overflow: hidden;
     min-width: 0;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 360px;
   }
 
 </style>

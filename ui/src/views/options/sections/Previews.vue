@@ -7,7 +7,7 @@
           <span class="slider-value">{{ preview[s.key] }}{{ s.unit }}</span>
         </b-field>
         <b-field>
-          <b-checkbox v-model="preview.extraSnippet">Grab extra snippet from the end of video</b-checkbox>
+          <b-checkbox v-model="preview.extraSnippet">{{ $t('Grab extra snippet from the end of video') }}</b-checkbox>
         </b-field>
       </div>
       <div class="column">
@@ -19,12 +19,12 @@
     </div>
 
     <template #footer>
-      <b-button @click="testSettings">Test settings</b-button>
+      <b-button @click="testSettings">{{ $t('Test settings') }}</b-button>
     </template>
 
     <div class="generate">
-      <p>Once you picked preview settings, start generating them. This is a CPU-heavy process; once started it can only be stopped by closing the app.</p>
-      <b-button type="is-primary" outlined @click="startGenerating">Start generating previews</b-button>
+      <p>{{ $t('Once you picked preview settings, start generating them. This is a CPU-heavy process; once started it can only be stopped by closing the app.') }}</p>
+      <b-button type="is-primary" outlined @click="startGenerating">{{ $t('Start generating previews') }}</b-button>
     </div>
   </OptionsSection>
 </template>
@@ -44,10 +44,10 @@ export default defineComponent({
       isLoading: true,
       preview: { startTime: 5, snippetLength: 0.2, snippetAmount: 2, resolution: 300, extraSnippet: false },
       sliders: [
-        { key: 'startTime', label: 'Start time', min: 5, max: 60, step: 5, unit: 's' },
-        { key: 'snippetLength', label: 'Snippet length', min: 0.2, max: 5, step: 0.2, unit: 's' },
-        { key: 'snippetAmount', label: 'Number of snippets', min: 2, max: 40, step: 1, unit: '' },
-        { key: 'resolution', label: 'Preview resolution', min: 300, max: 800, step: 20, unit: 'px' }
+        { key: 'startTime', label: this.$t('Start time'), min: 5, max: 60, step: 5, unit: 's' },
+        { key: 'snippetLength', label: this.$t('Snippet length'), min: 0.2, max: 5, step: 0.2, unit: 's' },
+        { key: 'snippetAmount', label: this.$t('Number of snippets'), min: 2, max: 40, step: 1, unit: '' },
+        { key: 'resolution', label: this.$t('Preview resolution'), min: 300, max: 800, step: 20, unit: 'px' }
       ]
     }
   },

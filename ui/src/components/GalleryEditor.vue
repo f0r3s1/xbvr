@@ -15,11 +15,10 @@
       </div>
     </div>
 
-    <!-- Lock Control -->
     <div style="margin-bottom: 0.25rem; padding: 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; line-height: 1; padding: 0;">
         <span style="font-size: 0.6rem; color: #b5b5b5; line-height: 1; margin: 0;">
-          Drag images to reorder
+          {{ $t('Drag images to reorder') }}
         </span>
         <b-button 
           type="is-light" 
@@ -125,26 +124,21 @@ export default defineComponent({
       if (!this.isLocked) {
         const itemToDelete = this.internalList[index]
         
-        // Check if this is the cover image
         if (itemToDelete === this.coverUrl) {
-          // Show confirmation dialog for deleting cover image
           this.$buefy.dialog.confirm({
-            title: 'Delete Cover Image',
-            message: 'You are about to delete the current cover image. This will clear the cover selection. Are you sure you want to continue?',
-            confirmText: 'Delete',
-            cancelText: 'Cancel',
+            title: this.$t('Delete Cover Image'),
+            message: this.$t('You are about to delete the current cover image. This will clear the cover selection. Are you sure you want to continue?'),
+            confirmText: this.$t('Delete'),
+            cancelText: this.$t('Cancel'),
             type: 'is-warning',
             hasIcon: true,
             onConfirm: () => {
-              // Remove the image
               this.internalList.splice(index, 1)
-              // Clear the cover_url since we're deleting the cover image
               this.$emit('setCover', '')
               this.updateList()
             }
           })
         } else {
-          // Regular image deletion - just remove it without affecting cover_url
           this.internalList.splice(index, 1)
           this.updateList()
         }
@@ -155,7 +149,7 @@ export default defineComponent({
       this.blurFn()
     },
     onDragEnd () {
-      // 'draggable' updates the list automatically, so we just need to emit the update
+      // draggable already updated the list
       this.updateList()
     },
     setCover (url) {
@@ -175,12 +169,10 @@ export default defineComponent({
         // fall through
       }
       
-      // Convert backslashes to forward slashes
       if (url.includes('\\')) {
         url = url.replace(/\\/g, '/')
       }
       
-      // Return path or url
       return url
     },
     handleFileDrop(event) {

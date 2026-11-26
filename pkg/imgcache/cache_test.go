@@ -2,6 +2,11 @@ package imgcache
 
 import (
 	"bytes"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -161,3 +166,53 @@ func TestEvictKeepsLegacyWhenDeferred(t *testing.T) {
 		t.Fatal("legacy file kept after deferral")
 	}
 }
+
+type fixedBody struct{ body []byte }
+
+func (f fixedBody) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(f.body)), Request: req}, nil
+}
+
+func TestNoTIFF(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://x/a.jpg", nil)
+	resp, _ := (&NoTIFF{Next: fixedBody{[]byte("II*\x00rest")}}).RoundTrip(req)
+	if resp.StatusCode != http.StatusUnsupportedMediaType {
+		t.Fatalf("tiff passed with %d", resp.StatusCode)
+	}
+	jpeg := []byte("\xff\xd8\xff\xe0jpegdata")
+	resp, _ = (&NoTIFF{Next: fixedBody{jpeg}}).RoundTrip(req)
+	got, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || !bytes.Equal(got, jpeg) {
+		t.Fatalf("jpeg altered: %d %q", resp.StatusCode, got)
+	}
+}
+
+func testJPEG(t *testing.T, w, h int) []byte {
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, image.NewRGBA(image.Rect(0, 0, w, h)), nil); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func TestScaleToWidth(t *testing.T) {
+	small := testJPEG(t, 500, 300)
+	if out, err := scaleToWidth(small, 700, 80); err != nil || !bytes.Equal(out, small) {
+		t.Fatal("narrow jpeg should pass through unchanged")
+	}
+	out, err := scaleToWidth(testJPEG(t, 1600, 900), 700, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := jpeg.DecodeConfig(bytes.NewReader(out))
+	if err != nil || cfg.Width != 700 || cfg.Height != 393 {
+		t.Fatalf("scaled to %dx%d (%v)", cfg.Width, cfg.Height, err)
+	}
+	var png bytes.Buffer
+	pngEncode(&png, image.NewRGBA(image.Rect(0, 0, 1600, 900)))
+	if _, err := scaleToWidth(png.Bytes(), 700, 80); err == nil {
+		t.Fatal("png should be left to imageproxy")
+	}
+}
+
+var pngEncode = png.Encode

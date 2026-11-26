@@ -10,22 +10,22 @@
 
     <div class="modal-card stashdb-search">
       <header class="modal-card-head">
-        <p class="modal-card-title">Search Stashdb Scenes</p>
-        <button class="delete" @click="close" aria-label="close"></button>
+        <p class="modal-card-title">{{ $t('Search Stashdb Scenes') }}</p>
+        <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
 
       <div class="modal-card-body">
                 <div >
           <b-field>
-            <b-input v-model="queryString" placeholder="Search StashDB by title, cast or studio" @update:modelValue="debouncedSearch" :loading="isFetching" icon="magnify" expanded/>
+            <b-input v-model="queryString" :placeholder="$t('Search StashDB by title, cast or studio')" @update:modelValue="debouncedSearch" :loading="isFetching" icon="magnify" expanded/>
           </b-field>
           <b-field>
-            <b-input v-model="manualUrl" placeholder="…or paste a StashDB scene URL" icon="link-variant" expanded/>
+            <b-input v-model="manualUrl" :placeholder="$t('…or paste a StashDB scene URL')" icon="link-variant" expanded/>
             <p class="control">
-              <b-button :disabled="!manualUrl.includes('stashdb.org/scenes/')" @click="linktoStashdb({ Url: manualUrl.trim() })">Link</b-button>
+              <b-button :disabled="!manualUrl.includes('stashdb.org/scenes/')" @click="linktoStashdb({ Url: manualUrl.trim() })">{{ $t('Link') }}</b-button>
             </p>
           </b-field>
-          <p v-if="isFetching" class="search-state">Searching StashDB…</p>
+          <p v-if="isFetching" class="search-state">{{ $t('Searching StashDB…') }}</p>
           <p v-else-if="statusMessage" class="search-state">{{ statusMessage }}</p>
 
         <b-table v-if="searchResults.length" :data="searchResults" >
@@ -41,9 +41,9 @@
                     <div v-if="tooltipImage!='' && tooltipImage==props.row.ImageUrl" class="tooltipimg">
                       <img :src="tooltipImage" alt="Tooltip Image" width="400px" />
                     </div>
-                  <div v-if="props.row.Date!=''"><small><strong>Released:</strong> {{format(parseISO(props.row.Date), "yyyy-MM-dd")}}</small></div>
-                  <div v-if="props.row.Duration!=''"><small><strong>Durn:</strong> {{ props.row.Duration }}</small></div>
-                  <div><small><strong>Score:</strong> {{ props.row.Weight }}</small></div>
+                  <div v-if="props.row.Date!=''"><small><strong>{{ $t('Released:') }}</strong> {{format(parseISO(props.row.Date), "yyyy-MM-dd")}}</small></div>
+                  <div v-if="props.row.Duration!=''"><small><strong>{{ $t('Durn:') }}</strong> {{ props.row.Duration }}</small></div>
+                  <div><small><strong>{{ $t('Score:') }}</strong> {{ props.row.Weight }}</small></div>
                   <div>
                     <a class="button is-primary is-small" @click="linktoStashdb(props.row)" :title="'Link scene with stashdb'">
                       <b-icon pack="mdi" :icon="'link-variant-plus'" size="is-small"/>
@@ -77,15 +77,8 @@ import { defineComponent, nextTick } from 'vue';
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
 import { format, parseISO } from 'date-fns'
+import { debounce } from '../../debounce'
 
-function debounce(func, wait) {
-  let timeout;
-  return function(...args) {
-    const context = this;
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(context, args), wait);
-  };
-}
 
 export default defineComponent({
   name: 'SearchStashdbScenes',
@@ -106,7 +99,7 @@ export default defineComponent({
   },
 
   created() {
-    this.debouncedSearch = debounce(this.searchStashdb, 750); // 750ms delay
+    this.debouncedSearch = debounce(this.searchStashdb, 750);
   },
 
   mounted () {

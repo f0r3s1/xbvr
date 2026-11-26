@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xbapps/xbvr/pkg/common"
@@ -231,15 +232,20 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Check if external proxy is configured
-	if config.Config.Advanced.ProxyAddress == "" {
-		// No fallback configured, just use the original proxy
-		h.ImageProxy.ServeHTTP(w, r)
+	if recentlyFailed(fallbackKey) {
+		imageUnavailable(w)
 		return
 	}
 
-	if originalURL == "" {
-		h.ImageProxy.ServeHTTP(w, r)
+	if config.Config.Advanced.ProxyAddress == "" || originalURL == "" {
+		capture := newResponseCapture(w)
+		h.ImageProxy.ServeHTTP(capture, r)
+		if isImageResponse(capture) {
+			capture.flushToClient()
+		} else {
+			markFailed(fallbackKey)
+			imageUnavailable(w)
+		}
 		return
 	}
 
@@ -267,15 +273,11 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	capture := newResponseCapture(w)
 	h.ImageProxy.ServeHTTP(capture, r)
 
-	// Check if the response is valid - check both header content-type and detect from body
-	detectedType := http.DetectContentType(capture.body.Bytes())
-	isValidImage := capture.statusCode >= 200 && capture.statusCode < 300 &&
-		(isImageContentType(capture.contentType) || isImageContentType(detectedType))
-
-	if isValidImage {
+	if isImageResponse(capture) {
 		// Response is a valid image, cache it and send to client
 		h.Cache.Set(cacheKey, capture.body.Bytes())
-		capture.flushToClient()
+		markFailed(fallbackKey)
+		imageUnavailable(w)
 		return
 	}
 
@@ -285,8 +287,8 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	externalURL := buildExternalProxyURL(originalURL)
 	if externalURL == "" {
-		// Can't build external URL, return the original response
-		capture.flushToClient()
+		markFailed(fallbackKey)
+		imageUnavailable(w)
 		return
 	}
 
@@ -297,14 +299,16 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	resp, err := fetchFromExternalProxy(ctx, externalURL)
 	if err != nil {
 		common.Log.Errorf("Image proxy fallback: failed to fetch from external proxy: %v", err)
-		capture.flushToClient()
+		markFailed(fallbackKey)
+		imageUnavailable(w)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		common.Log.Errorf("Image proxy fallback: external proxy returned error status: %d", resp.StatusCode)
-		capture.flushToClient()
+		markFailed(fallbackKey)
+		imageUnavailable(w)
 		return
 	}
 
@@ -312,7 +316,8 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	externalContentType := resp.Header.Get("Content-Type")
 	if !isImageContentType(externalContentType) {
 		common.Log.Errorf("Image proxy fallback: external proxy returned non-image content type: %s", externalContentType)
-		capture.flushToClient()
+		markFailed(fallbackKey)
+		imageUnavailable(w)
 		return
 	}
 
@@ -320,7 +325,8 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyReadSize))
 	if err != nil {
 		common.Log.Errorf("Image proxy fallback: failed to read external proxy response: %v", err)
-		capture.flushToClient()
+		markFailed(fallbackKey)
+		imageUnavailable(w)
 		return
 	}
 
@@ -334,4 +340,43 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	w.Write(body)
 
 	common.Log.Debugf("Image proxy fallback: successfully fetched image from external proxy for %s", originalURL)
+}
+
+func isImageResponse(c *ResponseCapture) bool {
+	detected := http.DetectContentType(c.body.Bytes())
+	return c.statusCode >= 200 && c.statusCode < 300 && (isImageContentType(c.contentType) || isImageContentType(detected))
+}
+
+// imageUnavailable answers a failed image with an empty 502 instead of the site's error page,
+// which could be hundreds of KB per card and kept the browser's few connections busy.
+func imageUnavailable(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "public, max-age=600")
+	w.WriteHeader(http.StatusBadGateway)
+}
+
+const failedImageTTL = 10 * time.Minute
+
+var (
+	failedImagesMu sync.Mutex
+	failedImages   = map[string]time.Time{}
+)
+
+func recentlyFailed(key string) bool {
+	failedImagesMu.Lock()
+	defer failedImagesMu.Unlock()
+	until, ok := failedImages[key]
+	if ok && time.Now().After(until) {
+		delete(failedImages, key)
+		return false
+	}
+	return ok
+}
+
+func markFailed(key string) {
+	failedImagesMu.Lock()
+	defer failedImagesMu.Unlock()
+	if len(failedImages) > 10000 {
+		failedImages = map[string]time.Time{}
+	}
+	failedImages[key] = time.Now().Add(failedImageTTL)
 }

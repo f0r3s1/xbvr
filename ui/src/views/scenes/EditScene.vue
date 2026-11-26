@@ -10,7 +10,7 @@
     <div class="modal-card">
       <header class="modal-card-head">
         <p class="modal-card-title">{{ this.scene.id == 0 ? $t('Display scene details') : $t('Edit scene details') }}</p>
-        <button class="delete" @click="close" aria-label="close"></button>
+        <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
 
       <section class="modal-card-body">
@@ -53,7 +53,7 @@
             <b-field :label="$t('Cast')">
               <b-taginput type="is-warning"
                           icon="label"
-                          placeholder="Add an actor"
+                          :placeholder="$t('Add an actor')"
                           v-model="scene.castArray"
                           autocomplete
                           :allow-new="true"
@@ -66,7 +66,7 @@
             <b-field :label="$t('Tags')">
               <b-taginput type="is-info"
                           icon="label"
-                          placeholder="Add a tag"
+                          :placeholder="$t('Add a tag')"
                           v-model="scene.tagsArray"
                           autocomplete
                           :allow-new="true"
@@ -142,9 +142,7 @@ export default defineComponent({
     }
 
     try {
-      // map all scene images into the gallery list
       scene.gallery = images.map(i => i.url)
-      // -If- there is -no- explicit cover_url, set the first image as cover
       if (!scene.cover_url && scene.gallery.length > 0) {
         scene.cover_url = scene.gallery[0]
       }
@@ -153,7 +151,6 @@ export default defineComponent({
     }
 
     try {
-      // Fetch the image filenames
       scene.files = JSON.parse(scene.filenames_arr)
       if (scene.files == null) {
         scene.files = []
@@ -163,7 +160,6 @@ export default defineComponent({
     }
     return {
       scene,
-      // A shallow copy won't work, need a deep copy
       source: JSON.parse(JSON.stringify(scene)),
       filteredCast: [],
       filteredTags: [],
@@ -187,9 +183,9 @@ export default defineComponent({
     close () {
       if (this.changesMade) {
         this.$buefy.dialog.confirm({
-          title: 'Close without saving',
-          message: 'Are you sure you want to close before saving your changes?',
-          confirmText: 'Close',
+          title: this.$t('Close without saving'),
+          message: this.$t('Are you sure you want to close before saving your changes?'),
+          confirmText: this.$t('Close'),
           type: 'is-warning',
           hasIcon: true,
           onConfirm: () => this.$store.commit('overlay/hideEditDetails')
@@ -199,16 +195,12 @@ export default defineComponent({
       this.$store.commit('overlay/hideEditDetails')
     },
     save () {
-      // If there are images in the gallery, ensure a cover is set and gallery is normalized
       if (this.scene.gallery.length > 0) {
-        // If no cover is set, use the first image as cover
         let coverUrl = this.scene.cover_url || this.scene.gallery[0];
         this.scene.cover_url = coverUrl;
-        // Normalize gallery: cover first, no duplicates
         this.scene.gallery = [coverUrl, ...this.scene.gallery.filter(url => url !== coverUrl)];
       }
 
-      // Load original image metadata (from DB) to preserve type and orientation
       let originalImages = [];
       try {
         originalImages = JSON.parse(this.source.images);
@@ -216,7 +208,6 @@ export default defineComponent({
         originalImages = [];
       }
 
-      // Build images metadata array
       const seen = new Set();
       const images = this.scene.gallery.reduce((arr, url) => {
         if (seen.has(url)) return arr;
@@ -235,22 +226,18 @@ export default defineComponent({
       this.scene.filenames_arr = JSON.stringify(this.scene.files);
       this.scene.duration = String(this.scene.duration);
 
-      // Push to backend with proper error handling
       ky.post(`/api/scene/edit/${this.scene.id}`, { json: { ...this.scene } })
         .json()
         .then(data => {
           this.$store.commit('sceneList/updateScene', data);
           this.$store.commit('overlay/showDetails', { scene: data });
-          // Reset changesMade flag after successful save
           this.changesMade = false;
           this.close();
         })
-        // On error, don't reset changesMade flag or close modal.User can try saving again
         .catch(error => {
           console.error('Failed to save scene:', error);
-          // Show user-friendly error message
           this.$buefy.toast.open({
-            message: 'Failed to save scene changes. Please try again.',
+            message: this.$t('Failed to save scene changes. Please try again.'),
             type: 'is-danger',
             duration: 5000
           });
@@ -258,7 +245,7 @@ export default defineComponent({
     },
     deletescene () {
       this.$buefy.dialog.confirm({
-        title: 'Delete scene',
+        title: this.$t('Delete scene'),
         message: `Do you really want to delete the scene <strong>${this.scene.title}</strong> from <strong>${this.scene.studio}</strong>? If this is an existing scene, it will be re-added during the next scrape.`,
         type: 'is-info is-wide',
         hasIcon: true,
@@ -275,7 +262,6 @@ export default defineComponent({
     blur (field) {
       if (this.changesMade) return // Changes have already been made. No point to check any further
       
-      // Removed 'covers'as this is now handled in the GalleryEditor component
       if (['castArray', 'tagsArray', 'files', 'gallery'].includes(field)) {
         if (this.scene[field].length !== this.source[field].length) {
           this.changesMade = true
@@ -291,7 +277,6 @@ export default defineComponent({
         this.changesMade = true
       }
     },
-    // Update displayed cover image in the UI
     setCoverImage (url) {
       this.scene.cover_url = url
       this.changesMade = true

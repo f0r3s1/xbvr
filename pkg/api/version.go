@@ -2,12 +2,12 @@ package api
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/mcuadros/go-version"
 	"github.com/tidwall/gjson"
 
 	"github.com/xbapps/xbvr/pkg/common"
@@ -61,8 +61,7 @@ func latestReleaseTag() string {
 
 // versionCoreRe captures the leading numeric version, ignoring snapshot
 // suffixes such as goreleaser's "{{.Tag}}-next" and git-describe's
-// "-N-gHASH". mcuadros/go-version treats those suffixes as older than the
-// tag they were built from, which false-notifies source/snapshot builds.
+// "-N-gHASH", which would otherwise rank older than the tag they were built from.
 var versionCoreRe = regexp.MustCompile(`(?i)^v?(\d+(?:\.\d+){1,3})`)
 
 func isDevVersion(v string) bool {
@@ -95,5 +94,26 @@ func shouldNotifyUpdate(current, latest string) bool {
 	if currentCore == "" || latestCore == "" {
 		return false
 	}
-	return version.Compare(currentCore, latestCore, "<")
+	return compareDotted(currentCore, latestCore) < 0
+}
+
+// compareDotted compares dotted numeric versions ("0.4.40" < "0.4.40.5"); missing parts count as 0.
+func compareDotted(a, b string) int {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(pa) || i < len(pb); i++ {
+		var x, y int
+		if i < len(pa) {
+			x, _ = strconv.Atoi(pa[i])
+		}
+		if i < len(pb) {
+			y, _ = strconv.Atoi(pb[i])
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }

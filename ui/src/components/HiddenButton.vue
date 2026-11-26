@@ -1,33 +1,15 @@
 <template>
-  <a :class="buttonClass"
-     @click="toggleState()"
-     :data-tooltip="item.is_hidden ? 'Unhide' : 'Mark as hidden'">
-    <b-icon pack="mdi" :icon="item.is_hidden ? 'eye-off' : 'eye-outline'" size="is-small"/>
-  </a>
+  <ToggleButton :item="item" field="is_hidden" color="danger" icon="eye-outline" active-icon="eye-off"
+    on-tooltip="Unhide" off-tooltip="Mark as hidden"/>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
+import { defineComponent } from 'vue'
+import ToggleButton from './ToggleButton.vue'
 
 export default defineComponent({
   name: 'HiddenButton',
-  props: { item: Object },
-
-  computed: {
-    buttonClass () {
-      if (this.item.is_hidden) {
-        return 'button is-danger is-small'
-      }
-      return 'button is-danger is-outlined is-small'
-    }
-  },
-
-  methods: {
-    toggleState() {
-      let currentToggle = this.item.is_hidden
-      this.$store.commit('sceneList/toggleSceneList', {scene_id: this.item.scene_id, list: 'is_hidden'})
-      this.item.is_hidden = !currentToggle
-    }
-  },
-});
+  components: { ToggleButton },
+  props: { item: Object }
+})
 </script>

@@ -12,11 +12,11 @@
         <template v-if="site.latest_release"> · latest {{ site.latest_release }}</template>
       </p>
     </div>
-    <a v-if="site.homepage_url" class="site-home" :href="site.homepage_url" target="_blank" rel="noopener noreferrer" title="Open website">
+    <a v-if="site.homepage_url" class="site-home" :href="site.homepage_url" target="_blank" rel="noopener noreferrer" :title="$t('Open website')">
       <b-icon pack="mdi" icon="open-in-new" size="is-small"/>
     </a>
     <span v-if="site.upcoming" class="site-upcoming">{{ site.upcoming }} upcoming</span>
-    <button type="button" class="site-clear" title="Show all sites" aria-label="Show all sites" @click="clear">
+    <button type="button" class="site-clear" :title="$t('Show all sites')" :aria-label="$t('Show all sites')" @click="clear">
       <b-icon pack="mdi" icon="close"/>
     </button>
   </div>

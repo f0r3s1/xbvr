@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"strings"
 	"time"
 
@@ -91,40 +92,71 @@ func mergeStandIn(db *gorm.DB, from Scene, toID uint) {
 	if db.First(&to, toID).RecordNotFound() || from.ID == to.ID {
 		return
 	}
-	for _, m := range []interface{}{&File{}, &History{}, &SceneCuepoint{}} {
-		db.Model(m).Where("scene_id = ?", from.ID).Update("scene_id", to.ID)
+	err := inTransaction(db, func(tx *gorm.DB) error {
+		for _, m := range []interface{}{&File{}, &History{}, &SceneCuepoint{}} {
+			if err := tx.Model(m).Where("scene_id = ?", from.ID).Update("scene_id", to.ID).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&Action{}).Where("scene_id = ?", from.SceneID).Update("scene_id", to.SceneID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&ExternalReferenceLink{}).Where("internal_table = ? AND internal_db_id = ?", "scenes", from.ID).Update("internal_db_id", to.ID).Error; err != nil {
+			return err
+		}
+		updates := map[string]interface{}{
+			"favourite":        to.Favourite || from.Favourite,
+			"watchlist":        to.Watchlist || from.Watchlist,
+			"wishlist":         to.Wishlist || from.Wishlist,
+			"trailerlist":      to.Trailerlist || from.Trailerlist,
+			"is_hidden":        to.IsHidden || from.IsHidden,
+			"is_watched":       to.IsWatched || from.IsWatched,
+			"is_available":     to.IsAvailable || from.IsAvailable,
+			"total_watch_time": to.TotalWatchTime + from.TotalWatchTime,
+		}
+		if to.StarRating == 0 {
+			updates["star_rating"] = from.StarRating
+		}
+		if from.LastOpened.After(to.LastOpened) {
+			updates["last_opened"] = from.LastOpened
+		}
+		if err := tx.Model(&Scene{}).Where("id = ?", to.ID).Updates(updates).Error; err != nil {
+			return err
+		}
+		return deleteScenes(tx, []uint{from.ID})
+	})
+	if err != nil {
+		log.Errorf("Could not merge upcoming scene %v into %v: %v", from.ID, to.ID, err)
 	}
-	db.Model(&Action{}).Where("scene_id = ?", from.SceneID).Update("scene_id", to.SceneID)
-	db.Model(&ExternalReferenceLink{}).Where("internal_table = ? AND internal_db_id = ?", "scenes", from.ID).Update("internal_db_id", to.ID)
-	updates := map[string]interface{}{
-		"favourite":    to.Favourite || from.Favourite,
-		"watchlist":    to.Watchlist || from.Watchlist,
-		"wishlist":     to.Wishlist || from.Wishlist,
-		"trailerlist":  to.Trailerlist || from.Trailerlist,
-		"is_hidden":    to.IsHidden || from.IsHidden,
-		"is_watched":   to.IsWatched || from.IsWatched,
-		"is_available": to.IsAvailable || from.IsAvailable,
+}
+
+// inTransaction runs fn in a new transaction, or in db itself when db already is one.
+func inTransaction(db *gorm.DB, fn func(tx *gorm.DB) error) error {
+	if _, isTx := db.CommonDB().(*sql.Tx); isTx {
+		return fn(db)
 	}
-	if to.StarRating == 0 {
-		updates["star_rating"] = from.StarRating
-	}
-	if from.LastOpened.After(to.LastOpened) {
-		updates["last_opened"] = from.LastOpened
-	}
-	updates["total_watch_time"] = to.TotalWatchTime + from.TotalWatchTime
-	db.Model(&Scene{}).Where("id = ?", to.ID).Updates(updates)
-	deleteScenes(db, []uint{from.ID})
+	return db.Transaction(fn)
 }
 
 // deleteScenes soft-deletes scenes and drops their cast, tag and external link rows so counts stay right.
-func deleteScenes(db *gorm.DB, ids []uint) {
+func deleteScenes(db *gorm.DB, ids []uint) error {
 	if len(ids) == 0 {
-		return
+		return nil
 	}
-	db.Exec("DELETE FROM scene_cast WHERE scene_id IN (?)", ids)
-	db.Exec("DELETE FROM scene_tags WHERE scene_id IN (?)", ids)
-	db.Where("internal_table = ? AND internal_db_id IN (?)", "scenes", ids).Delete(&ExternalReferenceLink{})
-	db.Where("id IN (?)", ids).Delete(&Scene{})
+	steps := []func() *gorm.DB{
+		func() *gorm.DB { return db.Exec("DELETE FROM scene_cast WHERE scene_id IN (?)", ids) },
+		func() *gorm.DB { return db.Exec("DELETE FROM scene_tags WHERE scene_id IN (?)", ids) },
+		func() *gorm.DB {
+			return db.Where("internal_table = ? AND internal_db_id IN (?)", "scenes", ids).Delete(&ExternalReferenceLink{})
+		},
+		func() *gorm.DB { return db.Where("id IN (?)", ids).Delete(&Scene{}) },
+	}
+	for _, step := range steps {
+		if err := step().Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // canonicalPlaceholderID keeps an announcement whose title changed slightly on its stored stand-in instead of creating a second one.
@@ -193,13 +225,17 @@ func UpcomingReleaseDates(scraperID string) map[string]time.Time {
 
 // PruneUpcoming removes announcements that left the site's upcoming list without being released (renamed or cancelled).
 func PruneUpcoming(scraperID string, listedSceneURLs []string) {
-	db, _ := GetCommonDB()
-	tx := db.Where("scraper_id = ? AND is_upcoming = ? AND updated_at < ?", scraperID, true, time.Now().Add(-upcomingGrace)).
-		Where("is_available = ? AND favourite = ? AND watchlist = ? AND wishlist = ?", false, false, false, false)
-	if len(listedSceneURLs) > 0 {
-		tx = tx.Where("scene_url NOT IN (?)", listedSceneURLs)
+	if len(listedSceneURLs) == 0 {
+		return
 	}
+	db, _ := GetCommonDB()
 	var ids []uint
-	tx.Model(&Scene{}).Pluck("id", &ids)
-	deleteScenes(db, ids)
+	db.Model(&Scene{}).
+		Where("scraper_id = ? AND is_upcoming = ? AND updated_at < ?", scraperID, true, time.Now().Add(-upcomingGrace)).
+		Where("is_available = ? AND favourite = ? AND watchlist = ? AND wishlist = ?", false, false, false, false).
+		Where("scene_url NOT IN (?)", listedSceneURLs).
+		Pluck("id", &ids)
+	if err := deleteScenes(db, ids); err != nil {
+		log.Errorf("Could not prune upcoming scenes of %v: %v", scraperID, err)
+	}
 }

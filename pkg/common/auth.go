@@ -1,23 +1,14 @@
 package common
 
-import (
-	"golang.org/x/crypto/bcrypt"
-)
+import "crypto/subtle"
 
 func IsUIAuthEnabled() bool {
-	if EnvConfig.UIUsername != "" && EnvConfig.UIPassword != "" {
-		return true
-	} else {
-		return false
-	}
+	return EnvConfig.UIUsername != "" && EnvConfig.UIPassword != ""
 }
 
-func GetUISecret(user string, realm string) string {
-	if user == EnvConfig.UIUsername {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(EnvConfig.UIPassword), bcrypt.DefaultCost)
-		if err == nil {
-			return string(hashedPassword)
-		}
-	}
-	return ""
+// CheckUICredentials compares in constant time so the response time does not leak a partial match.
+func CheckUICredentials(user, password string) bool {
+	userOK := subtle.ConstantTimeCompare([]byte(user), []byte(EnvConfig.UIUsername)) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(password), []byte(EnvConfig.UIPassword)) == 1
+	return userOK && passOK
 }

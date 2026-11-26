@@ -103,16 +103,10 @@ func deoLoop() error {
 			return err
 		}
 
-		common.PublishWS("remote.state", map[string]interface{}{
-			"connected":       true,
-			"deovrHost":       DeoPlayerHost,
-			"isPlaying":       isPlaying,
-			"currentPosition": currentPosition,
-			"sessionStart":    lastSessionStart,
-			"sessionEnd":      lastSessionEnd,
-			"currentFileID":   currentFileID,
-			"currentSceneID":  currentSceneID,
-		})
+		state := RemoteState()
+		state["connected"] = true
+		state["deovrHost"] = DeoPlayerHost
+		common.PublishWS("remote.state", state)
 	}
 }
 

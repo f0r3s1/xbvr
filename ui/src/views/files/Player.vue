@@ -5,7 +5,7 @@
     <div class="modal-content">
       <VrPlayer ref="player" aspect-ratio="1 / 1" :loop="false"/>
     </div>
-    <button class="modal-close is-large" aria-label="close"
+    <button class="modal-close is-large" :aria-label="$t('close')"
             @click="close()"></button>
   </div>
 </template>

@@ -1,33 +1,15 @@
 <template>
-  <a :class="buttonClass"
-     @click="toggleState()"
-     :title="actor.watchlist ? 'Remove from watchlist' : 'Add to watchlist'">
-    <b-icon pack="mdi" :icon="actor.watchlist ? 'calendar-check' : 'calendar-blank'" size="is-small"/>
-  </a>
+  <ToggleButton :item="actor" actor native-title field="watchlist" color="primary" icon="calendar-blank" active-icon="calendar-check"
+    on-tooltip="Remove from watchlist" off-tooltip="Add to watchlist"/>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
+import { defineComponent } from 'vue'
+import ToggleButton from './ToggleButton.vue'
 
 export default defineComponent({
-  name: 'WatchlistButton',
-  props: { actor: Object },
-
-  computed: {
-    buttonClass () {
-      if (this.actor.watchlist) {
-        return 'button is-primary is-small'
-      }
-      return 'button is-primary is-outlined is-small'
-    }
-  },
-
-  methods: {
-    toggleState() {
-      let currentToggle=this.actor.watchlist
-      this.$store.commit('actorList/toggleActorList', {actor_id: this.actor.id, list: 'watchlist'})
-      this.actor.watchlist=!currentToggle
-    }
-  },
-});
+  name: 'ActorWatchlistButton',
+  components: { ToggleButton },
+  props: { actor: Object }
+})
 </script>

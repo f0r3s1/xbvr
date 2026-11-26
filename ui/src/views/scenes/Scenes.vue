@@ -4,7 +4,7 @@
 
       <div class="column is-one-fifth">
         <Filters ref="filters"/>
-        <p class="fork-credit">This fork is maintained by <a href="https://github.com/f0r3s1/xbvr" target="_blank" rel="noopener">f0r3s1</a></p>
+        <p class="fork-credit">{{ $t('This fork is maintained by') }} <a href="https://github.com/f0r3s1/xbvr" target="_blank" rel="noopener">f0r3s1</a></p>
 
         <div id="scrollButtons" :class="{ 'is-visible': showScrollButtons }">
           <a id="toTop" @click="scrollToTop">

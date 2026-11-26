@@ -1,3 +1,5 @@
+import ky from 'ky'
+
 const state = {
   details: {
     show: false,
@@ -176,8 +178,24 @@ const mutations = {
   },
 }
 
+let latestDetailsRequest = 0
+
+const actions = {
+  // scene lists send slim scenes; fetch the full scene before showing it
+  async openDetails ({ commit }, { scene }) {
+    const request = ++latestDetailsRequest
+    if (!scene.slim) {
+      commit('showDetails', { scene })
+      return
+    }
+    const full = await ky.get(`/api/scene/${scene.id}`).json()
+    if (request === latestDetailsRequest && full.id) commit('showDetails', { scene: full })
+  }
+}
+
 export default {
   namespaced: true,
   state,
-  mutations
+  mutations,
+  actions
 }

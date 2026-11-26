@@ -22,6 +22,8 @@ func TestFormatCronSchedule(t *testing.T) {
 		{"over midnight aligned", config.CronSchedule{UseRange: true, HourInterval: 3, HourStart: 22, HourEnd: 6}, "0 1-6/3,22-23/3 * * *"},
 		{"over midnight interval too big", config.CronSchedule{UseRange: true, HourInterval: 5, HourStart: 22, HourEnd: 2}, "0 22-23/5 * * *"},
 		{"end from second day of slider", config.CronSchedule{UseRange: true, HourInterval: 1, HourStart: 20, HourEnd: 26}, "0 0-2,20-23 * * *"},
+		{"whole day window", config.CronSchedule{UseRange: true, HourInterval: 1, HourStart: 5, HourEnd: 29}, "0 0-23 * * *"},
+		{"whole day window with step", config.CronSchedule{UseRange: true, HourInterval: 4, HourStart: 6, HourEnd: 30}, "0 2-23/4 * * *"},
 		{"minute 60 clamped", config.CronSchedule{UseRange: true, HourInterval: 1, HourStart: 1, HourEnd: 2, MinuteStart: 60}, "59 1-2 * * *"},
 	}
 	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)

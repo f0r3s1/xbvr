@@ -91,7 +91,7 @@ type ObjectConfig struct {
 	} `json:"vendor"`
 	Interfaces struct {
 		DLNA struct {
-			Enabled      bool     `default:"true" json:"enabled"`
+			Enabled      bool     `default:"false" json:"enabled"`
 			ServiceName  string   `default:"XBVR" json:"serviceName"`
 			ServiceImage string   `default:"default" json:"serviceImage"`
 			AllowedIP    []string `default:"[]" json:"allowedIp"`

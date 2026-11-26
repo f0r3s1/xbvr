@@ -69,7 +69,7 @@
       </div>
     </b-field>
 
-    <b-field label="Watched" label-for="filter-watched" label-position="on-border" :addons="true" class="field-extra">
+    <b-field :label="$t('Watched')" label-for="filter-watched" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
           <select id="filter-watched" v-model="isWatched">
@@ -81,7 +81,7 @@
       </div>
     </b-field>
 
-    <b-field label="Released" label-for="filter-release-month" label-position="on-border" :addons="true" class="field-extra">
+    <b-field :label="$t('Released')" label-for="filter-release-month" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
           <select id="filter-release-month" v-model="releaseMonth">
@@ -92,7 +92,7 @@
       </div>
     </b-field>
 
-    <b-field label="Folder" label-for="filter-volume" label-position="on-border" :addons="true" class="field-extra">
+    <b-field :label="$t('Folder')" label-for="filter-volume" label-position="on-border" :addons="true" class="field-extra">
       <div class="control is-expanded">
         <div class="select is-fullwidth">
           <select id="filter-volume" v-model="volume">
@@ -106,10 +106,10 @@
     <div class="is-divider" data-content="Filters"></div>
 
     <div v-if="Object.keys(filters).length !== 0">
-      <b-field label="Cast" label-for="filter-cast" label-position="on-border" class="field-extra">
+      <b-field :label="$t('Cast')" label-for="filter-cast" label-position="on-border" class="field-extra">
         <b-taginput v-field-id="'filter-cast'" v-model="cast" autocomplete :data="filteredCast" @typing="getFilteredCast">
           <template v-slot="props">{{ props.option }}</template>
-          <template #empty>No matching cast</template>
+          <template #empty>{{ $t('No matching cast') }}</template>
           <template #selected="props">
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -124,10 +124,10 @@
         </b-taginput>
       </b-field>
 
-      <b-field label="Site" label-for="filter-sites" label-position="on-border" class="field-extra">
+      <b-field :label="$t('Site')" label-for="filter-sites" label-position="on-border" class="field-extra">
         <b-taginput v-field-id="'filter-sites'" v-model="sites" autocomplete :data="filteredSites" @typing="getFilteredSites">
           <template v-slot="props">{{ props.option }}</template>
-          <template #empty>No matching sites</template>
+          <template #empty>{{ $t('No matching sites') }}</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -141,10 +141,10 @@
         </b-taginput>
       </b-field>
 
-      <b-field label="Tags" label-for="filter-tags" label-position="on-border" class="field-extra">
+      <b-field :label="$t('Tags')" label-for="filter-tags" label-position="on-border" class="field-extra">
         <b-taginput v-field-id="'filter-tags'" v-model="tags" autocomplete :data="filteredTags" @typing="getFilteredTags">
           <template v-slot="props">{{ props.option }}</template>
-          <template #empty>No matching tags</template>
+          <template #empty>{{ $t('No matching tags') }}</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -159,10 +159,10 @@
         </b-taginput>
       </b-field>
 
-      <b-field label="Cuepoint" label-for="filter-cuepoint" label-position="on-border" class="field-extra">
+      <b-field :label="$t('Cuepoint')" label-for="filter-cuepoint" label-position="on-border" class="field-extra">
         <b-taginput v-field-id="'filter-cuepoint'" v-model="cuepoint" autocomplete :data="filteredCuepoints" @typing="getFilteredCuepoints">
           <template v-slot="props">{{ props.option }}</template>
-          <template #empty>No matching cuepoints</template>
+          <template #empty>{{ $t('No matching cuepoints') }}</template>
           <template #selected="props">
             <b-tag v-for="(tag, index) in props.tags"
               :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -177,11 +177,11 @@
         </b-taginput>
       </b-field>
 
-      <b-tooltip position="is-top" label="Allows searching a variety of attributes such as: scenes in Watchlists, Favourites, Has Video, Scripts or HSP Files, Subscriptions, Ratings, Cuepoint Types, Number of Cast, FOV, Projection, Resolution, Frame Rate and Codecs" multilined :delay="1000" style="width:100%">
-        <b-field label="Attributes" label-for="filter-attributes" label-position="on-border" class="field-extra">        
+      <b-tooltip position="is-top" :label="$t('Allows searching a variety of attributes such as: scenes in Watchlists, Favourites, Has Video, Scripts or HSP Files, Subscriptions, Ratings, Cuepoint Types, Number of Cast, FOV, Projection, Resolution, Frame Rate and Codecs')" multilined :delay="1000" style="width:100%">
+        <b-field :label="$t('Attributes')" label-for="filter-attributes" label-position="on-border" class="field-extra">        
           <b-taginput v-field-id="'filter-attributes'" v-model="attributes" autocomplete :data="filteredAttributes" @typing="getFilteredAttributes">
             <template v-slot="props">{{ props.option }}</template>
-            <template #empty>No matching attributes</template>
+            <template #empty>{{ $t('No matching attributes') }}</template>
             <template #selected="props">
               <b-tag v-for="(tag, index) in props.tags"
                 :type="tag.charAt(0)=='!' ? 'is-danger': (tag.charAt(0)=='&' ? 'is-success' : '')"
@@ -197,22 +197,22 @@
     </div>
     <div class="is-divider" data-content="Actor Also Known As groups"></div>
     <b-field class="group-actions">
-      <b-tooltip position="is-right" label="New Aka Group. Select 2 or more actors in the Cast filter" multilined :delay="200">
+      <b-tooltip position="is-right" :label="$t('New Aka Group. Select 2 or more actors in the Cast filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="createAkaGroup" :disabled="disableNewAkaGroup">
           <b-icon pack="mdi" icon="account-multiple-plus-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-right" label="Select the Aka Group to delete in the Cast Filter" multilined :delay="200">
+      <b-tooltip position="is-right" :label="$t('Select the Aka Group to delete in the Cast Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="deleteAkaGroup" :disabled="disableDeleteAkaGroup">
           <b-icon pack="mdi" icon="delete-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-bottom" label="Add Cast to Aka Group. Select the Aka group and Actors to add in the Cast Filter" multilined :delay="200">
+      <b-tooltip position="is-bottom" :label="$t('Add Cast to Aka Group. Select the Aka group and Actors to add in the Cast Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="addToAkaGroup" :disabled="disableAddToAkaGroup">
           <b-icon pack="mdi" icon="account-plus-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-bottom" label="Remove Cast from Aka Group. Select the Aka group and Actors to remove in the Cast Filter" multilined :delay="200">
+      <b-tooltip position="is-bottom" :label="$t('Remove Cast from Aka Group. Select the Aka group and Actors to remove in the Cast Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="removeFromAkaGroup" :disabled="disableRemoveFromAkaGroup">
           <b-icon pack="mdi" icon="account-minus-outline"></b-icon>
         </button>
@@ -221,32 +221,32 @@
     </b-field>
     <div class="is-divider" data-content="Tag Groups"></div>
     <b-field class="group-actions">
-      <b-tooltip position="is-right" label="New Tag Group. Select 2 or more tags in the Tag filter" multilined :delay="200">
+      <b-tooltip position="is-right" :label="$t('New Tag Group. Select 2 or more tags in the Tag filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="showGroupTagNameDialog('create')" :disabled="disableNewTagGroup">
           <b-icon pack="mdi" icon="tag-multiple-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-right" label="Select the Tag Group to delete in the Tag Filter" multilined :delay="200">
+      <b-tooltip position="is-right" :label="$t('Select the Tag Group to delete in the Tag Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="deleteTagGroup" :disabled="disableDeleteRenameTagGroup">
           <b-icon pack="mdi" icon="delete-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-bottom" label="Add Tag to Tag Group. Select the Tag  group and Tag to add in the Tag Filter" multilined :delay="200">
+      <b-tooltip position="is-bottom" :label="$t('Add Tag to Tag Group. Select the Tag group and Tag to add in the Tag Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="addToTagGroup" :disabled="disableAddToTagGroup">
           <b-icon pack="mdi" icon="tag-plus-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-bottom" label="Remove Tag from Tag Group. Select the Tag group and Tags to remove in the Tag Filter" multilined :delay="200">
+      <b-tooltip position="is-bottom" :label="$t('Remove Tag from Tag Group. Select the Tag group and Tags to remove in the Tag Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="removeFromTagGroup" :disabled="disableRemoveFromTagGroup">
           <b-icon pack="mdi" icon="tag-minus-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-bottom" label="Rename Tag Group. Select the Tag group in the Tag Filter" multilined :delay="200">
+      <b-tooltip position="is-bottom" :label="$t('Rename Tag Group. Select the Tag group in the Tag Filter')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="showGroupTagNameDialog('rename')" :disabled="disableDeleteRenameTagGroup">
           <b-icon pack="mdi" icon="rename-outline"></b-icon>
         </button>
       </b-tooltip>
-      <b-tooltip position="is-bottom" label="List Tags in Group" multilined :delay="200">
+      <b-tooltip position="is-bottom" :label="$t('List Tags in Group')" multilined :delay="200">
         <button class="button is-small is-outlined" @click="getTagGroup" :disabled="disableGetTagGroup">
           <b-icon pack="mdi" icon="tag-search-outline"></b-icon>
         </button>
@@ -259,10 +259,10 @@
              aria-modal>
       <div class="modal-card" style="width: auto">
         <header class="modal-card-head">
-          <p class="modal-card-title">Tag Group</p>
+          <p class="modal-card-title">{{ $t('Tag Group') }}</p>
         </header>
         <section class="modal-card-body">
-          <b-field label="Name" label-for="tag-group-name">
+          <b-field :label="$t('Name')" label-for="tag-group-name">
             <b-input
               id="tag-group-name"
               type="text"
@@ -272,7 +272,7 @@
           </b-field>          
         </section>
         <footer class="modal-card-foot">
-          <button class="button is-primary" :disabled="tagGroupName===''" @click="tagGroupModalClicked()">Save
+          <button class="button is-primary" :disabled="tagGroupName===''" @click="tagGroupModalClicked()">{{ $t('Save') }}
           </button>
         </footer>
       </div>
@@ -385,7 +385,6 @@ export default defineComponent({
     addToAkaGroup () {
       this.$store.state.sceneList.isLoading = true
       ky.post('/api/aka/add', {json: {actorList: this.cast}}).json().then(data => {        
-        // delete old aka & add new name
         this.cast = this.cast.filter(e => !e.startsWith("aka:")) 
         this.cast.push(data.akas.aka_actor.name) 
         this.$store.dispatch('sceneList/filters')       
@@ -400,7 +399,6 @@ export default defineComponent({
     removeFromAkaGroup () {
       this.$store.state.sceneList.isLoading = true
       ky.post('/api/aka/remove', {json: {actorList: this.cast}}).json().then(data => {        
-        // delete old aka & add new name
         this.cast = this.cast.filter(e => !e.startsWith("aka:")) 
         this.cast.push(data.akas.aka_actor.name)
         this.$store.dispatch('sceneList/filters')
@@ -682,7 +680,6 @@ export default defineComponent({
           actorCnt++
         }
       }
-      // you can create a new group from a list of actors (more than one)
       return akaCastCnt == 0 && actorCnt > 1 ? false : true
     },
     disableDeleteAkaGroup() {
@@ -697,7 +694,6 @@ export default defineComponent({
         }
       }
 
-      // you can only delete a group when it is the only thing selected      
       return akaCastCnt == 1 && actorCnt == 0 > 1 ? false : true
     },
     disableAddToAkaGroup() {
@@ -712,7 +708,6 @@ export default defineComponent({
         }
       }
 
-      // you can add to a group if you select one group and one or more actors
       return akaCastCnt == 1 && actorCnt > 0 ? false : true
     },
     disableRemoveFromAkaGroup() {
@@ -727,7 +722,6 @@ export default defineComponent({
         }
       }
 
-      // you can remove from a group if you select one group and one or more actors
       return akaCastCnt == 1 && actorCnt > 0 ? false : true
 
     },
@@ -742,7 +736,6 @@ export default defineComponent({
           tagCnt++
         }
       }
-      // you can create a new group from a list of tags (more than one)
       return akaTagCnt == 0 && tagCnt > 1 ? false : true
     },
     disableDeleteRenameTagGroup() {
@@ -757,7 +750,6 @@ export default defineComponent({
         }
       }
 
-      // you can only delete a group when it is the only thing selected      
       return tagGroupCnt == 1 && tagCnt == 0 > 1 ? false : true
     },
     disableAddToTagGroup() {
@@ -772,7 +764,6 @@ export default defineComponent({
         }
       }
 
-      // you can add to a group if you select one group and one or more tags
       return tagGroupCnt == 1 && tagCnt > 0 ? false : true
     },
     disableRemoveFromTagGroup() {
@@ -787,7 +778,6 @@ export default defineComponent({
         }
       }
 
-      // you can remove from a group if you select one group and one or more tag
       return tagGroupCnt == 1 && tagCnt > 0 ? false : true
 
     },
@@ -800,7 +790,6 @@ export default defineComponent({
         }
       }
 
-      // you can list a group if you select one 
       return tagGroupCnt == 1 ? false : true
 
     },

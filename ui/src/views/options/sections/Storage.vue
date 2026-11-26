@@ -30,7 +30,7 @@
             <span v-if="props.row.last_scan !== '0001-01-01T00:00:00Z'">
               {{ formatDistanceToNow(parseISO(props.row.last_scan)) }} ago
             </span>
-          <span v-else>never</span>
+          <span v-else>{{ $t('never') }}</span>
         </b-table-column>
         <b-table-column field="actions" v-slot="props">
           <b-field grouped>
@@ -90,7 +90,7 @@
         <h4 class="options-subtitle">{{ $t('Add cloud storage') }}</h4>
         <b-field grouped>
           <b-field :label="$t('Service')">
-            <b-select placeholder="Select one" v-model="serviceSelected">
+            <b-select :placeholder="$t('Select one')" v-model="serviceSelected">
               <option v-for="option in serviceOpts" :value="option.id" :key="option.id">
                 {{ option.name }}
               </option>
@@ -114,27 +114,27 @@
     <h4 class="options-subtitle">{{ $t('Options') }}</h4>
     <b-field>
       <b-switch v-model="match_ohash" type="is-default">
-        Match StashDB Hashes
+        {{ $t('Match StashDB Hashes') }}
       </b-switch>
     </b-field>
 
     <hr/>
 
-    <b-field label="Video File Extensions">
-      <b-tooltip label="Only add video file extensions!" position="is-top" style="width: 100%;">
+    <b-field :label="$t('Video File Extensions')">
+      <b-tooltip :label="$t('Only add video file extensions!')" position="is-top" style="width: 100%;">
         <b-taginput
             ref="videoExtInput"
             v-model="video_ext"
             :allow-new="true"
             @add="OnExtAdded"
             @remove="saveExtensions"
-            placeholder="Add a video extension (e.g. .mp4)">
+            :placeholder="$t('Add a video extension (e.g. .mp4)')">
         </b-taginput>
       </b-tooltip>
     </b-field>
     <b-field>
-      <b-tooltip label="This only resets the Video File Extensions list." position="is-right">
-        <b-button type="is-warning" @click="resetToDefaults">Reset</b-button>
+      <b-tooltip :label="$t('This only resets the Video File Extensions list.')" position="is-right">
+        <b-button type="is-warning" @click="resetToDefaults">{{ $t('Reset') }}</b-button>
       </b-tooltip>
     </b-field>
   </div>
@@ -175,8 +175,8 @@ export default {
         await ky.get('/api/task/rescan');
       } catch {
         this.$buefy.dialog.alert({
-          title: 'Error',
-          message: 'Failed to save options. Rescan was not started.',
+          title: this.$t('Error'),
+          message: this.$t('Failed to save options. Rescan was not started.'),
           type: 'is-danger',
           hasIcon: true,
           ariaRole: 'alertdialog',
@@ -216,64 +216,56 @@ export default {
       this.lastAddedTag = tag;
       this.lastAddedTime = now;
 
-      // Always remove the raw tag to sanitize in logic below
       const index = this.video_ext.indexOf(tag);
       if (index > -1) {
         this.video_ext.splice(index, 1);
       }
 
-      // Trim whitespace and convert to lowercase
       let cleanTag = tag.trim().toLowerCase();
 
       // Reject if it contains whitespace in the middle
       if (/\s/.test(cleanTag)) {
         this.$buefy.dialog.alert({
-          title: 'Invalid Extension',
-          message: 'File extensions cannot contain whitespace.',
+          title: this.$t('Invalid Extension'),
+          message: this.$t('File extensions cannot contain whitespace.'),
           type: 'is-danger',
           hasIcon: true,
           ariaRole: 'alertdialog',
           ariaModal: true
         });
-        // Clear the taginput's input field
         if (this.$refs.videoExtInput) {
           this.$refs.videoExtInput.newTag = '';
         }
         return;
       }
 
-      // Reject if it's empty or just a dot
       if (cleanTag.length === 0 || cleanTag === '.') {
         return;
       }
 
-      // Prepend dot if missing
       if (!cleanTag.startsWith('.')) {
         cleanTag = '.' + cleanTag;
       }
 
-      // Reject if it's a forbidden extension
       if (this.forbidden_video_ext && this.forbidden_video_ext.includes(cleanTag)) {
         this.$buefy.dialog.alert({
-          title: 'Invalid Extension',
+          title: this.$t('Invalid Extension'),
           message: `The file extension <strong>${cleanTag}</strong> is a reserved extension and cannot be added.`,
           type: 'is-danger',
           hasIcon: true,
           ariaRole: 'alertdialog',
           ariaModal: true
         });
-        // Clear the taginput's input field
         if (this.$refs.videoExtInput) {
           this.$refs.videoExtInput.newTag = '';
         }
         return;
       }
 
-      // Only allow extensions that are a dot followed by alphanumeric characters
       if (!/^\.[a-z0-9]+$/.test(cleanTag)) {
         this.$buefy.dialog.alert({
-          title: 'Invalid Extension',
-          message: 'File extensions must only contain letters and numbers after the dot.',
+          title: this.$t('Invalid Extension'),
+          message: this.$t('File extensions must only contain letters and numbers after the dot.'),
           type: 'is-danger',
           hasIcon: true,
           ariaRole: 'alertdialog',
@@ -285,7 +277,6 @@ export default {
         return;
       }
 
-      // Add the sanitized tag back, if not a duplicate
       if (!this.video_ext.includes(cleanTag)) {
         this.video_ext.push(cleanTag);
         this.saveExtensions();

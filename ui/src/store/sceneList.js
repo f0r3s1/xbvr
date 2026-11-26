@@ -1,5 +1,8 @@
 import ky from '@/api'
 
+// several components refresh the filters on mount; they share one request
+let filtersInFlight = null
+
 const defaultFilterState = {
   dlState: 'available',
   cardSize: localStorage.getItem('sceneCardSize') || '2',  // 1 is now XS and 2 is now S
@@ -143,13 +146,16 @@ const mutations = {
 let loadSeq = 0
 
 const actions = {
-  async filters ({ state }) {
-    state.playlists = await ky.get('/api/playlist').json()
-    state.filterOpts = await ky.get('/api/scene/filters').json()
-
-    if (state.filterOpts.release_month) {
-      state.filterOpts.release_month = state.filterOpts.release_month.reverse()
-    }
+  filters ({ state }) {
+    filtersInFlight ??= Promise.all([
+      ky.get('/api/playlist').json(),
+      ky.get('/api/scene/filters').json()
+    ]).then(([playlists, filterOpts]) => {
+      state.playlists = playlists
+      if (filterOpts.release_month) filterOpts.release_month.reverse()
+      state.filterOpts = filterOpts
+    }).finally(() => { filtersInFlight = null })
+    return filtersInFlight
   },
   async load ({ state, commit }, params) {
     const iOffset = params.offset || 0

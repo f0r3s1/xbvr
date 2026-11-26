@@ -36,8 +36,6 @@ func FindOrCreateActorByName(db *gorm.DB, name string, out *Actor) {
 	db.Where(&Actor{Name: name}).FirstOrCreate(out)
 }
 
-// ── duplicate detection ─────────────────────────────────────────────────────
-
 type ActorBrief struct {
 	ID         uint      `json:"id"`
 	Name       string    `json:"name"`
@@ -226,7 +224,6 @@ func FindDuplicateActors(yield func()) []DuplicateActorPair {
 	}
 
 	yield()
-	// same StashDB performer
 	byStash := map[string][]uint{}
 	for id, ext := range stashOf {
 		if briefs[id] == nil {
@@ -260,7 +257,6 @@ func FindDuplicateActors(yield func()) []DuplicateActorPair {
 	pairsIn(byJoined, 97, "Same name without spaces")
 	pairsIn(bySorted, 95, "Same name, other word order")
 
-	// alias of the other
 	for id, b := range briefs {
 		for _, al := range b.aliases {
 			for _, other := range byName[strings.Join(actorNameTokens(al), " ")] {
@@ -348,8 +344,6 @@ func preferredActor(a, b ActorBrief) uint {
 	return b.ID
 }
 
-// ── merging ─────────────────────────────────────────────────────────────────
-
 // MergeActors folds actor dropID into keepID: scenes, aka groups, external links
 // and edit history move over, empty profile fields are filled from the merged
 // actor, its name becomes an alias and is remembered for scrapers, and the
@@ -373,10 +367,13 @@ func MergeActors(keepID, dropID uint) ([]uint, error) {
 		return nil, err
 	}
 
-	// scenes
 	var dropScenes, keepScenes []uint
-	tx.Table("scene_cast").Where("actor_id = ?", dropID).Pluck("scene_id", &dropScenes)
-	tx.Table("scene_cast").Where("actor_id = ?", keepID).Pluck("scene_id", &keepScenes)
+	if err := tx.Table("scene_cast").Where("actor_id = ?", dropID).Pluck("scene_id", &dropScenes).Error; err != nil {
+		return fail(err)
+	}
+	if err := tx.Table("scene_cast").Where("actor_id = ?", keepID).Pluck("scene_id", &keepScenes).Error; err != nil {
+		return fail(err)
+	}
 	have := map[uint]bool{}
 	for _, s := range keepScenes {
 		have[s] = true
@@ -392,10 +389,13 @@ func MergeActors(keepID, dropID uint) ([]uint, error) {
 		return fail(err)
 	}
 
-	// aka group membership
 	var dropAkas, keepAkas []uint
-	tx.Table("actor_akas").Where("actor_id = ?", dropID).Pluck("aka_id", &dropAkas)
-	tx.Table("actor_akas").Where("actor_id = ?", keepID).Pluck("aka_id", &keepAkas)
+	if err := tx.Table("actor_akas").Where("actor_id = ?", dropID).Pluck("aka_id", &dropAkas).Error; err != nil {
+		return fail(err)
+	}
+	if err := tx.Table("actor_akas").Where("actor_id = ?", keepID).Pluck("aka_id", &keepAkas).Error; err != nil {
+		return fail(err)
+	}
 	inAka := map[uint]bool{}
 	for _, a := range keepAkas {
 		inAka[a] = true
@@ -407,23 +407,34 @@ func MergeActors(keepID, dropID uint) ([]uint, error) {
 			}
 		}
 	}
-	tx.Exec("DELETE FROM actor_akas WHERE actor_id = ?", dropID)
-
-	// external links (StashDB, actor sites): move, unless the kept actor has it already
-	var dropLinks []ExternalReferenceLink
-	tx.Where("internal_table = 'actors' AND internal_db_id = ?", dropID).Find(&dropLinks)
-	for _, l := range dropLinks {
-		var n int
-		tx.Model(&ExternalReferenceLink{}).Where("internal_table = 'actors' AND internal_db_id = ? AND external_reference_id = ?", keepID, l.ExternalReferenceID).Count(&n)
-		if n > 0 {
-			tx.Delete(&l)
-			continue
-		}
-		tx.Model(&ExternalReferenceLink{}).Where("id = ?", l.ID).Updates(map[string]interface{}{"internal_db_id": keepID, "internal_name_id": keep.Name})
+	if err := tx.Exec("DELETE FROM actor_akas WHERE actor_id = ?", dropID).Error; err != nil {
+		return fail(err)
 	}
 
-	// user edit history follows the actor
-	tx.Exec("UPDATE action_actors SET actor_id = ? WHERE actor_id = ?", keepID, dropID)
+	// external links move unless the kept actor already has them
+	var dropLinks []ExternalReferenceLink
+	if err := tx.Where("internal_table = 'actors' AND internal_db_id = ?", dropID).Find(&dropLinks).Error; err != nil {
+		return fail(err)
+	}
+	for _, l := range dropLinks {
+		var n int
+		if err := tx.Model(&ExternalReferenceLink{}).Where("internal_table = 'actors' AND internal_db_id = ? AND external_reference_id = ?", keepID, l.ExternalReferenceID).Count(&n).Error; err != nil {
+			return fail(err)
+		}
+		var err error
+		if n > 0 {
+			err = tx.Delete(&l).Error
+		} else {
+			err = tx.Model(&ExternalReferenceLink{}).Where("id = ?", l.ID).Updates(map[string]interface{}{"internal_db_id": keepID, "internal_name_id": keep.Name}).Error
+		}
+		if err != nil {
+			return fail(err)
+		}
+	}
+
+	if err := tx.Exec("UPDATE action_actors SET actor_id = ? WHERE actor_id = ?", keepID, dropID).Error; err != nil {
+		return fail(err)
+	}
 
 	mergeActorFields(&keep, &drop)
 	if err := tx.Save(&keep).Error; err != nil {
@@ -431,11 +442,17 @@ func MergeActors(keepID, dropID uint) ([]uint, error) {
 	}
 
 	// remember the merged-away name (and anything previously merged into it)
-	tx.Exec("UPDATE actor_merges SET actor_id = ? WHERE actor_id = ?", keepID, dropID)
+	if err := tx.Exec("UPDATE actor_merges SET actor_id = ? WHERE actor_id = ?", keepID, dropID).Error; err != nil {
+		return fail(err)
+	}
 	var existing ActorMerge
+	var err error
 	if tx.Where("name = ?", drop.Name).First(&existing).Error == nil {
-		tx.Model(&existing).Update("actor_id", keepID)
-	} else if err := tx.Create(&ActorMerge{Name: drop.Name, ActorID: keepID}).Error; err != nil {
+		err = tx.Model(&existing).Update("actor_id", keepID).Error
+	} else {
+		err = tx.Create(&ActorMerge{Name: drop.Name, ActorID: keepID}).Error
+	}
+	if err != nil {
 		return fail(err)
 	}
 

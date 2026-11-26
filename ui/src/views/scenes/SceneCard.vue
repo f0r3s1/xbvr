@@ -4,19 +4,17 @@
        @mouseleave="hovering = demo; stopPreview()"
        @click="!demo && showDetails(item)">
     
-    <!-- Video Preview Overlay - covers entire card -->
     <transition name="fade">
       <div class="preview-overlay" v-if="preview && item.has_preview" @click="showDetails(item)">
         <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop muted></video>
       </div>
     </transition>
 
-    <!-- Main Thumbnail (aspect ratio from settings) -->
     <div class="thumbnail-wrapper" :style="{ aspectRatio: sceneCardAspectRatioValue }">
       <div class="thumbnail-img" :style='{ opacity: item.is_available ? 1.0 : isAvailOpactiy }'>
-        <img
+        <img decoding="async"
           ref="coverImage"
-          :src="coverImageSrc"
+          v-queued-src="coverImageSrc"
           @error="onImageError"
           @load="onImageLoad"
           class="cover-image"
@@ -25,7 +23,6 @@
         />
       </div>
       
-      <!-- Tags Overlay - Top Left -->
       <div class="tags-overlay">
         <b-tag type="is-info" v-if="videoFilesCount > 1 && !item.is_multipart" class="mini-tag">
           <b-icon pack="mdi" icon="file" size="is-small"/>
@@ -43,22 +40,21 @@
           <b-icon pack="mdi" icon="subtitles" size="is-small"/>
           <span v-if="subtitlesFilesCount > 1">{{subtitlesFilesCount}}</span>
         </b-tag>
-        <b-tag type="is-info" v-if="item.cuepoints != null && item.cuepoints.length > 0 && this.$store.state.optionsWeb.web.sceneCuepoint" class="mini-tag">
+        <b-tag type="is-info" v-if="cuepointCount > 0 && $store.state.optionsWeb.web.sceneCuepoint" class="mini-tag">
           <b-icon pack="mdi" icon="skip-next-outline" size="is-small"/>
-          <span v-if="item.cuepoints.length > 1">{{item.cuepoints.length}}</span>
+          <span v-if="cuepointCount > 1">{{ cuepointCount }}</span>
         </b-tag>
       </div>
 
       <!-- Upcoming: announced by the site, not released yet -->
       <span v-if="upcomingLabel" class="upcoming-badge">{{ upcomingLabel }}</span>
 
-      <!-- Top Right: Duration & Rating -->
       <div class="top-right-tags">
         <b-tag type="is-warning" v-if="item.star_rating > 0" class="mini-tag star-tag">
           <b-icon pack="mdi" icon="star" size="is-small"/>
           {{item.star_rating}}
         </b-tag>
-        <b-tag v-if="scriptSpeed && $store.state.optionsWeb.web.sceneScriptSpeed" class="mini-tag duration-tag" title="Average speed of the selected script">
+        <b-tag v-if="scriptSpeed && $store.state.optionsWeb.web.sceneScriptSpeed" class="mini-tag duration-tag" :title="$t('Average speed of the selected script')">
           {{ scriptSpeed }} avg
         </b-tag>
         <b-tag v-if="item.duration > 0 && this.$store.state.optionsWeb.web.sceneDuration" class="mini-tag duration-tag">
@@ -66,16 +62,14 @@
         </b-tag>
       </div>
 
-      <!-- Heatmap Strip(s) -->
       <div v-if="this.$store.state.optionsWeb.web.showScriptHeatmap && (files = getFunscripts(this.$store.state.optionsWeb.web.showAllHeatmaps))" class="heatmap-strip">
         <div v-if="files.length" class="heatmap-stack" :class="{'single-heatmap': files.length === 1, 'multi-heatmap': files.length > 1}">
-          <img v-for="file in files" :key="file.id" :src="getHeatmapURL(file.id)"/>
+          <img decoding="async" v-for="file in files" :key="file.id" v-queued-src="getHeatmapURL(file.id)"/>
         </div>
       </div>
 
 
-      <!-- Hover Actions - anchored inside thumbnail -->
-      <div class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
+      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
         <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
         <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
         <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
@@ -87,7 +81,7 @@
         <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
           <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
             <vue-load-image>
-              <template #image><img :src="getImageURL(altsrc.site_icon, '64x')" class="alt-img"/></template>
+              <template #image><img loading="lazy" decoding="async" :src="getImageURL(altsrc.site_icon, '64x')" class="alt-img"/></template>
               <template #error><b-icon pack="mdi" icon="link" size="is-small"/></template>
             </vue-load-image>
           </a>
@@ -95,27 +89,26 @@
       </div>
     </div>
 
-    <!-- Info Section -->
     <div class="info-section" :class="{ 'is-preview': preview && item.has_preview }">
       <div class="title-row">
         <div class="scene-title">{{item.title}}</div>
         <span v-if="hasActiveStatus" class="status-icons">
-          <span v-if="item.is_hidden" class="status-icon status-danger" data-tooltip="Hidden">
+          <span v-if="item.is_hidden" class="status-icon status-danger" :data-tooltip="$t('Hidden')">
             <b-icon pack="mdi" icon="eye-off" size="is-small"/>
           </span>
-          <span v-if="item.watchlist" class="status-icon status-primary" data-tooltip="Watchlist">
+          <span v-if="item.watchlist" class="status-icon status-primary" :data-tooltip="$t('Watchlist')">
             <b-icon pack="mdi" icon="calendar-check" size="is-small"/>
           </span>
-          <span v-if="item.trailerlist && !item.is_available" class="status-icon status-primary" data-tooltip="Trailer List">
+          <span v-if="item.trailerlist && !item.is_available" class="status-icon status-primary" :data-tooltip="$t('Trailer List')">
             <b-icon pack="mdi" icon="movie-open-check" size="is-small"/>
           </span>
-          <span v-if="item.favourite" class="status-icon status-danger" data-tooltip="Favourite">
+          <span v-if="item.favourite" class="status-icon status-danger" :data-tooltip="$t('Favourite')">
             <b-icon pack="mdi" icon="heart" size="is-small"/>
           </span>
-          <span v-if="item.wishlist" class="status-icon status-info" data-tooltip="Wishlist">
+          <span v-if="item.wishlist" class="status-icon status-info" :data-tooltip="$t('Wishlist')">
             <b-icon pack="mdi" icon="oil-lamp" size="is-small"/>
           </span>
-          <span v-if="item.is_watched" class="status-icon status-dark" data-tooltip="Watched">
+          <span v-if="item.is_watched" class="status-icon status-dark" :data-tooltip="$t('Watched')">
             <b-icon pack="mdi" icon="eye-check" size="is-small"/>
           </span>
         </span>
@@ -123,7 +116,7 @@
       <div class="meta-row">
         <span class="site-link">
           <vue-load-image v-if="siteIconUrl && showSiteLogo">
-            <template #image><img :src="siteIconUrl" class="site-icon" alt=""/></template>
+            <template #image><img loading="lazy" decoding="async" :src="siteIconUrl" class="site-icon" alt=""/></template>
             <template #preloader><span class="site-icon site-icon-placeholder"></span></template>
             <template #error><span class="site-icon site-icon-placeholder"></span></template>
           </vue-load-image>
@@ -132,7 +125,7 @@
           </a>
           <a :href="item.scene_url" :class="{'site-subscribed': item.is_subscribed}" target="_blank" rel="noreferrer" @click.stop>{{item.site}}</a>
           <a v-if="stashLinkExists" :href="getStashdbUrl()" target="_blank" class="stashdb-link" @click.stop>
-            <img src="https://guidelines.stashdb.org/favicon.ico" class="stashdb-icon" alt="StashDB"/>
+            <img loading="lazy" decoding="async" src="https://guidelines.stashdb.org/favicon.ico" class="stashdb-icon" alt="StashDB"/>
           </a>
         </span>
         <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="release-date">
@@ -173,9 +166,8 @@ export default defineComponent({
       parseISO,
       alternateSources: [],
       stashLinkExists: false,
-      imageRetryCount: 0,
+      loadDirect: false,
       imageLoaded: false,
-      imageKey: 0,
     }
   },
 
@@ -184,6 +176,9 @@ export default defineComponent({
   },
 
   computed: {
+    cuepointCount () {
+      return this.item.cuepoint_count ?? (this.item.cuepoints || []).length
+    },
     scriptSpeed () {
       const scripts = (this.item.file || []).filter(f => f.type === 'script' && f.script_avg_speed > 0)
       const script = scripts.find(f => f.is_selected_script) || scripts[0]
@@ -202,7 +197,6 @@ export default defineComponent({
     },
     // "AI script · 212 avg speed · 84 strokes/min" (selected script, else first)
     scriptBadgeTitle () {
-      // the robot only shows when every script is AI; a mix just says how many are
       const scripts0 = (this.item.file || []).filter(f => f.type === 'script')
       const nAi = scripts0.filter(f => isAiScript(f.filename)).length
       const kind = this.aiScripts === 'all' ? (scripts0.length > 1 ? `${scripts0.length} AI scripts` : 'AI script')
@@ -270,28 +264,21 @@ export default defineComponent({
              this.item.watchlist || this.item.wishlist || (this.item.trailerlist && !this.item.is_available)
     },
     coverImageSrc () {
-      // Add imageKey to force re-fetch on retry
       const u = this.item.cover_url
-      if (!u || !u.startsWith('http')) return u
-      let url
-      if (u.search("%") == -1) {
-        url = '/img/1200x/' + encodeURI(u)
-      } else {
-        url = '/img/1200x/' + encodeURI(decodeURI(u))
-      }
-      // Append cache-buster on retry to force new request
-      return this.imageKey > 0 ? url + '?retry=' + this.imageKey : url
+      if (!u || !u.startsWith('http') || this.loadDirect) return u
+      // XS-M cards are at most ~350 css px wide, so 700 px stays sharp on 2x screens
+      const width = Number(this.$store.state.sceneList.filters.cardSize) >= 4 ? '1200x' : '700x'
+      const url = `/img/${width}/` + encodeURI(u.includes('%') ? decodeURI(u) : u)
+      return url
     }
   },
 
   methods: {
     onImageError () {
-      if (this.imageRetryCount < 2) {
-        this.imageRetryCount++
+      // some sites refuse server-side fetches but serve the browser, so load the original directly
+      if (!this.loadDirect && this.item.cover_url?.startsWith('http')) {
+        this.loadDirect = true
         this.imageLoaded = false
-        setTimeout(() => {
-          this.imageKey++
-        }, this.imageRetryCount * 1000)
       } else {
         this.imageLoaded = true
         if (this.item && this.item.id) {
@@ -304,18 +291,12 @@ export default defineComponent({
       }
     },
     onImageLoad () {
-      if (this.$refs.coverImage && this.$refs.coverImage.naturalWidth > 100) {
-        this.imageLoaded = true
-        this.imageRetryCount = 0
-      } else if (this.imageRetryCount < 2) {
-        this.imageRetryCount++
-        this.imageLoaded = false
-        setTimeout(() => {
-          this.imageKey++
-        }, this.imageRetryCount * 1000)
-      } else {
-        this.imageLoaded = true
+      const tooSmall = !this.$refs.coverImage || this.$refs.coverImage.naturalWidth <= 100
+      if (tooSmall && !this.loadDirect) {
+        this.onImageError()
+        return
       }
+      this.imageLoaded = true
     },
     async loadAlternateSources () {
       this.stashLinkExists = false
@@ -342,7 +323,6 @@ export default defineComponent({
     },
     startPreview () {
       if (this.item.has_preview) {
-        // No delay - just fade transition
         this.preview = true
       }
     },
@@ -362,9 +342,7 @@ export default defineComponent({
       }
     },
     showDetails (scene) {
-      // reRead is required when the SceneCard is clicked from the ActorDetails
-      // the Scenes associated Tables such as Tags, Cast arwon't be Preloaded and
-      // will cause errors when the Details Overlay loads
+      // a card opened from ActorDetails lacks preloaded tags and cast, so reread the scene
       if (this.reRead) {
         ky.get('/api/scene/'+scene.id).json().then(data => {
           if (data.id != 0){
@@ -372,7 +350,7 @@ export default defineComponent({
           }
         })
       } else {
-        this.$store.commit('overlay/showDetails', { scene: scene })
+        this.$store.dispatch('overlay/openDetails', { scene })
       }
       this.$store.commit('overlay/hideActorDetails')
     },

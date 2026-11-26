@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xbapps/xbvr/pkg/common"
@@ -15,6 +16,7 @@ import (
 )
 
 var (
+	mu                 sync.Mutex
 	sessionSource      string
 	isPlaying          bool
 	currentPosition    float64
@@ -24,28 +26,55 @@ var (
 	lastSessionSceneID uint
 	lastSessionStart   time.Time
 	lastSessionEnd     time.Time
-	sessionPlayLimit   = 2 * time.Hour
+	sceneLength        time.Duration
+	// HereSphere playback reported at the last event, used to credit time when events stop
+	playPosition time.Duration
+	playSpeed    float64
 )
 
 var currentSessionHeatmap []int
 
+const (
+	defaultSceneLength = 2 * time.Hour
+	playGrace          = 5 * time.Minute
+	pausedTimeout      = 10 * time.Minute
+)
+
 func HasActiveSession() bool {
+	mu.Lock()
+	defer mu.Unlock()
+	return active()
+}
+
+func active() bool {
 	return lastSessionID != 0
 }
 
-func TrackSessionFromFile(f models.File, doNotTrack string) {
-	sessionSource = "file"
-
-	if f.SceneID != 0 && doNotTrack != "true" {
-		if lastSessionSceneID != f.SceneID {
-			newWatchSession(f.SceneID)
+// enterSession flushes the previous session under its own source before switching to the new one.
+func enterSession(sceneID uint, source string) {
+	if lastSessionSceneID != sceneID {
+		if active() {
+			watchSessionFlush()
 		}
-
-		lastSessionEnd = time.Now()
+		sessionSource = source
+		newWatchSession(sceneID)
 	}
+	sessionSource = source
+}
+
+func TrackSessionFromFile(f models.File, doNotTrack string) {
+	if f.SceneID == 0 || doNotTrack == "true" {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	enterSession(f.SceneID, "file")
+	lastSessionEnd = time.Now()
 }
 
 func FinishTrackingFromFile(doNotTrack string) {
+	mu.Lock()
+	defer mu.Unlock()
 	lastSessionEnd = time.Now()
 	if doNotTrack != "true" {
 		watchSessionFlush()
@@ -56,46 +85,38 @@ func TrackSessionFromRemote(packet DeoPacket) {
 	if packet.Path == "" || packet.Duration == 0 {
 		return
 	}
-
-	sessionSource = "deovr"
-	isPlaying = packet.PlayerState == PLAYING
-	currentPosition = packet.CurrentTime
-
 	tmpPath, err := url.Parse(packet.Path)
 	if err != nil {
 		return
 	}
 	tmp := strings.Split(tmpPath.Path, "/")
-	tmpCurrentFileID, err := strconv.Atoi(tmp[len(tmp)-1])
+	fileID, err := strconv.Atoi(tmp[len(tmp)-1])
 	if err != nil {
 		return
 	}
 
-	// Currently playing file has changed
-	if tmpCurrentFileID != currentFileID {
-		// Get scene ID
-		currentFileID = tmpCurrentFileID
+	mu.Lock()
+	defer mu.Unlock()
+	isPlaying = packet.PlayerState == PLAYING
+	currentPosition = packet.CurrentTime
 
+	if fileID != currentFileID {
 		f := models.File{}
 		db, _ := models.GetDB()
-		_ = db.First(&f, currentFileID).Error
-		defer db.Close()
+		_ = db.First(&f, fileID).Error
+		db.Close()
 
-		// Create new session
-		if lastSessionSceneID != f.SceneID {
-			newWatchSession(f.SceneID)
-		}
-
+		enterSession(f.SceneID, "deovr")
+		currentFileID = fileID
 		currentSessionHeatmap = make([]int, int(packet.Duration))
 	}
+	sessionSource = "deovr"
 
-	// Keep session alive if Deo is playing
-	if packet.PlayerState == PLAYING {
+	if isPlaying {
 		lastSessionEnd = time.Now()
-
 		position := int(packet.CurrentTime)
 		if position > 0 && position < len(currentSessionHeatmap) {
-			currentSessionHeatmap[position] = currentSessionHeatmap[position] + 1
+			currentSessionHeatmap[position]++
 		}
 	}
 }
@@ -107,22 +128,27 @@ const (
 	HereSphereEventClose
 )
 
-func TrackSessionFromHereSphere(sceneID uint, event int) {
+// TrackSessionFromHereSphere handles a playback event; position is the playback time in milliseconds.
+func TrackSessionFromHereSphere(sceneID uint, event int, position float64, speed float64) {
 	if sceneID == 0 {
 		return
 	}
-	sessionSource = "heresphere"
+	mu.Lock()
+	defer mu.Unlock()
 	switch event {
 	case HereSphereEventOpen, HereSphereEventPlay:
-		if lastSessionSceneID != sceneID {
-			newWatchSession(sceneID)
-		}
+		enterSession(sceneID, "heresphere")
 		isPlaying = event == HereSphereEventPlay
+		playPosition = time.Duration(position) * time.Millisecond
+		playSpeed = speed
+		if playSpeed <= 0 {
+			playSpeed = 1
+		}
 	case HereSphereEventPause:
 		isPlaying = false
 	case HereSphereEventClose:
 		isPlaying = false
-		if lastSessionSceneID == sceneID && HasActiveSession() {
+		if lastSessionSceneID == sceneID && active() {
 			lastSessionEnd = time.Now()
 			watchSessionFlush()
 		}
@@ -131,52 +157,72 @@ func TrackSessionFromHereSphere(sceneID uint, event int) {
 	lastSessionEnd = time.Now()
 }
 
+// remainingPlayback is how long HereSphere keeps playing after the last event if nothing stops it.
+func remainingPlayback() time.Duration {
+	left := sceneLength - playPosition
+	if left < 0 {
+		left = 0
+	}
+	return time.Duration(float64(left) / playSpeed)
+}
+
 func CheckForDeadSession() {
-	var timeout float64
+	mu.Lock()
+	defer mu.Unlock()
+	if lastSessionSceneID == 0 || !active() {
+		return
+	}
+	var timeout time.Duration
 	switch {
 	case sessionSource == "file":
-		timeout = 60
+		timeout = time.Minute
 	case sessionSource == "heresphere" && isPlaying:
-		timeout = sessionPlayLimit.Seconds()
+		timeout = remainingPlayback() + playGrace
 	case sessionSource == "heresphere":
-		timeout = 600
+		timeout = pausedTimeout
 	default:
-		timeout = 5
+		timeout = 5 * time.Second
 	}
+	if time.Since(lastSessionEnd) <= timeout {
+		return
+	}
+	if sessionSource == "heresphere" && isPlaying {
+		lastSessionEnd = lastSessionEnd.Add(remainingPlayback())
+		isPlaying = false
+	}
+	watchSessionFlush()
+}
 
-	if time.Since(lastSessionEnd).Seconds() > timeout && lastSessionSceneID != 0 && HasActiveSession() {
-		if sessionSource == "heresphere" && isPlaying {
-			lastSessionEnd = lastSessionEnd.Add(sessionPlayLimit)
-			isPlaying = false
-		}
-		watchSessionFlush()
-		lastSessionID = 0
-		lastSessionSceneID = 0
+// RemoteState is the playback state shown in the UI.
+func RemoteState() map[string]interface{} {
+	mu.Lock()
+	defer mu.Unlock()
+	return map[string]interface{}{
+		"isPlaying":       isPlaying,
+		"currentPosition": currentPosition,
+		"sessionStart":    lastSessionStart,
+		"sessionEnd":      lastSessionEnd,
+		"currentFileID":   currentFileID,
+		"currentSceneID":  currentSceneID,
 	}
 }
 
 func newWatchSession(sceneID uint) {
-	if HasActiveSession() {
-		watchSessionFlush()
-	}
-
 	lastSessionSceneID = sceneID
 	lastSessionStart = time.Now()
-	sessionPlayLimit = 2 * time.Hour
+	sceneLength = defaultSceneLength
 
 	obj := models.History{SceneID: sceneID, TimeStart: lastSessionStart}
 	obj.Save()
 
 	var scene models.Scene
-	err := scene.GetIfExistByPK(sceneID)
-	if err == nil {
-		scene.LastOpened = time.Now()
-		scene.Save()
-		if scene.Duration > 0 {
-			sessionPlayLimit = time.Duration(scene.Duration)*time.Minute + 5*time.Minute
-		}
-	} else {
+	if err := scene.GetIfExistByPK(sceneID); err != nil {
 		return
+	}
+	scene.LastOpened = time.Now()
+	scene.Save()
+	if scene.Duration > 0 {
+		sceneLength = time.Duration(scene.Duration) * time.Minute
 	}
 
 	lastSessionID = obj.ID

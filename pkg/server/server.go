@@ -8,15 +8,14 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"time"
 
-	auth "github.com/abbot/go-http-auth"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/gammazero/nexus/v3/router"
 	"github.com/gammazero/nexus/v3/wamp"
 	"github.com/go-openapi/spec"
 	"github.com/gorilla/mux"
-	wwwlog "github.com/gowww/log"
 	"github.com/gregjones/httpcache/diskcache"
 	"github.com/koding/websocketproxy"
 	"github.com/peterbourgon/diskv"
@@ -39,16 +38,84 @@ var (
 	log    = &common.Log
 )
 
-func authHandle(pattern string, authEnabled bool, authSecret auth.SecretProvider, handler http.Handler) {
-	if authEnabled {
-		authenticator := auth.NewBasicAuthenticator("default", authSecret)
-		http.HandleFunc(pattern, authenticator.Wrap(func(res http.ResponseWriter, req *auth.AuthenticatedRequest) {
-			http.StripPrefix(pattern, handler).ServeHTTP(res, &req.Request)
-		}))
-	} else {
-		http.Handle(pattern, http.StripPrefix(pattern, handler))
-	}
+// requireAuth guards everything once a login is configured. Browsers sign in on /login and carry a session cookie
+// (also sent on the websocket), tools use basic auth or the API key, players log in through their own API and get signed media URLs.
+func requireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/login":
+			handleLogin(w, r)
+			return
+		case "/logout":
+			handleLogout(w, r)
+			return
+		case "/healthz":
+			handleHealthz(w, r)
+			return
+		}
+		if isHereSphereBrowser(r) && (r.URL.Path == "/" || strings.HasPrefix(r.URL.Path, "/ui")) {
+			http.Redirect(w, r, "/heresphere", http.StatusTemporaryRedirect)
+			return
+		}
+		if !api.AuthRequired() || r.Method == http.MethodOptions || api.ValidSession(r) || api.ValidAPIKey(r) || isPlayerAPI(r.URL.Path) || api.ValidMediaToken(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if user, pass, ok := r.BasicAuth(); ok && api.CredentialsValid(user, pass) {
+			api.SetSession(w, r)
+			next.ServeHTTP(w, r)
+			return
+		}
+		if wantsPage(r) {
+			http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusFound)
+			return
+		}
+		// browsers get a plain 401 (the app goes to the login page); tools get the basic auth challenge
+		if r.Header.Get("Sec-Fetch-Mode") == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="XBVR"`)
+		}
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	})
 }
+
+// isHereSphereBrowser: HereSphere's built-in browser ends its User-Agent with "HereSphere/<version>",
+// so typing just the server address in HereSphere opens the library instead of the web UI.
+func isHereSphereBrowser(r *http.Request) bool {
+	return strings.Contains(r.UserAgent(), " HereSphere/")
+}
+
+// isPlayerAPI: DeoVR and HereSphere check the login sent in each request body themselves;
+// thumbnails go through the image proxy, which players load without credentials.
+func isPlayerAPI(path string) bool {
+	for _, prefix := range []string{"/deovr", "/heresphere", "/img/", "/imghm/"} {
+		if strings.HasPrefix(path, prefix) && !strings.HasPrefix(path, "/heresphere/events/") {
+			return true
+		}
+	}
+	return false
+}
+
+// logRequests logs each request with its status and duration (XBVR_DEBUG_REQUESTS).
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		log.Infof("%v %s %s %v %q", rec.status, r.Method, r.URL.RequestURI(), time.Since(start).Round(time.Millisecond), r.UserAgent())
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
 
 func StartServer(version, commit, branch, date string) {
 	common.CurrentVersion = version
@@ -144,13 +211,13 @@ func StartServer(version, commit, branch, date string) {
 	restful.Add(restfulspec.NewOpenAPIService(restConfig))
 
 	// Static files
-	authHandle("/ui/", common.IsUIAuthEnabled(), common.GetUISecret, http.FileServer(ui.GetFileSystem(common.EnvConfig.Debug)))
+	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(ui.GetFileSystem(common.EnvConfig.Debug))))
 
 	// Imageproxy
 	r := mux.NewRouter()
 	imgDisk := newDiskv(common.ImgDir)
 	imgStore := imgcache.New(imgDisk, 64<<20)
-	p := imageproxy.NewProxy(NewForceCacheTransport(), imgStore)
+	p := imageproxy.NewProxy(&imgcache.NoTIFF{Next: NewForceCacheTransport()}, imgStore)
 	p.Client.Transport = &imgcache.Passthrough{Next: p.Client.Transport, Cache: imgStore}
 	p.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	// imageproxy >= 0.13 defaults to NOT following redirects when embedded (only its CLI
@@ -175,7 +242,7 @@ func StartServer(version, commit, branch, date string) {
 	r.PathPrefix("/").Handler(http.DefaultServeMux)
 
 	// CORS
-	handler := cors.Default().Handler(r)
+	handler := requireAuth(cors.Default().Handler(r))
 
 	// WAMP router
 	routerConfig := &router.Config{
@@ -196,6 +263,10 @@ func StartServer(version, commit, branch, date string) {
 	defer wampRouter.Close()
 
 	// Run websocket server.
+	// the raw WAMP port has no auth of its own; with a login set up only the guarded /ws/ proxy may reach it
+	if api.AuthRequired() && wsAddr == "0.0.0.0:9998" {
+		wsAddr = "127.0.0.1:9998"
+	}
 	wss := router.NewWebsocketServer(wampRouter)
 	wss.AllowOrigins([]string{"*"})
 	wsCloser, err := wss.ListenAndServe(wsAddr)
@@ -254,7 +325,7 @@ func StartServer(version, commit, branch, date string) {
 
 	httpAddr := fmt.Sprintf("%v:%v", config.Config.Server.BindAddress, config.Config.Server.Port)
 	if common.EnvConfig.DebugRequests {
-		log.Fatal(http.ListenAndServe(httpAddr, wwwlog.Handle(handler, &wwwlog.Options{Color: true})))
+		log.Fatal(http.ListenAndServe(httpAddr, logRequests(handler)))
 	} else {
 		log.Fatal(http.ListenAndServe(httpAddr, handler))
 	}

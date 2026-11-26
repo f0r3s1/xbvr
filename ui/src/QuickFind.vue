@@ -13,7 +13,7 @@
         ref="autocompleteInput"
         id="quickfind-input"
         :data="data"
-        placeholder="Find scenes and people…"
+        :placeholder="$t('Find scenes and people…')"
         field="query"
         group-field="group"
         group-options="items"

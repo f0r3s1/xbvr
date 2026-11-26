@@ -15,11 +15,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/disintegration/imaging"
+	xdraw "golang.org/x/image/draw"
+	"willnorris.com/go/imageproxy"
+
 	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/config"
 	"github.com/xbapps/xbvr/pkg/models"
-	"willnorris.com/go/imageproxy"
 )
 
 const thumbnailWidth = 700
@@ -109,7 +110,7 @@ func createHeatmapThumbnail(out *bytes.Buffer, r io.Reader, heatmapImages []imag
 	heatmapsHeight := len(heatmapImages) * (heatmapHeight + heatmapMargin)
 	rect := thumbnailImage.Bounds()
 	if rect.Dx() != thumbnailWidth || rect.Dy() != thumbnailHeight-heatmapsHeight {
-		thumbnailImage = imaging.Fill(thumbnailImage, thumbnailWidth, thumbnailHeight-heatmapsHeight, imaging.Center, imaging.Linear)
+		thumbnailImage = fillCenter(thumbnailImage, thumbnailWidth, thumbnailHeight-heatmapsHeight)
 	}
 
 	canvas := image.NewNRGBA(image.Rect(0, 0, thumbnailWidth, thumbnailHeight))
@@ -118,7 +119,7 @@ func createHeatmapThumbnail(out *bytes.Buffer, r io.Reader, heatmapImages []imag
 	draw.Draw(canvas, drawRect, thumbnailImage, image.Point{}, draw.Over)
 
 	for i := range heatmapImages {
-		heatmapImage := imaging.Resize(heatmapImages[i], thumbnailWidth, heatmapHeight, imaging.Linear)
+		heatmapImage := scale(heatmapImages[i], image.Rect(0, 0, thumbnailWidth, heatmapHeight), heatmapImages[i].Bounds())
 
 		drawRect = image.Rect(0, thumbnailHeight-heatmapsHeight+heatmapMargin+i*(heatmapHeight+heatmapMargin), thumbnailWidth, thumbnailHeight)
 		draw.Draw(canvas, drawRect, heatmapImage, image.Point{}, draw.Over)
@@ -240,4 +241,26 @@ func (p *HeatmapThumbnailProxy) ServeHTTP(w http.ResponseWriter, r *http.Request
 			log.Printf("Failed to send out response: %v", err)
 		}
 	}
+}
+
+func scale(src image.Image, dst image.Rectangle, from image.Rectangle) *image.NRGBA {
+	out := image.NewNRGBA(dst)
+	xdraw.ApproxBiLinear.Scale(out, dst, src, from, xdraw.Src, nil)
+	return out
+}
+
+// fillCenter scales src to cover w x h and crops the overflow evenly on both sides.
+func fillCenter(src image.Image, w, h int) image.Image {
+	b := src.Bounds()
+	crop := b
+	if b.Dx()*h > b.Dy()*w {
+		cw := b.Dy() * w / h
+		crop.Min.X += (b.Dx() - cw) / 2
+		crop.Max.X = crop.Min.X + cw
+	} else {
+		ch := b.Dx() * h / w
+		crop.Min.Y += (b.Dy() - ch) / 2
+		crop.Max.Y = crop.Min.Y + ch
+	}
+	return scale(src, image.Rect(0, 0, w, h), crop)
 }

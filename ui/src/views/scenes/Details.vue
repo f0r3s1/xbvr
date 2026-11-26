@@ -22,7 +22,7 @@
     <template #media>
             <b-tabs v-model="activeMedia" position="is-centered" :animated="false" class="media-tabs">
 
-              <b-tab-item label="Gallery">
+              <b-tab-item :label="$t('Gallery')">
                 <div class="carousel-wrapper">
                   <b-carousel v-model="carouselSlide" @change="onCarouselChange" :autoplay="false" :indicator-inside="false">
                     <b-carousel-item v-for="(carousel, i) in images" :key="i">
@@ -38,7 +38,7 @@
                           style="cursor: pointer;"
                         />
                         <span class="carousel-type-tag" v-if="carouselImageInfo[i]">{{ carouselImageInfo[i] }}</span>
-                        <button class="fullscreen-btn" @click.stop="openFullscreenGallery(i)" title="Fullscreen (G)">
+                        <button class="fullscreen-btn" @click.stop="openFullscreenGallery(i)" :title="$t('Fullscreen (G)')">
                           <b-icon pack="mdi" icon="fullscreen" size="is-small"></b-icon>
                         </button>
                       </div>
@@ -56,7 +56,7 @@
                 </div>
               </b-tab-item>
 
-              <b-tab-item label="Player" v-if="!displayingAlternateSource && fileCount > 0">
+              <b-tab-item :label="$t('Player')" v-if="!displayingAlternateSource && fileCount > 0">
                 <!-- keyed per scene: each scene gets a fresh player -->
                 <div class="player-wrapper" :key="'player-' + item.scene_id">
                   <VrPlayer ref="player" aspect-ratio="16 / 9" :script="playerScriptURL" :scripts="playerScripts" @select-script="id => selectScript({ id })"/>
@@ -91,13 +91,11 @@
     <template #details>
 
             <div class="detail-header">
-              <!-- Title -->
               <h3 class="detail-title">
                 <span v-if="item.title">{{ item.title }}</span>
-                <span v-else class="missing">(no title)</span>
+                <span v-else class="missing">{{ $t('(no title)') }}</span>
               </h3>
 
-              <!-- Meta line: site, duration, date -->
               <div class="detail-meta">
                 <span class="detail-meta-left">
                   <span class="site-link">
@@ -114,27 +112,26 @@
                 </span>
               </div>
 
-              <!-- Rating + Actions -->
               <div class="detail-actions-row">
                 <div class="detail-rating" v-if="!displayingAlternateSource">
                   <star-rating :key="item.id" v-model="item.star_rating" :rating="item.star_rating" @rating-selected="setRating"
                                :increment="0.5" :star-size="18" :show-rating="false" />
-                  <b-icon pack="mdi" icon="autorenew" size="is-small" @click="setRating(0)" class="rating-reset" data-tooltip="Reset rating"/>
+                  <b-icon pack="mdi" icon="autorenew" size="is-small" @click="setRating(0)" class="rating-reset" :data-tooltip="$t('Reset rating')"/>
                 </div>
                 <div v-if="displayingAlternateSource" class="detail-rating">
-                  <strong>Linked scene, Not an XBVR Scene</strong>
+                  <strong>{{ $t('Linked scene, Not an XBVR Scene') }}</strong>
                 </div>
                 <div class="detail-actions">
-                  <a class="button is-primary is-outlined is-small" @click="searchAlternateSourceScene()" data-tooltip="Search for a different scene" v-if="displayingAlternateSource">
+                  <a class="button is-primary is-outlined is-small" @click="searchAlternateSourceScene()" :data-tooltip="$t('Search for a different scene')" v-if="displayingAlternateSource">
                     <b-icon pack="mdi" icon="movie-search-outline" size="is-small"/>
                   </a>
-                  <a class="button is-primary is-outlined is-small" @click="scrapeScene()" data-tooltip="Scrape and create an XBVR scene" v-if="displayingAlternateSource">
+                  <a class="button is-primary is-outlined is-small" @click="scrapeScene()" :data-tooltip="$t('Scrape and create an XBVR scene')" v-if="displayingAlternateSource">
                     <b-icon pack="mdi" icon="plus" size="is-medium"/>
                   </a>
-                  <a class="button is-primary is-outlined is-small" @click="refreshExtRef()" data-tooltip="Refresh scene data and relink" v-if="displayingAlternateSource">
+                  <a class="button is-primary is-outlined is-small" @click="refreshExtRef()" :data-tooltip="$t('Refresh scene data and relink')" v-if="displayingAlternateSource">
                     <b-icon pack="mdi" icon="refresh" size="is-small"/>
                   </a>
-                  <a class="button is-danger is-outlined is-small" @click="flagExtRefDeleted()" data-tooltip="Unlink scene permanently" v-if="displayingAlternateSource">
+                  <a class="button is-danger is-outlined is-small" @click="flagExtRefDeleted()" :data-tooltip="$t('Unlink scene permanently')" v-if="displayingAlternateSource">
                     <b-icon pack="mdi" icon="delete" size="is-small"/>
                   </a>
                   <hidden-button :item="item" v-if="!displayingAlternateSource"/>
@@ -147,7 +144,6 @@
                   <refresh-button :item="item" v-if="!displayingAlternateSource"/>
                   <rescrape-button :item="item" v-if="!displayingAlternateSource"/>
                   <link-stashdb-button :item="item" objectType="scene" />
-                  <!-- Alternate source icons inline -->
                   <div v-for="(altsrc, idx) in alternateSourcesWithTitles" :key="idx" class="altsrc-image-wrapper" @click="showExtRefScene(altsrc)">
                     <b-tooltip type="is-light" :label="altsrc.title" :delay="0" append-to-body>
                       <vue-load-image>
@@ -160,7 +156,6 @@
               </div>
             </div>
 
-            <!-- Cast -->
             <div class="cast-section" v-if="!displayingAlternateSource && castimages.length > 0">
               <div class="cast-row">
                 <div v-for="(image, idx) in castimages" :key="idx" class="cast-item"
@@ -171,12 +166,14 @@
                     <template #preloader><img src="/ui/images/actor_placeholder.svg" class="cast-thumb"/></template>
                     <template #error><img src="/ui/images/actor_placeholder.svg" class="cast-thumb"/></template>
                   </vue-load-image>
-                  <span class="cast-caption">{{ image.first_name }}<span v-if="image.age != null" class="cast-age"> · {{ image.age }}</span></span>
+                  <span class="cast-caption">
+                    <span class="cast-name">{{ image.first_name }}</span>
+                    <span v-if="castHasAge" class="cast-age">{{ image.age ?? '' }}</span>
+                  </span>
                 </div>
               </div>
             </div>
 
-            <!-- Tags: content only (cast shown above, site in meta) -->
             <div class="tags-section" :class="{ 'no-accent': !accentColorTags }" v-if="item.tags && item.tags.length > 0">
               <div class="tag-group" :ref="watchTagGroup" :class="{ 'is-collapsed': tagsOverflow && !tagsExpanded }">
                 <a v-for="(tag, idx) in item.tags" :key="'tag' + idx"
@@ -231,31 +228,30 @@
                         <div v-if="f.type === 'script' && f.has_heatmap" class="heatmapFunscript">
                           <img :src="getHeatmapURL(f.id)"/>
                         </div>
-                        <!-- what the script says about itself + measured movement, one compact row -->
                         <div v-if="f.type === 'script' && f.script_actions > 0" class="script-props">
-                          <span v-if="scriptLicense(f.script_license) === 'paid'" class="sp-badge is-paid" title="Paid script">
-                            <b-icon pack="mdi" icon="cash" custom-size="mdi-14px"/>Paid
+                          <span v-if="scriptLicense(f.script_license) === 'paid'" class="sp-badge is-paid" :title="$t('Paid script')">
+                            <b-icon pack="mdi" icon="cash" custom-size="mdi-14px"/>{{ $t('Paid') }}
                           </span>
-                          <span v-else-if="scriptLicense(f.script_license) === 'free'" class="sp-badge is-free" title="Free script">Free</span>
+                          <span v-else-if="scriptLicense(f.script_license) === 'free'" class="sp-badge is-free" :title="$t('Free script')">{{ $t('Free') }}</span>
                           <span v-if="scriptGenerator(f.script_description)" class="sp-badge is-gen" :title="f.script_description">
                             {{ scriptGenerator(f.script_description).name }} v{{ scriptGenerator(f.script_description).version }}
                           </span>
-                          <span v-if="f.script_creator" class="sp-badge" title="Creator">
+                          <span v-if="f.script_creator" class="sp-badge" :title="$t('Creator')">
                             <b-icon pack="mdi" icon="account-outline" custom-size="mdi-14px"/>{{ f.script_creator }}
                           </span>
                           <span class="sp-stats">
-                            <span title="Average speed while moving (position units per second)"><b>{{ Math.round(f.script_avg_speed) }}</b> avg</span>
-                            <span title="Fastest movement (position units per second)"><b>{{ Math.round(f.script_max_speed) }}</b> max</span>
-                            <span title="Up and down cycles per minute"><b>{{ Math.round(f.script_strokes_per_min) }}</b> spm</span>
-                            <span title="Average stroke depth" class="sp-depth"><b-icon pack="mdi" icon="arrow-expand-vertical" custom-size="mdi-12px"/><b>{{ Math.round(f.script_depth) }}%</b></span>
+                            <span :title="$t('Average speed while moving (position units per second)')"><b>{{ Math.round(f.script_avg_speed) }}</b> {{ $t('avg') }}</span>
+                            <span :title="$t('Fastest movement (position units per second)')"><b>{{ Math.round(f.script_max_speed) }}</b> {{ $t('max') }}</span>
+                            <span :title="$t('Up and down cycles per minute')"><b>{{ Math.round(f.script_strokes_per_min) }}</b> {{ $t('spm') }}</span>
+                            <span :title="$t('Average stroke depth')" class="sp-depth"><b-icon pack="mdi" icon="arrow-expand-vertical" custom-size="mdi-12px"/><b>{{ Math.round(f.script_depth) }}%</b></span>
                           </span>
                         </div>
                       </div>
                       <div class="media-right">
-                        <button class="button is-dark is-small is-outlined" data-tooltip="Unmatch file from scene" @click='unmatchFile(f)'>
+                        <button class="button is-dark is-small is-outlined" :data-tooltip="$t('Unmatch file from scene')" @click='unmatchFile(f)'>
                           <b-icon pack="mdi" icon="link-off" size="is-small"></b-icon>
                         </button>&nbsp;
-                        <button class="button is-danger is-small is-outlined" data-tooltip="Delete file from disk" @click='removeFile(f)'>
+                        <button class="button is-danger is-small is-outlined" :data-tooltip="$t('Delete file from disk')" @click='removeFile(f)'>
                           <b-icon pack="mdi" icon="delete" size="is-small"></b-icon>
                         </button>
                       </div>
@@ -273,14 +269,14 @@
                         <u>A</u>dd New
                       </b-button>
                     </b-tooltip>
-                      <b-button @click="vidPosition = new Date(0,0,0,0,0, 0, player.currentTime() * 1000)" class="tag is-info is-small is-warning" accesskey="t">Current <u>T</u>ime</b-button>
+                      <b-button @click="vidPosition = new Date(0,0,0,0,0, 0, player.currentTime() * 1000)" class="tag is-info is-small is-warning" accesskey="t">{{ $t('Current') }} <u>T</u>ime</b-button>
                     <b-tooltip type="is-danger" :label="$t(disableSaveMsg())" position="is-right" :delay=250 :active="disableSaveButtons()">
                       <b-button v-if="currentCuepointId > 0" @click="updateCuepoint(true)" class="tag is-info is-small is-warning" accesskey="s"
                         :disabled="disableSaveButtons()" >
                         <u>S</u>ave Edit
                       </b-button>
                     </b-tooltip>
-                      <b-button v-if="cuepointName!=''" @click='cuepointName=""' class="tag is-info is-small is-warning" >Clear Cuepoint Name</b-button>
+                      <b-button v-if="cuepointName!=''" @click='cuepointName=""' class="tag is-info is-small is-warning" >{{ $t('Clear Cuepoint Name') }}</b-button>
                       <b-button v-if="tagAct!=''" @click='setCuepointName("")' class="tag is-info is-small is-warning" accesskey="c"><u>C</u>lear Action</b-button>
                     </b-taglist>
                   </div>
@@ -314,30 +310,30 @@
                     <div class="block" >
                       <div class="columns">
                         <div class="column is-2">
-                        <b-field label="Track" width="7.25em" label-position="on-border">
+                        <b-field :label="$t('Track')" width="7.25em" label-position="on-border">
                           <b-input v-model="track" width="7.25em"></b-input>
                         </b-field>
                         </div>
                         <div class="column">
-                        <b-field label="Name" label-position="on-border">
+                        <b-field :label="$t('Name')" label-position="on-border">
                           <b-autocomplete v-model="cuepointName" :data="filteredCuepointPositionList" :open-on-focus="true"></b-autocomplete>
                         </b-field>
                         </div>
                         <div class="column is-2">
-                        <b-field label="Start" label-position="on-border">
-                          <b-timepicker v-model="vidPosition" rounded editable placeholder="Defaults to player position" hour-format="24" :enable-seconds="true" :max-time="maxTime" :time-formatter="timeFormatter" :time-parser="timeParser" >
+                        <b-field :label="$t('Start')" label-position="on-border">
+                          <b-timepicker v-model="vidPosition" rounded editable :placeholder="$t('Defaults to player position')" hour-format="24" :enable-seconds="true" :max-time="maxTime" :time-formatter="timeFormatter" :time-parser="timeParser" >
                           <b-button
-                            label="Current Time"
+                            :label="$t('Current Time')"
                             type="is-primary"
                             @click="vidPosition = new Date(0,0,0,0,0, 0, player.currentTime() * 1000)" />
                           </b-timepicker>
                         </b-field>
                         </div>
                         <div class="column is-2">
-                          <b-field label="End" label-position="on-border">
-                          <b-timepicker v-model="endTime" rounded editable placeholder="Defaults to player position" hour-format="24" :enable-seconds="true" :max-time="maxTime" :time-formatter="timeFormatter" :time-parser="timeParser" >
+                          <b-field :label="$t('End')" label-position="on-border">
+                          <b-timepicker v-model="endTime" rounded editable :placeholder="$t('Defaults to player position')" hour-format="24" :enable-seconds="true" :max-time="maxTime" :time-formatter="timeFormatter" :time-parser="timeParser" >
                           <b-button
-                            label="Current Time"
+                            :label="$t('Current Time')"
                             type="is-primary"
                             @click="endTime = new Date(0,0,0,0,0, 0, player.currentTime() * 1000)" />
                           </b-timepicker>
@@ -346,20 +342,18 @@
                       </div>
                     </div>
                     <div>
-                      <!-- :sort-multiple="sortMultiple" :sort-multiple-data="cuepointSorting" -->
                         <b-table :data="sortedCuepoints" :narrowed=true focusable striped
                           @select="cuepointSelected">
-                          <!-- paginated  pagination-position="top" :pagination-rounded=true pagination-size="is-small" -->
-                          <b-table-column field="track" label="Track" width="7.25em" v-slot="props" >
+                          <b-table-column field="track" :label="$t('Track')" width="7.25em" v-slot="props" >
                             {{ props.row.track ==null ? "" :  props.row.track }}
                           </b-table-column>
-                          <b-table-column field="name" label="Name" v-slot="props"  is-small>
+                          <b-table-column field="name" :label="$t('Name')" v-slot="props"  is-small>
                             {{ props.row.name }}
                           </b-table-column>
-                          <b-table-column field="time_start" label="Start" v-slot="props" width="6.5em"  >
+                          <b-table-column field="time_start" :label="$t('Start')" v-slot="props" width="6.5em"  >
                             {{ humanizeSeconds1DP(props.row.time_start) }}
                           </b-table-column>
-                          <b-table-column field="time_end" label="End" v-slot="props" width="6.5em"  >
+                          <b-table-column field="time_end" :label="$t('End')" v-slot="props" width="6.5em"  >
                             {{ props.row.time_end==null ? "" :  humanizeSeconds1DP(props.row.time_end) }}
                           </b-table-column>
                           <b-table-column field="rating" v-slot="props" width="7em"  >
@@ -369,7 +363,7 @@
                             </b-field>
                           </b-table-column>
                           <b-table-column v-slot="props" width="1em" >
-                            <button class="button is-danger is-outlined is-small" @click="deleteCuepoint(props.row.id)" data-tooltip="Delete cuepoint">
+                            <button class="button is-danger is-outlined is-small" @click="deleteCuepoint(props.row.id)" :data-tooltip="$t('Delete cuepoint')">
                               <b-icon pack="mdi" icon="delete" />
                             </button>
                           </b-table-column>
@@ -378,13 +372,13 @@
                   </div>
                 </b-tab-item>
 
-                <b-tab-item label="Description" v-if="item.synopsis">
+                <b-tab-item :label="$t('Description')" v-if="item.synopsis">
                   <div class="block-tab-content block">
                     <div class="description-text">{{ item.synopsis }}</div>
                   </div>
                 </b-tab-item>
 
-                <b-tab-item label="Watch history" v-if="!displayingAlternateSource">
+                <b-tab-item :label="$t('Watch history')" v-if="!displayingAlternateSource">
                   <div class="block-tab-content block">
                     <div>
                       {{ historySessionsCount }} view sessions, total duration
@@ -399,7 +393,7 @@
                   </div>
                 </b-tab-item>
 
-                <b-tab-item v-if="this.$store.state.optionsAdvanced.advanced.showSceneSearchField && !displayingAlternateSource" label="Search fields">
+                <b-tab-item v-if="this.$store.state.optionsAdvanced.advanced.showSceneSearchField && !displayingAlternateSource" :label="$t('Search fields')">
                   <div class="block-tab-content block">
                     <div class="content is-small">
                       <div class="block" v-for="(field, idx) in searchfields" :key="idx">
@@ -422,25 +416,24 @@
         </a>
       </div>
     </template>
-    <button class="modal-close is-large" aria-label="close" @click="close()"></button>
+    <button class="modal-close is-large" :aria-label="$t('close')" @click="close()"></button>
     <a class="prev" @click="prevScene" v-if="$store.getters['sceneList/prevScene'](item) !== null && !displayingAlternateSource"
-       title="Keyboard shortcut: O">&#10094;</a>
+       :title="$t('Keyboard shortcut: O')">&#10094;</a>
     <a class="next" @click="nextScene" v-if="hasNextScene && !displayingAlternateSource"
-       title="Keyboard shortcut: P">&#10095;</a>
+       :title="$t('Keyboard shortcut: P')">&#10095;</a>
 
-    <!-- Fullscreen Gallery Modal -->
     <div v-if="fullscreenGallery" 
          ref="fullscreenGallery"
          class="fullscreen-gallery" 
          :class="{ 'is-zoomed': fullscreenZoomed }"
          @click.self="handleGalleryClick">
-      <button class="fullscreen-close" @click="closeFullscreenGallery" title="Close (Esc)">
+      <button class="fullscreen-close" @click="closeFullscreenGallery" :title="$t('Close (Esc)')">
         <b-icon pack="mdi" icon="close" size="is-medium"></b-icon>
       </button>
-      <button class="fullscreen-nav fullscreen-prev" @click.stop="fullscreenPrev" v-if="images.length > 1 && !fullscreenZoomed" title="Previous (←)">
+      <button class="fullscreen-nav fullscreen-prev" @click.stop="fullscreenPrev" v-if="images.length > 1 && !fullscreenZoomed" :title="$t('Previous (←)')">
         <b-icon pack="mdi" icon="chevron-left" size="is-large"></b-icon>
       </button>
-      <button class="fullscreen-nav fullscreen-next" @click.stop="fullscreenNext" v-if="images.length > 1 && !fullscreenZoomed" title="Next (→)">
+      <button class="fullscreen-nav fullscreen-next" @click.stop="fullscreenNext" v-if="images.length > 1 && !fullscreenZoomed" :title="$t('Next (→)')">
         <b-icon pack="mdi" icon="chevron-right" size="is-large"></b-icon>
       </button>
       <img 
@@ -483,10 +476,12 @@ import RescrapeButton from '../../components/RescrapeButton'
 import TrailerlistButton from '../../components/TrailerlistButton'
 import HiddenButton from '../../components/HiddenButton'
 import { isAiScript, scriptGenerator, scriptLicense } from '@/scripts'
+import gallery from '@/gallery'
 
 export default {
   name: 'SceneDetails',
   components: { SplitModal, VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
+  mixins: [gallery],
   data () {
     return {
       tagsExpanded: false,
@@ -503,17 +498,6 @@ export default {
       cuepointRating: 0,
       cuepointPositionTags: ['', 'standing', 'sitting', 'laying', 'kneeling'],
       cuepointActTags: ['', 'handjob', 'blowjob', 'doggy', 'cowgirl', 'revcowgirl', 'missionary', 'titfuck', 'anal', 'cumshot', '69', 'facesit'],
-      carouselSlide: 0,
-      carouselImagesLoaded: {},
-      carouselImageRetries: {},
-      carouselImageKeys: {},
-      carouselImageInfo: {},
-      fullscreenGallery: false,
-      fullscreenIndex: 0,
-      fullscreenImageLoaded: false,
-      fullscreenImageInfo: null,
-      fullscreenZoomed: false,
-      fullscreenCanZoom: false,
       vidPosition: null,
       skipForwardIntervals: [5, 10, 30, 60, 120, 300],
       skipBackIntervals: [-300, -120, -60, -30, -10, -5],
@@ -534,7 +518,9 @@ export default {
     }
   },
   computed: {
-    // funscript for the player's stroke overlay: the selected one, else the first
+    castHasAge () {
+      return this.castimages.some(c => c.age != null)
+    },
     // all scripts of the scene, for the overlay's picker (selected one marked)
     playerScripts () {
       const files = (this.item && this.item.file) || []
@@ -598,14 +584,12 @@ export default {
       const show = this.$store.state.optionsAdvanced.advanced.showSceneSearchField && !this.displayingAlternateSource
       return show ? this.item.id : null
     },
-    // Properties for gallery
     images () {
       if (this.item.images=="null") {
         return "[]"
       }
       return JSON.parse(this.item.images).filter(im => im && im.url)
     },
-    // Tab: cuepoints
     sortedCuepoints () {
       if (this.item.cuepoints !== null) {
         for (let i = 0; i < this.item.cuepoints.length; i++) {
@@ -630,7 +614,6 @@ export default {
       }
       return []
     },
-    // Tab: files
     fileCount () {
       if (this.item.file !== null) {
         return this.item.file.length
@@ -643,7 +626,6 @@ export default {
       }
       return []
     },
-    // Tab: history
     historySessionsCount () {
       if (this.item.history !== null) {
         return this.item.history.length
@@ -665,7 +647,6 @@ export default {
       return this.$store.state.overlay.edit.show
     },
     filteredCuepointPositionList () {
-      // filter the list of positions based on what has been entered so far
       let list=this.cuepointActTags.concat(this.cuepointPositionTags)
       return list.filter((option) => {
         return option
@@ -676,9 +657,7 @@ export default {
       })
     },
     displayingAlternateSource () {
-      // displayingAlternateSource indicates we aren't displaying a real xbvr scene from the scenes table,
-      //  so functions like watchlist, ratings, etc don't apply
-      // we are displaying scene data serialized and saved in the external_references table
+      // an alternate source is scene data stored in external_references, so lists and ratings do not apply
       if ( this.$store.state.overlay.details.altsrc != null) return true
       return false
     },
@@ -742,7 +721,6 @@ export default {
   mounted () {
     this.setupPlayer()
 
-    // load default cuepoint actions & positions from kv entry in the db
     ky.get('/api/options/cuepoints').json().then(data => {
       this.cuepointActTags = data.actions
       this.cuepointPositionTags = data.positions
@@ -763,7 +741,7 @@ watch:{
       this.waitingForQuickFind = false
       if (this.$store.state.overlay.quickFind.selectedScene != null && this.$store.state.overlay.quickFind.selectedScene.id > 0) {
         this.$buefy.dialog.confirm({
-          title: 'Relink scene',
+          title: this.$t('Relink scene'),
           message: `Do you wish to link this scene to <strong>${this.$store.state.overlay.quickFind.selectedScene.title}</strong>`,
           type: 'is-info is-wide',
           hasIcon: true,
@@ -783,14 +761,10 @@ watch:{
     this.$store.commit('overlay/changeDetailsTab', { tab: -1 })
   },
   activeMedia(newVal) {
-    // Player tab opened: build the player once its <video> is rendered, then load
-    // the requested source (or the first video, without auto-playing).
     if (newVal === 1) this.$nextTick(() => this.loadPlayer())
   },
   'item.scene_id'(newVal, oldVal) {
-    // Scene changed via prev/next nav. Tear down the old player; the keyed wrapper
-    // renders a fresh <video> for the new scene. Stay on the Player tab when the
-    // new scene has a video, otherwise fall back to the gallery.
+    // the keyed wrapper renders a fresh <video> for the new scene
     if (!newVal || oldVal === undefined || newVal === oldVal) return
     this.disposePlayer()
     this.playerRequest = null
@@ -804,7 +778,6 @@ watch:{
   },
   images: {
     handler () {
-      // Reset loaded state when images change
       this.carouselImagesLoaded = {}
       this.carouselImageRetries = {}
       this.carouselImageKeys = {}
@@ -834,88 +807,6 @@ watch:{
       const top = el.getBoundingClientRect().top
       this.hiddenTags = [...el.children].filter(c => c.getBoundingClientRect().top - top >= limit).length
     },
-    getCarouselImageURL (url, index) {
-      // Add a cache-busting key when retrying
-      const key = this.carouselImageKeys[index] || 0
-      const baseUrl = this.getImageURL(url, '1200x')
-      return key > 0 ? baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_retry=' + key : baseUrl
-    },
-    getFullscreenImageURL (url) {
-      // Full resolution for fullscreen view
-      return this.getImageURL(url, '0x0')
-    },
-    openFullscreenGallery (index) {
-      this.fullscreenIndex = index
-      this.fullscreenImageLoaded = false
-      this.fullscreenGallery = true
-      // Disable body scroll when fullscreen is open
-      document.body.style.overflow = 'hidden'
-    },
-    closeFullscreenGallery () {
-      this.fullscreenGallery = false
-      this.fullscreenZoomed = false
-      // Re-enable body scroll
-      document.body.style.overflow = ''
-      // Sync carousel with fullscreen position
-      this.carouselSlide = this.fullscreenIndex
-    },
-    fullscreenPrev () {
-      this.fullscreenImageLoaded = false
-      this.fullscreenImageInfo = null
-      this.fullscreenZoomed = false
-      this.fullscreenCanZoom = false
-      this.fullscreenIndex = (this.fullscreenIndex - 1 + this.images.length) % this.images.length
-    },
-    fullscreenNext () {
-      this.fullscreenImageLoaded = false
-      this.fullscreenImageInfo = null
-      this.fullscreenZoomed = false
-      this.fullscreenCanZoom = false
-      this.fullscreenIndex = (this.fullscreenIndex + 1) % this.images.length
-    },
-    handleGalleryClick () {
-      if (this.fullscreenZoomed) {
-        this.fullscreenZoomed = false
-      } else {
-        this.closeFullscreenGallery()
-      }
-    },
-    handleImageClick (event) {
-      if (!this.fullscreenCanZoom) return
-      
-      const gallery = this.$refs.fullscreenGallery
-      const img = this.$refs.fullscreenImage
-      
-      if (this.fullscreenZoomed) {
-        // Zoom out
-        this.fullscreenZoomed = false
-      } else {
-        // Capture click position BEFORE zoom (as ratio 0-1)
-        const rect = img.getBoundingClientRect()
-        const clickRatioX = (event.clientX - rect.left) / rect.width
-        const clickRatioY = (event.clientY - rect.top) / rect.height
-        
-        // Enable zoom
-        this.fullscreenZoomed = true
-        
-        // Use requestAnimationFrame + setTimeout to ensure layout is complete
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            // Image natural size (full resolution)
-            const natW = img.naturalWidth
-            const natH = img.naturalHeight
-            // Where the clicked point is in the full-size image
-            const pointX = natW * clickRatioX
-            const pointY = natH * clickRatioY
-            // Scroll so that point is at center of viewport
-            const scrollX = Math.max(0, pointX - (window.innerWidth / 2))
-            const scrollY = Math.max(0, pointY - (window.innerHeight / 2))
-            
-            gallery.scrollTo(scrollX, scrollY)
-          }, 50)
-        })
-      }
-    },
     handleEscape () {
       if (this.fullscreenGallery) {
         this.closeFullscreenGallery()
@@ -925,7 +816,6 @@ watch:{
     },
     onCarouselChange (index) {
       this.scrollToActiveIndicator(index)
-      // Check if the new slide's image is already loaded
       this.$nextTick(() => {
         if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
           const img = this.$refs.carouselImages[index]
@@ -936,131 +826,25 @@ watch:{
       })
     },
     onCarouselImageLoad (index) {
-      // Verify the image actually loaded with valid dimensions
       this.$nextTick(() => {
         if (this.$refs.carouselImages && this.$refs.carouselImages[index]) {
           const img = this.$refs.carouselImages[index]
           if (img.naturalWidth > 100) {
-            // Image loaded successfully with reasonable size
             this.carouselImagesLoaded[index] = true
             this.carouselImageRetries[index] = 0
-            // Fetch image info (format and size) for the badge
             this.fetchCarouselImageInfo(img.src, index)
-            // Extract dominant color from first image
             if (index === 0 && !this.scenePalette) {
               this.extractSceneColor(img)
             }
           } else if ((this.carouselImageRetries[index] || 0) < 3) {
-            // Image too small, might be an error - retry
             this.retryCarouselImage(index)
           } else {
-            // Give up, show whatever we have
             this.carouselImagesLoaded[index] = true
           }
         } else {
           this.carouselImagesLoaded[index] = true
         }
       })
-    },
-    onFullscreenImageLoad () {
-      this.fullscreenImageLoaded = true
-      if (this.$refs.fullscreenImage) {
-        const img = this.$refs.fullscreenImage
-        // Can zoom if image is larger than 90% of viewport in either dimension
-        const fitsWidth = img.naturalWidth <= window.innerWidth * 0.9
-        const fitsHeight = img.naturalHeight <= window.innerHeight * 0.9
-        this.fullscreenCanZoom = !(fitsWidth && fitsHeight)
-        // Fetch image info for fullscreen
-        this.fetchFullscreenImageInfo(img.src)
-      }
-    },
-    fetchCarouselImageInfo (url, index) {
-      // Use Range request to get first 16 bytes for magic number detection
-      fetch(url, { 
-        method: 'GET',
-        headers: { 'Range': 'bytes=0-15' }
-      })
-        .then(response => {
-          // Get file size from Content-Range header (format: bytes 0-15/totalSize)
-          const contentRange = response.headers.get('Content-Range')
-          let fileSize = null
-          if (contentRange) {
-            const match = contentRange.match(/\/(\d+)$/)
-            if (match) {
-              fileSize = parseInt(match[1])
-            }
-          }
-          return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
-        })
-        .then(({ buffer, fileSize }) => {
-          const bytes = new Uint8Array(buffer)
-          const format = this.detectFormatFromBytes(bytes)
-          const size = fileSize ? this.formatBytes(fileSize) : ''
-          const info = size ? `${format} · ${size}` : format
-          this.carouselImageInfo[index] = info
-        })
-        .catch(() => {
-          // Silently fail - no info displayed
-        })
-    },
-    fetchFullscreenImageInfo (url) {
-      this.fullscreenImageInfo = null
-      // Use Range request to get first 16 bytes for magic number detection + full response for size
-      fetch(url, { 
-        method: 'GET',
-        headers: { 'Range': 'bytes=0-15' }
-      })
-        .then(response => {
-          // Get file size from Content-Range header (format: bytes 0-15/totalSize)
-          const contentRange = response.headers.get('Content-Range')
-          let fileSize = null
-          if (contentRange) {
-            const match = contentRange.match(/\/(\d+)$/)
-            if (match) {
-              fileSize = parseInt(match[1])
-            }
-          }
-          // Fallback to Content-Length if no range support
-          if (!fileSize) {
-            const cl = response.headers.get('Content-Length')
-            if (cl) fileSize = parseInt(cl)
-          }
-          return response.arrayBuffer().then(buffer => ({ buffer, fileSize }))
-        })
-        .then(({ buffer, fileSize }) => {
-          const bytes = new Uint8Array(buffer)
-          const format = this.detectFormatFromBytes(bytes)
-          const size = fileSize ? this.formatBytes(fileSize) : ''
-          this.fullscreenImageInfo = size ? `${format} · ${size}` : format
-        })
-        .catch(() => {
-          // Silently fail
-        })
-    },
-    detectFormatFromBytes (bytes) {
-      if (bytes.length < 12) return 'IMG'
-      
-      // AVIF: check for 'ftyp' at offset 4 and 'avif', 'avis', or 'mif1' at offset 8
-      if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-        const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
-        if (brand === 'avif' || brand === 'avis' || brand === 'mif1') return 'AVIF'
-        if (brand === 'heic' || brand === 'heix') return 'HEIC'
-      }
-      
-      // JPEG: starts with FF D8 FF
-      if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'JPEG'
-      
-      // PNG: starts with 89 50 4E 47 (‰PNG)
-      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'PNG'
-      
-      // GIF: starts with GIF87a or GIF89a
-      if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'GIF'
-      
-      // WebP: starts with RIFF....WEBP
-      if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-          bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'WebP'
-      
-      return 'IMG'
     },
     getFormatFromContentType (contentType) {
       if (contentType.includes('avif')) return 'AVIF'
@@ -1071,43 +855,16 @@ watch:{
       if (contentType.includes('svg')) return 'SVG'
       return 'IMG'
     },
-    formatBytes (bytes) {
-      if (bytes === 0) return '0 B'
-      const k = 1024
-      const sizes = ['B', 'KB', 'MB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-    },
-    onCarouselImageError (index) {
-      const retries = this.carouselImageRetries[index] || 0
-      if (retries < 3) {
-        this.retryCarouselImage(index)
-      } else {
-        // Give up, remove blur anyway
-        this.carouselImagesLoaded[index] = true
-      }
-    },
-    retryCarouselImage (index) {
-      const retries = (this.carouselImageRetries[index] || 0) + 1
-      this.carouselImageRetries[index] = retries
-      const delay = retries * 1500 // 1.5s, 3s, 4.5s
-      setTimeout(() => {
-        // Increment the key to force a new request
-        this.carouselImageKeys[index] = (this.carouselImageKeys[index] || 0) + 1
-      }, delay)
-    },
     firstVideoFile () {
       if (this.displayingAlternateSource) return null
       return this.filesByType.find(f => f.type === 'video') || null
     },
     disposePlayer () {
-      // The <VrPlayer> is keyed per scene, so Vue unmounts (and disposes) it;
-      // only drop our handle here.
+      // the keyed <VrPlayer> disposes itself on unmount; only drop our handle
       this.player = {}
       this.vrPlugin = null
     },
-    // Ask for something to play; the Player tab watcher / nextTick does the loading
-    // so the request can't race the default "first video" load.
+    // the Player tab watcher loads it, so this cannot race the default first-video load
     openPlayer (request) {
       this.playerRequest = request
       if (this.activeMedia === 1) this.$nextTick(() => this.loadPlayer())
@@ -1224,7 +981,7 @@ watch:{
     },
     unmatchFile (file) {
       this.$buefy.dialog.confirm({
-        title: 'Unmatch file',
+        title: this.$t('Unmatch file'),
         message: `You're about to unmatch the file <strong>${file.filename}</strong> from this scene. Afterwards, it can be matched again to this or any other scene.`,
         type: 'is-info is-wide',
         hasIcon: true,
@@ -1238,7 +995,7 @@ watch:{
     },
     removeFile (file) {
       this.$buefy.dialog.confirm({
-        title: 'Remove file',
+        title: this.$t('Remove file'),
         message: `You're about to remove file <strong>${file.filename}</strong> from <strong>disk</strong>.`,
         type: 'is-danger',
         hasIcon: true,
@@ -1285,7 +1042,6 @@ watch:{
         ctx.drawImage(imgEl, 0, 0, size, size)
         const data = ctx.getImageData(0, 0, size, size).data
 
-        // Collect all pixels as [r,g,b]
         const pixels = []
         for (let i = 0; i < data.length; i += 4) {
           pixels.push([data[i], data[i+1], data[i+2]])
@@ -1312,13 +1068,11 @@ watch:{
           })
         }
 
-        // Sort by luminance
         centers.sort((a, b) => (0.299*a[0]+0.587*a[1]+0.114*a[2]) - (0.299*b[0]+0.587*b[1]+0.114*b[2]))
 
         const rgb = c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`
         const pastel = (c, amt) => c.map(v => Math.round(v + (255 - v) * amt))
 
-        // RGB <-> HSL helpers
         const rgbToHsl = (r, g, b) => {
           r /= 255; g /= 255; b /= 255
           const mx = Math.max(r, g, b), mn = Math.min(r, g, b)
@@ -1346,7 +1100,6 @@ watch:{
           return [Math.round(hue2rgb(p, q, h + 1/3) * 255), Math.round(hue2rgb(p, q, h) * 255), Math.round(hue2rgb(p, q, h - 1/3) * 255)]
         }
 
-        // Pick the most saturated cluster as accent
         let bestSat = -1, accent = centers[1]
         for (const c of centers) {
           const mx = Math.max(...c), mn = Math.min(...c)
@@ -1354,16 +1107,12 @@ watch:{
           if (sat > bestSat) { bestSat = sat; accent = c }
         }
 
-        // Convert to HSL and normalize: ensure minimum saturation, target nice lightness
         let [h, s, l] = rgbToHsl(accent[0], accent[1], accent[2])
-        // Gently boost saturation only if it's weak (< 0.5), cap at 0.7
         if (s < 0.5) s = s + (0.5 - s) * 0.6
         s = Math.min(s, 0.85)
-        // Clamp lightness to a pleasant range (not too dark, not too bright)
         l = Math.max(0.35, Math.min(0.55, l))
         accent = hslToRgb(h, s, l)
 
-        // Compute luminance for contrast decisions
         const luminance = c => {
           const toLinear = x => { const v = x/255; return v <= 0.03928 ? v/12.92 : ((v+0.055)/1.055)**2.4 }
           return 0.2126*toLinear(c[0]) + 0.7152*toLinear(c[1]) + 0.0722*toLinear(c[2])
@@ -1371,7 +1120,6 @@ watch:{
         const lum = luminance(accent)
         const accentText = lum > 0.179 ? '#1a1a1a' : '#ffffff'
 
-        // Background variant: slightly darker for solid fills
         const accentBg = hslToRgb(h, Math.min(s * 1.1, 0.9), Math.max(l - 0.08, 0.25))
 
         this.scenePalette = {
@@ -1396,7 +1144,6 @@ watch:{
       return `/api/dms/heatmap/${fileId}`
     },
     playCuepoint (cuepoint) {
-      // populate the cuepoint edit fields
       this.vidPosition = new Date(0, 0, 0, 0, 0, 0, cuepoint.time_start*1000)
       this.endTime = new Date(0, 0, 0, 0, 0, 0, cuepoint.time_end*1000)
       this.currentCuepointId = cuepoint.id
@@ -1408,13 +1155,11 @@ watch:{
         this.tagAct = cuepoint.name
         this.cuepointName = ''
       }
-      // now mow the player position
       this.player.currentTime(cuepoint.time_start)
       this.player.play()
     },
     updateCuepoint (editCuepoint) {
       if (this.disableSaveButtons()) return
-      // if edit choosen, delete existing cuepoint before add
       if (editCuepoint && this.currentCuepointId > 0) {
         this.deleteCuepoint(this.currentCuepointId)
       }
@@ -1486,17 +1231,16 @@ watch:{
         }
       }
       if (data !== null) {
-        this.$store.commit('overlay/showDetails', { scene: data })
+        this.$store.dispatch('overlay/openDetails', { scene: data })
       }
     },
     prevScene () {
       const data = this.$store.getters['sceneList/prevScene'](this.item)
       if (data !== null && !this.displayingAlternateSource) {
-        this.$store.commit('overlay/showDetails', { scene: data })
+        this.$store.dispatch('overlay/openDetails', { scene: data })
       }
     },
-    // Keys pressed while focus is inside the player are handled by the player's
-    // own shortcuts; handling them here too would toggle/seek twice.
+    // keys inside the player are handled by its own shortcuts
     fromPlayer (e) {
       return !!(e && e.target && e.target.closest && e.target.closest('video-player'))
     },
@@ -1548,13 +1292,10 @@ watch:{
     },
     toggleGallery () {
       if (this.fullscreenGallery) {
-        // G key opens/closes fullscreen when gallery tab is active
         this.closeFullscreenGallery()
       } else if (this.activeMedia == 0) {
-        // Open fullscreen gallery
         this.openFullscreenGallery(this.carouselSlide)
       } else {
-        // Switch to gallery tab
         this.activeMedia = 0
       }
     },
@@ -1578,15 +1319,6 @@ watch:{
         this.playerStepForward(this.lastSkipFowardInterval)
       }
     },
-    scrollToActiveIndicator (value) {
-      const indicators = document.querySelector('.carousel-indicator')
-      const active = indicators.children[value]
-      indicators.scrollTo({
-        top: 0,
-        left: active.offsetLeft + active.offsetWidth / 2 - indicators.offsetWidth / 2,
-        behavior: 'smooth'
-      })
-    },
     timeFormatter(time) {
        return new Intl.DateTimeFormat('en', { hourCycle: 'h23', hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 1 }).format(time)
     },
@@ -1595,14 +1327,12 @@ watch:{
       return new Date(0, 0, 0, items[0],items[1], 0, items[2]*1000)
     },
     cuepointSelected(cuepoint) {
-      // populate the cuepoint edit fields
       this.vidPosition = new Date(0, 0, 0, 0, 0, 0, cuepoint.time_start*1000)
       this.endTime = new Date(0, 0, 0, 0, 0, 0, cuepoint.time_end*1000)
       this.currentCuepointId = cuepoint.id
       this.cuepointName = cuepoint.name
       this.track=cuepoint.track
       this.cuepointRating=cuepoint.rating
-      // now mow the player position
       this.player.currentTime(cuepoint.time_start)
       this.player.play()
     },
@@ -1648,7 +1378,6 @@ watch:{
       this.activeTab = 0      
     },
     searchAlternateSourceScene() {
-      // search for a new scene to link to the alternate source scene
       const  q = this.$store.state.overlay.details.query_for_altsrc == "" ? this.item.title : this.$store.state.overlay.details.query_for_altsrc      
       this.$store.commit('overlay/showQuickFind', { searchString:  q, displaySelectedScene: false })
       this.waitingForQuickFind = true
@@ -1666,12 +1395,12 @@ watch:{
       });
       if (response.status === 200) {
         this.$store.state.overlay.details.prevscene = this.$store.state.overlay.quickFind.selectedScene;
-        this.$buefy.toast.open({ message: `The scene was sucessfully relinked to a new Scene`, type: 'is-primary', duration: 3000 });
+        this.$buefy.toast.open({ message: this.$t('The scene was sucessfully relinked to a new Scene'), type: 'is-primary', duration: 3000 });
       }
     },
     async scrapeScene() {
       this.$buefy.dialog.confirm({
-        title: 'Scrape & Create Scene',
+        title: this.$t('Scrape & Create Scene'),
         message: `Do you wish to create a seperate XBVR scene from this linked scene <strong>${this.$store.state.overlay.details.altsrc.url}</strong>`,
         type: 'is-info is-wide',
         hasIcon: true,
@@ -1680,7 +1409,6 @@ watch:{
           const url = this.$store.state.overlay.details.altsrc.url
           this.$store.state.overlay.details.altsrc = null
           this.$store.commit('overlay/hideDetails')
-          // call the options screen passing the url in state   
           this.$store.commit('optionsSceneCreate/setScrapeScene', url )
           this.$store.commit('optionsSceneCreate/showSceneCreate', true )
           this.$router.push({ path: '/options'})
@@ -1690,8 +1418,8 @@ watch:{
     },
     async refreshExtRef() {
       this.$buefy.dialog.confirm({
-        title: 'Continue?',
-        message: `This will remove the scene, rescrape the site to relink it to an XBVR scene`,
+        title: this.$t('Continue?'),
+        message: this.$t('This will remove the scene, rescrape the site to relink it to an XBVR scene'),
         type: 'is-info is-wide',
         hasIcon: true,
         id: 'heh',
@@ -1709,13 +1437,13 @@ watch:{
       });
       if (response.status === 200) {
         this.$store.state.overlay.details.prevscene = this.$store.state.overlay.quickFind.selectedScene;
-        this.$buefy.toast.open({ message: `The scene was removed, ready to rescan`, type: 'is-primary', duration: 3000 });
+        this.$buefy.toast.open({ message: this.$t('The scene was removed, ready to rescan'), type: 'is-primary', duration: 3000 });
       }
     },
     flagExtRefDeleted() {
       this.$buefy.dialog.confirm({
-        title: 'Continue?',
-        message: `This will unlink the scene and prevent it from relinking to any scene. This cannot be undone`,
+        title: this.$t('Continue?'),
+        message: this.$t('This will unlink the scene and prevent it from relinking to any scene. This cannot be undone'),
         type: 'is-danger is-wide',
         hasIcon: true,
         id: 'heh',
@@ -1737,7 +1465,7 @@ watch:{
       });
       if (response.status === 200) {
         this.$store.state.overlay.details.prevscene = this.$store.state.overlay.quickFind.selectedScene;
-        this.$buefy.toast.open({ message: `The scene was unlinked and will not be relinked to any scene`, type: 'is-primary', duration: 3000 });
+        this.$buefy.toast.open({ message: this.$t('The scene was unlinked and will not be relinked to any scene'), type: 'is-primary', duration: 3000 });
       }
     },    
     format,
@@ -2021,24 +1749,32 @@ watch:{
 .cast-item :deep(> div) {
   line-height: 0;
 }
+/* name, plus an age line on every card when any actor has an age, so the row stays even */
 .cast-caption {
+  display: flex;
+  flex-direction: column;
   width: 0;
   min-width: 100%;
-  margin-top: 3px;
-  font-size: 0.7rem;
-  line-height: 1.2;
+  margin-top: 4px;
+  line-height: 1.25;
   text-align: center;
+}
+.cast-name {
+  font-size: 0.72rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .cast-age {
+  min-height: 1.25em;
+  font-size: 0.65rem;
   opacity: 0.6;
+  font-variant-numeric: tabular-nums;
 }
 
 
 .cast-thumb {
-  height: clamp(70px, 6vw, 90px);
+  height: clamp(80px, 7vw, 100px);
   aspect-ratio: 2 / 3;
   background: rgba(127, 127, 127, 0.12);
   border-radius: 4px;

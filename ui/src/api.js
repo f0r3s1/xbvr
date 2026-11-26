@@ -1,9 +1,6 @@
 import ky from 'ky'
 
-// Shared API client with retry + sensible defaults.
-// - Retries POST (our list endpoints are idempotent).
-// - Retries on network errors (backend not up yet during dev boot).
-// - Retries on 5xx/429.
+// Shared client: retries POST (list endpoints are idempotent), network errors during boot, and 5xx/429
 const api = ky.extend({
   timeout: 30000,
   retry: {
@@ -16,21 +13,17 @@ const api = ky.extend({
 
 export default api
 
-// /api/options/state is requested by every options store and several views at
-// once on page load. Share one in-flight request between concurrent callers
-// (no caching beyond that, so pollers still get fresh data).
+// every options store asks for /api/options/state on load; callers within a second share one request
 let optionsStateInFlight = null
 export function getOptionsState () {
   if (!optionsStateInFlight) {
     optionsStateInFlight = api.get('/api/options/state').json()
-      .finally(() => { optionsStateInFlight = null })
+      .finally(() => setTimeout(() => { optionsStateInFlight = null }, 1000))
   }
   return optionsStateInFlight
 }
 
-// Scene cards each need their alternate sources. Requests made within the same
-// short window are merged into one /api/scene/alternate_sources?ids=... call, so a
-// grid of 80 cards costs one request instead of 80.
+// alternate source lookups from many cards within a short window are merged into one batched request
 let altQueue = new Map()
 let altTimer = null
 function flushAlternateSources () {
