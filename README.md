@@ -78,7 +78,7 @@ This fork keeps its dependencies on current major versions, with lint and securi
 | Web UI | Vue 3.5, Vite 8, Vue Router 5, Vuex 4, vue-i18n 11, Buefy for Vue 3 |
 | Player | Video.js 10 with its own three.js VR view (180°, 360° and fisheye) |
 | Tooling | Bun for the UI, golangci-lint and ESLint 10 in CI, Docker for every build and test |
-| Releases | Multi-arch Docker images (amd64, arm64) and binaries for Windows, macOS (Apple silicon and Intel) and Linux (x86_64, arm64, Raspberry Pi armv7) |
+| Releases | Multi-arch Docker images (amd64, arm64; the registry keeps only the newest) and binaries for Windows, macOS (Apple silicon and Intel) and Linux (x86_64, arm64, Raspberry Pi armv7) |
 
 ## Questions & Suggestions
 
