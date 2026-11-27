@@ -2548,6 +2548,18 @@ func Migrate(migrateTo string) {
 				return tx.AutoMigrate(Site{}).Error
 			},
 		},
+		{
+			ID: "0100-preview-method",
+			Migrate: func(tx *gorm.DB) error {
+				type Scene struct {
+					PreviewMethod string
+				}
+				if err := tx.AutoMigrate(&Scene{}).Error; err != nil {
+					return err
+				}
+				return tx.Exec("UPDATE scenes SET preview_method = 'classic' WHERE has_video_preview").Error
+			},
+		},
 	}
 
 	// Wrap migrations to automatically track progress

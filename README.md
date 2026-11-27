@@ -52,7 +52,17 @@ Add `-d` to run the container in the background.
 
 Your videos are mounted at `/videos`; add this path in Options -> Storage.
 
-On first run, XBVR automatically downloads `ffprobe` and `ffmpeg` from [ffbinaries](https://ffbinaries.com/downloads).
+The Docker image includes `ffmpeg` and `ffprobe`. Outside Docker, XBVR uses the ones installed on your system, or downloads them from [ffbinaries](https://ffbinaries.com/downloads) on first run.
+
+### GPU acceleration (Intel / AMD)
+
+Previews decode on the GPU when one is passed to the container, and fall back to the CPU otherwise. Add the device and the host's `render` group id (`getent group render`):
+
+```
+   --device /dev/dri:/dev/dri --group-add <render-gid> \
+```
+
+Intel drivers are included in the x86_64 image. NVIDIA is not supported yet.
 
 ## Quick Start
 

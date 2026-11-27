@@ -2,11 +2,16 @@ package models
 
 import (
 	"encoding/json"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-var scrapers []Scraper
+var (
+	scrapers   []Scraper
+	scrapersMu sync.RWMutex
+)
 
 type ScraperFunc func(*ScrapeWG, bool, []string, chan<- ScrapedScene, string, string, bool) error
 
@@ -82,18 +87,29 @@ func (s *ScrapedScene) Log() error {
 }
 
 func GetScrapers() []Scraper {
-	return scrapers
+	scrapersMu.RLock()
+	defer scrapersMu.RUnlock()
+	return slices.Clone(scrapers)
 }
 
+// RegisterScraper adds a scraper, or replaces the one with the same id (custom sites can be edited while running).
 func RegisterScraper(id string, name string, avatarURL string, domain string, f ScraperFunc, masterSiteId string) {
-	s := Scraper{}
-	s.ID = id
-	s.Name = name
-	s.AvatarURL = avatarURL
-	s.Domain = domain
-	s.Scrape = f
-	s.MasterSiteId = masterSiteId
+	s := Scraper{ID: id, Name: name, AvatarURL: avatarURL, Domain: domain, Scrape: f, MasterSiteId: masterSiteId}
+	scrapersMu.Lock()
+	defer scrapersMu.Unlock()
+	for i := range scrapers {
+		if scrapers[i].ID == id {
+			scrapers[i] = s
+			return
+		}
+	}
 	scrapers = append(scrapers, s)
+}
+
+func UnregisterScraper(id string) {
+	scrapersMu.Lock()
+	defer scrapersMu.Unlock()
+	scrapers = slices.DeleteFunc(scrapers, func(s Scraper) bool { return s.ID == id })
 }
 
 // Custom wg functions, to allow access to the current count of waitgroups. This allows running scrapers at max count always

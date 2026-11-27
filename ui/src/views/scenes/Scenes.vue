@@ -65,12 +65,17 @@ export default defineComponent({
 
   beforeRouteEnter (to) {
     return vm => {
+      const store = vm.$store
+      const before = JSON.stringify(store.state.sceneList.filters)
       if (to.query !== undefined) {
-        vm.$store.commit('sceneList/stateFromQuery', to.query)
+        store.commit('sceneList/stateFromQuery', to.query)
       }
-      vm.$store.dispatch('optionsWeb/load')
-      vm.$store.dispatch('sceneList/load', { offset: 0 })
-      vm.$store.dispatch('optionsAdvanced/load')
+      store.dispatch('optionsWeb/load')
+      store.dispatch('optionsAdvanced/load')
+      // coming back with the same filters keeps the list: live updates already kept it current
+      if (store.state.sceneList.items.length === 0 || JSON.stringify(store.state.sceneList.filters) !== before) {
+        store.dispatch('sceneList/load', { offset: 0 })
+      }
     }
   },
 

@@ -73,6 +73,11 @@ func (i TaskResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/status").To(i.status).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.GET("/log").To(i.log).
+		Param(ws.QueryParameter("lines", "number of lines from the end (default 300, max 5000)")).
+		Param(ws.QueryParameter("grep", "only lines containing this text, case-insensitive")).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.GET("/scrape").To(i.scrape).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -90,6 +95,9 @@ func (i TaskResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.GET("/index").To(i.index).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	ws.Route(ws.POST("/preview/regenerate").To(i.previewRegenerate).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	ws.Route(ws.GET("/preview/generate").To(i.previewGenerate).
@@ -139,8 +147,9 @@ func (i TaskResource) cleanTags(req *restful.Request, resp *restful.Response) {
 	go tasks.CleanTags()
 }
 
+// refreshSiteMetadata answers once the refresh is done, so the UI can reload the site list.
 func (i TaskResource) refreshSiteMetadata(req *restful.Request, resp *restful.Response) {
-	go tasks.ForceRefreshSiteMetadata()
+	tasks.ForceRefreshSiteMetadata()
 }
 
 func (i TaskResource) warmCovers(req *restful.Request, resp *restful.Response) {
@@ -269,4 +278,20 @@ func (i TaskResource) scrapeTPDB(req *restful.Request, resp *restful.Response) {
 }
 func (i TaskResource) relink_alt_aource_scenes(req *restful.Request, resp *restful.Response) {
 	go tasks.MatchAlternateSources()
+}
+
+type RequestPreviewRegenerate struct {
+	SceneID uint   `json:"scene_id"`
+	Method  string `json:"method"`
+}
+
+// previewRegenerate remakes one scene's preview in the background; the scene list updates when it is ready.
+func (i TaskResource) previewRegenerate(req *restful.Request, resp *restful.Response) {
+	var r RequestPreviewRegenerate
+	if err := req.ReadEntity(&r); err != nil || r.SceneID == 0 || !tasks.PreviewMethodValid(r.Method) {
+		resp.WriteErrorString(http.StatusBadRequest, "scene_id and a valid method are required")
+		return
+	}
+	go tasks.RegeneratePreview(r.SceneID, r.Method)
+	resp.WriteHeader(http.StatusAccepted)
 }

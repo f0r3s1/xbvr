@@ -206,7 +206,7 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 		if sceneData.Get("date").Exists() {
 			timestamp := sceneData.Get("date").Int()
 			if timestamp > 0 {
-				sc.Released = time.Unix(timestamp, 0).Format("2006-01-02")
+				sc.Released = time.Unix(timestamp, 0).UTC().Format("2006-01-02")
 				sc.Upcoming = timestamp > time.Now().Unix()
 			}
 		}
@@ -682,7 +682,7 @@ func SexLikeReal(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out
 				return true
 			}
 			// already stored with the same date: skip the detail request
-			releaseDay := time.Unix(scene.Get("date").Int(), 0).Format("2006-01-02")
+			releaseDay := time.Unix(scene.Get("date").Int(), 0).UTC().Format("2006-01-02")
 			if date, ok := stored[sceneURL]; ok && date.Format("2006-01-02") == releaseDay {
 				return true
 			}
@@ -914,9 +914,6 @@ func init() {
 	scrapers.Load()
 	for _, scraper := range scrapers.XbvrScrapers.SlrScrapers {
 		addSLRScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, false, scraper.URL, scraper.MasterSiteId)
-	}
-	for _, scraper := range scrapers.CustomScrapers.SlrScrapers {
-		addSLRScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, true, scraper.URL, scraper.MasterSiteId)
 	}
 }
 

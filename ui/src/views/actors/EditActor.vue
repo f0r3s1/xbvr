@@ -107,6 +107,7 @@
 </template>
 
 <script>
+import { utcDay, hasDate } from '@/utcDay'
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
@@ -182,8 +183,8 @@ export default defineComponent({
   computed: {
     birthdate: {
       get () {        
-        if (!this.actor.birth_date || this.actor.birth_date.startsWith('0001-01-01')) return null
-        return new Date(this.actor.birth_date)
+        if (!hasDate(this.actor.birth_date)) return null
+        return utcDay(this.actor.birth_date)
       },
       set (value) {        
         if (value==null){

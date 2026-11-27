@@ -1,7 +1,7 @@
 <template>
-  <OptionsSection :title="$t('Advanced')" :loading="isLoading">
+  <OptionsSection :title="title || $t('Advanced')" :loading="isLoading">
     <div class="content">
-      <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
+      <b-tabs v-if="tab === null" v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="importexporttab">
             <b-tab-item :label="$t('Scene Details')"/>
             <b-tab-item :label="$t('Actor Settings')"/>
             <b-tab-item :label="$t('Create Custom Site')"/>
@@ -16,18 +16,18 @@
           <section>
             <b-field>
               <b-switch v-model="showInternalSceneId" type="is-default">
-                {{ $t('show Internal Scene Id') }}
+                {{ $t('Show internal scene ID') }}
               </b-switch>
             </b-field>
             <b-field>
               <b-switch v-model="showHSPApiLink" type="is-default">
-                {{ $t('show Heresphere Api Link') }}
+                {{ $t('Show HereSphere API link') }}
               </b-switch>
             </b-field>
             <b-field>
               <b-tooltip :label="$t('Only required when troubleshooting search issues, this will enable a Tab in the Scene Details to display what search fields exist and their values for a scene')" :delay="500" type="is-warning">
               <b-switch v-model="showSceneSearchField" type="is-default">
-                {{ $t('show Scene Search Fields') }}
+                {{ $t('Show scene search fields') }}
               </b-switch>
               </b-tooltip>
             </b-field>
@@ -40,11 +40,13 @@
       <div class="columns" v-if="activeTab == 1">
         <div class="column">
           <section>
+            <b-field>
               <b-tooltip :label="$t('Allows the entry of Actor Height/Weight in Imperial measurements')" :delay="500" type="is-warning">
                 <b-switch v-model="useImperialEntry" type="is-default">
                   {{ $t('Entry Height/Weight in Imperial Measurements') }}
                 </b-switch>
               </b-tooltip>
+            </b-field>
             <b-field>
               <b-tooltip :label="$t('Scrape Actor details from sites after running a Scene Scrape, otherwise run manually')" :delay="500" type="is-warning">
                 <b-switch v-model="scrapeActorAfterScene" type="is-default">
@@ -52,18 +54,16 @@
                 </b-switch>
               </b-tooltip>
             </b-field>
-            <b-field :label="$t('Stashdb Api Key')" label-position="on-border">
-              <b-input v-model="stashApiKey" :placeholder="$t('Visit https://discord.com/invite/2TsNFKt to sign up to Stashdb')" type="password"></b-input>
+            <b-field :label="$t('StashDB API key')" label-position="on-border" style="margin-top: 1.5rem">
+              <b-input v-model="stashApiKey" :placeholder="$t('Visit https://discord.com/invite/2TsNFKt to sign up to StashDB')" type="password"></b-input>
             </b-field>
-            <b-field>
+            <b-field grouped>
               <b-tooltip :active="stashApiKey==''" :label="$t('Enter a StashApi key to enable')" >
-                <b-button type="is-primary" :disabled="stashApiKey==''" @click="stashdb">{{ $t('Scrape StashDB') }}</b-button>
+                <b-button :disabled="stashApiKey==''" @click="stashdb">{{ $t('Scrape StashDB') }}</b-button>
               </b-tooltip>
+              <b-button @click="scrapeXbvrActors">{{ $t('Scrape Actor Details from XBVR Sites') }}</b-button>
             </b-field>
-            <b-field>
-              <b-button type="is-primary" @click="scrapeXbvrActors">{{ $t('Scrape Actor Details from XBVR Sites') }}</b-button>
-            </b-field>
-            <b-field>
+            <b-field style="margin-top: 1.5rem">
               <b-button type="is-primary" @click="save">{{ $t('Save') }}</b-button>
             </b-field>
           </section>
@@ -73,8 +73,8 @@
       <div class="columns" v-if="activeTab == 2">
         <div class="column">
           <section>
-            <b-field :label="$t('Scraper Url')" label-position="on-border">
-              <b-input v-model="scraperUrl" :placeholder="$t('Enter the Url to Studio Scene List')" @input="validateScraperFields()"></b-input>
+            <b-field :label="$t('Scraper URL')" label-position="on-border">
+              <b-input v-model="scraperUrl" :placeholder="$t('Enter the URL of the studio scene list')" @input="validateScraperFields()"></b-input>
             </b-field>
             <b-field :label="$t('Name')" label-position="on-border">
               <b-input v-model="scraperName" :placeholder="$t('Enter Studio Name')" @input="validateScraperFields()"></b-input>
@@ -82,7 +82,7 @@
             <b-field :label="$t('Company')" label-position="on-border">
               <b-input v-model="scraperCompany" :placeholder="$t('Optional: defaults to Name')"></b-input>
             </b-field>
-            <b-field :label="$t('Avatar Url')" label-position="on-border">
+            <b-field :label="$t('Avatar URL')" label-position="on-border">
               <b-input v-model="scraperAvatar" :placeholder="$t('Optional')"></b-input>
             </b-field>
             <b-field :label="$t('Main Site')" label-position="on-border" :addons="true" class="field-extra">
@@ -97,11 +97,9 @@
                   </div>
               </b-tooltip>
             </b-field>
-            <b-tooltip :label="$t('Restart XBVR to load new Sites')" :delay="500" type="is-warning">
-              <b-field>
-                <b-button type="is-primary" :disabled="!scraperFieldsValid" @click="saveScraper">{{ $t('Save') }}</b-button>
-              </b-field>
-            </b-tooltip>
+            <b-field>
+              <b-button type="is-primary" :disabled="!scraperFieldsValid" @click="saveScraper">{{ $t('Save') }}</b-button>
+            </b-field>
           </section>
         </div>
       </div>
@@ -149,12 +147,12 @@
                   </b-datepicker>
                 </b-field>
               </b-tooltip>
-            <b-field>
-              <b-button type="is-primary" @click="clearAltSrcKeepEdits" style="margin-right: 1em;">{{ $t('Clear scene links - keep edits') }}</b-button>
-              <b-button type="is-primary" @click="clearAltSrc" style="margin-right: 1em;">{{ $t('Clear scene links') }}</b-button>
-              <b-button type="is-primary" @click="relinkAltSrc" style="margin-right: 1em;">{{ $t('Re-link scenes') }}</b-button>
+            <b-field grouped>
+              <b-button @click="clearAltSrcKeepEdits">{{ $t('Clear scene links - keep edits') }}</b-button>
+              <b-button type="is-danger" @click="clearAltSrc">{{ $t('Clear scene links') }}</b-button>
+              <b-button @click="relinkAltSrc">{{ $t('Re-link scenes') }}</b-button>
             </b-field>
-            <b-field>
+            <b-field style="margin-top: 1.5rem">
               <b-button type="is-primary" @click="save">{{ $t('Save') }}</b-button>
             </b-field>
           </section>
@@ -207,7 +205,7 @@
               </i18n-t>
             </b-message>
 
-            <b-collapse class="card" animation="slide" :open="false">
+            <b-collapse class="card" animation="slide" :model-value="false">
               <template #trigger="props">
                 <div class="card-header" role="button" style="align-items: center;">
                   <p class="card-header-title" style="display: flex; align-items: center; margin-bottom: 0; line-height: 1;">
@@ -319,40 +317,26 @@
 
       <div class="columns" v-if="activeTab == 5">
         <div class="column">
-          <section>            
-            <b-field>
-              <p>
-                <b><a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer">{{ $t('Domain Config') }}</a></b>
-                <a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer" style="margin-left: 1em;">{{ $t('Wiki') }}</a>
-              </p>
-              <b-field>
-                <b-tooltip :label="$t('Select a file to import config for a scraper or trailers')"
-                  type="is-primary is-light" :delay="1000" style="margin-left: 1em;" >
-                  <b-field class="file is-primary" :class="{'has-name': !!file}">
-                    <b-upload v-model="file" class="file-label" icon-left="upload" size="is-small">
-                        <span class="file-cta">
-                            <b-icon class="file-icon" icon="upload" size="is-small"></b-icon>
-                            <span class="file-label">{{ $t('Import') }}</span>
-                        </span>
-                        <span class="file-name" v-if="file">
-                            {{ file.name }}
-                        </span>
-                    </b-upload>
-                  </b-field>
-                </b-tooltip>
-                <b-button v-if="showConfigField" type="is-primary" style="margin-left: 1em;" @click="saveCollectorConfig">{{ $t('Save') }}</b-button>
-                <b-button v-if="showConfigField" type="is-primary" style="margin-left: 1em;" @click="deleteCollectorConfig" icon-right="delete"></b-button>
-              </b-field>
-              <b-autocomplete v-model="kvName" ref="autocompleteconfig" :data="filteredCollectorConfigList" :open-on-focus="true" :clearable="true" 
-                :placeholder="$t('e.g. domainname-scraper or domainname-trailers')" 
-                @select="option => showConfigDetails(option)" 
+          <section>
+            <b-field :label="$t('Domain config')" grouped>
+              <b-autocomplete v-model="kvName" ref="autocompleteconfig" :data="filteredCollectorConfigList" :open-on-focus="true" :clearable="true" expanded
+                :placeholder="$t('e.g. domainname-scraper or domainname-trailers')"
+                @select="option => showConfigDetails(option)"
                 @select-header="showAddCollectorConfig"
                 :selectable-header="true" >
                 <template #header>
                     <a><span> {{ $t('Add new...') }} </span></a>
                 </template>
               </b-autocomplete>
+              <b-upload v-model="file" :title="$t('Select a file to import config for a scraper or trailers')">
+                <span class="button"><b-icon icon="upload" size="is-small"/><span>{{ file ? file.name : $t('Import') }}</span></span>
+              </b-upload>
+              <b-button v-if="showConfigField" type="is-primary" @click="saveCollectorConfig">{{ $t('Save') }}</b-button>
+              <b-button v-if="showConfigField" type="is-danger" icon-left="delete" :title="$t('Delete')" @click="deleteCollectorConfig"/>
             </b-field>
+            <p class="help domain-help">
+              <a href="https://github.com/xbapps/xbvr/wiki/Setting-Request-Headers,-Cookies-and-Body" target="_blank" rel="noreferrer">{{ $t('How request headers, cookies and body work (wiki)') }}</a>
+            </p>
             <b-field v-if="showConfigField">
               <p><b>{{ $t('Headers') }}</b><b-button style="margin-left: 1em;" @click="addHeaderRow" size="is-small"><b-icon pack="mdi" icon="plus" size="is-small"></b-icon></b-button></p>              
             </b-field>
@@ -429,13 +413,15 @@ import ky from 'ky'
 export default {
   name: 'InterfaceAdvanced',
   components: { OptionsSection },
+  // the settings menu shows one tab per page: tab picks it, title names it
+  props: { tab: { type: Number, default: null }, title: { type: String, default: '' } },
   mounted () {
     this.loadAPIKey()
     this.$store.dispatch('optionsAdvanced/load')
   },
   data () {
     return {
-      activeTab: 0,
+      activeTab: this.tab ?? 0,
       apiKey: { set: false, newKey: '' },
       scraperUrl: '',
       scraperName: '',
@@ -518,8 +504,8 @@ export default {
         }
       }
     },
-    saveScraper () {
-       ky.put('/api/options/custom-sites/create', {
+    async saveScraper () {
+      await ky.put('/api/options/custom-sites/create', {
         json: {
           scraperUrl: this.scraperUrl,
           scraperName: this.scraperName,
@@ -528,7 +514,8 @@ export default {
           masterSiteId: this.masterSiteId,
         }
       })
-
+      this.$store.dispatch('optionsSites/load')
+      this.$buefy.toast.open({ message: this.$t('Site added, ready to scrape'), type: 'is-success' })
     },
    stashdb () {
       ky.get('/api/extref/stashdb/run_all')
@@ -798,7 +785,7 @@ export default {
       return this.$store.state.overlay.sceneMatchParams.show
     },
     filteredCollectorConfigList () {
-      if (this.$store.state.optionsAdvanced.advanced.collectorConfigs.length==0) return
+      if (!this.$store.state.optionsAdvanced.advanced.collectorConfigs?.length) return []
 
       let matched = this.$store.state.optionsAdvanced.advanced.collectorConfigs.filter((config) => {
         return config.domain_key
@@ -829,5 +816,8 @@ section > .field,
 section > .b-tooltip,
 section > hr {
   margin-bottom: 0.75rem;
+}
+.domain-help {
+  margin: -0.6rem 0 1.25rem;
 }
 </style>

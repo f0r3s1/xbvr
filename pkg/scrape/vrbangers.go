@@ -297,7 +297,7 @@ func parseVRBangersUpcoming(builderJSON string, scraperID string, siteID string,
 			sc.Covers = []string{contentBaseURL + cover}
 		}
 		if released := item.Get("releaseDate").Int(); released > 0 {
-			sc.Released = time.Unix(released, 0).Format("2006-01-02")
+			sc.Released = time.Unix(released, 0).UTC().Format("2006-01-02")
 		}
 		for _, name := range strings.Split(item.Get("starring").String(), ",") {
 			if name = strings.TrimSpace(name); name != "" {

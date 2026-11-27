@@ -101,7 +101,7 @@ func VRPorn(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan
 				return true
 			})
 
-			sc.Released = time.Unix(scene.Get("publishedAt").Int(), 0).Format("2006-01-02")
+			sc.Released = time.Unix(scene.Get("publishedAt").Int(), 0).UTC().Format("2006-01-02")
 			sc.Duration = int(scene.Get("paidTime").Int() / 60)
 
 			// trailer details
@@ -199,9 +199,6 @@ func init() {
 	scrapers.Load()
 	for _, scraper := range scrapers.XbvrScrapers.VrpornScrapers {
 		addVRPornScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, false, scraper.URL, scraper.MasterSiteId)
-	}
-	for _, scraper := range scrapers.CustomScrapers.VrpornScrapers {
-		addVRPornScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, true, scraper.URL, scraper.MasterSiteId)
 	}
 }
 

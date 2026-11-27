@@ -66,9 +66,10 @@ export default defineComponent({
     }
     this._darkMQ.addEventListener('change', this._darkMQHandler)
 
-    // a navbar click while a modal is open hits the backdrop; forward it to the link
+    // a navbar click while a scene or actor is open hits the backdrop; forward it to the link
     this._modalNavClick = e => {
-      if (!e.target.closest || !e.target.closest('.modal-background')) return
+      const backdrop = e.target.closest && e.target.closest('.modal-background')
+      if (!backdrop || backdrop.parentElement.querySelector('.quickfind')) return // quick find just closes
       const link = document.elementsFromPoint(e.clientX, e.clientY)
         .map(el => el.closest && el.closest('.navbar a'))
         .find(Boolean)
@@ -1305,6 +1306,10 @@ export default defineComponent({
     opacity: 0.8;
     transition: filter 0.15s ease, opacity 0.15s ease;
   }
+  .hover-actions .button svg {
+    width: 13px;
+    height: 13px;
+  }
   html[data-theme] .hover-actions.is-glass .button:hover .icon,
   html[data-theme] .hover-actions.is-glass .button:not(.is-outlined) .icon {
     opacity: 1;
@@ -1376,5 +1381,82 @@ export default defineComponent({
     html[data-theme] .hover-actions.is-glass .button .mdi {
       font-size: 11px !important;
     }
+  }
+
+  /* tables everywhere (settings, files, matching): one modern look */
+  .b-table .table-wrapper {
+    border: 1px solid rgba(128, 128, 160, 0.16);
+    border-radius: 10px;
+  }
+  .b-table .table {
+    font-size: 0.875rem;
+    background: transparent !important;
+  }
+  .b-table .table th {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    border-bottom-width: 1px !important;
+  }
+  .b-table .table td,
+  .b-table .table th {
+    vertical-align: middle;
+    padding: 0.6rem 0.9rem;
+  }
+  .b-table .table td .switch {
+    margin: 0;
+  }
+  .b-table .table tbody tr:hover {
+    background: rgba(128, 128, 160, 0.07) !important;
+  }
+  .b-table .table tfoot td {
+    opacity: 0.7;
+    font-weight: 600;
+  }
+  .b-table .table td .button:not([class*="is-primary"]):has(> .icon:only-child) {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: inherit;
+    opacity: 0.75;
+  }
+  .b-table .table td .button:has(> .icon:only-child) .icon,
+  .b-table .table td .button:has(> .icon:only-child) .mdi::before {
+    font-size: 18px;
+  }
+  .b-table .table td .button:not([class*="is-primary"]):has(> .icon:only-child):hover {
+    opacity: 1;
+    background: rgba(128, 128, 160, 0.16) !important;
+  }
+  .b-table .table td .button.is-success:has(> .icon:only-child):hover {
+    color: #34d399 !important;
+    background: rgba(52, 211, 153, 0.14) !important;
+  }
+  .b-table .table td > :is(.block, .field):has(> .button) {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0;
+  }
+  .b-table .table td > :is(.block, .field) > .button {
+    margin: 0 !important;
+  }
+  .b-table .table td .button {
+    height: 30px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+  }
+  .b-table .table td .button.is-primary.is-outlined {
+    background: rgba(124, 108, 240, 0.12) !important;
+    border-color: rgba(124, 108, 240, 0.45) !important;
+    color: rgb(150, 136, 255) !important;
+  }
+  .b-table .table td .button.is-danger:has(> .icon:only-child):hover {
+    color: #f14668 !important;
+    background: rgba(241, 70, 104, 0.14) !important;
   }
 </style>

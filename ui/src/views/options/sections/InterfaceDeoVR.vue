@@ -3,7 +3,7 @@
     <b-tabs v-model="activeTab" size="medium" type="is-boxed" style="margin-left: 0px" id="playertab">
       <b-tab-item :label="$t('Shared Settings')"/>
       <b-tab-item :label="$t('DeoVR')"/>
-      <b-tab-item :label="$t('Heresphere')"/>
+      <b-tab-item :label="$t('HereSphere')"/>
     </b-tabs>
     <div class="content" v-if="activeTab == 0">
       <div class="columns">
@@ -172,7 +172,7 @@
     </div>
     <div class="content" v-if="activeTab == 2">
           <b-tooltip
-            :label="$t('WANRING: File deletion from Heresphere is PERMANENT! ALL files associated with a scene will be deleted.')"
+            :label="$t('WARNING: File deletion from HereSphere is PERMANENT! ALL files associated with a scene will be deleted.')"
             size="is-large" type="is-danger" multilined :delay="250" >
             <b-field :label="$t('Allow File Deletion')">
               <b-switch v-model="allowFileDeletions">
@@ -228,7 +228,7 @@
             </div>
             <div class="column is-one-thrid">
               <b-tooltip
-                :label="$t('This option will split Cuepoints matching the Actors Name into seperate tracks in Heresphere')"
+                :label="$t('This option will split Cuepoints matching the Actors Name into separate tracks in HereSphere')"
                 size="is-large" type="is-primary" multilined :delay="250" >
                 <b-field :label="$t('Use Multi-Track Cast Cuepoints')">
                   <b-switch v-model="multiTrackCastCuepoints">

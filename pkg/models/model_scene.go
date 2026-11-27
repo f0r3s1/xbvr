@@ -95,7 +95,8 @@ type Scene struct {
 	TotalFileSize  int64           `json:"total_file_size" xbvrbackup:"-"`
 	TotalWatchTime int             `json:"total_watch_time" gorm:"default:0" xbvrbackup:"total_watch_time"`
 
-	HasVideoPreview bool `json:"has_preview" gorm:"default:false" xbvrbackup:"-"`
+	HasVideoPreview bool   `json:"has_preview" gorm:"default:false" xbvrbackup:"-"`
+	PreviewMethod   string `json:"preview_method" xbvrbackup:"-"`
 	// HasVideoThumbnail bool `json:"has_video_thumbnail" gorm:"default:false"`
 
 	NeedsUpdate   bool   `json:"needs_update" xbvrbackup:"-"`
@@ -140,8 +141,9 @@ type Config struct {
 	} `json:"advanced"`
 	Web struct {
 		// pointers: a config saved before these settings existed keeps the defaults (show, 14 days)
-		ShowUpcoming *bool `json:"showUpcoming"`
-		UpcomingDays *int  `json:"upcomingDays"`
+		ShowUpcoming   *bool `json:"showUpcoming"`
+		HideMaleActors bool  `json:"hideMaleActors"`
+		UpcomingDays   *int  `json:"upcomingDays"`
 	} `json:"web"`
 }
 

@@ -16,7 +16,7 @@
 
     <div class="modal-card" style="height: 80vh; width: 60vw; left: 10vw">
       <header class="modal-card-head">
-        <p class="modal-card-title">{{ $t('Search Stashdb Actors') }}</p>
+        <p class="modal-card-title">{{ $t('Search StashDB actors') }}</p>
         <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
 

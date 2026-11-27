@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mozillazg/go-slugify"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,35 +43,37 @@ type VersionCheckResponse struct {
 }
 
 type RequestSaveOptionsWeb struct {
-	TagSort              string `json:"tagSort"`
-	SceneHidden          bool   `json:"sceneHidden"`
-	SceneWatchlist       bool   `json:"sceneWatchlist"`
-	SceneFavourite       bool   `json:"sceneFavourite"`
-	SceneWishlist        bool   `json:"sceneWishlist"`
-	SceneWatched         bool   `json:"sceneWatched"`
-	SceneEdit            bool   `json:"sceneEdit"`
-	SceneDuration        bool   `json:"sceneDuration"`
-	SceneScriptSpeed     bool   `json:"sceneScriptSpeed"`
-	SceneCuepoint        bool   `json:"sceneCuepoint"`
-	ShowHspFile          bool   `json:"showHspFile"`
-	ShowSubtitlesFile    bool   `json:"showSubtitlesFile"`
-	SceneTrailerlist     bool   `json:"sceneTrailerlist"`
-	ShowScriptHeatmap    bool   `json:"showScriptHeatmap"`
-	ShowAllHeatmaps      bool   `json:"showAllHeatmaps"`
-	ShowOpenInNewWindow  bool   `json:"showOpenInNewWindow"`
-	UpdateCheck          bool   `json:"updateCheck"`
-	IsAvailOpacity       int    `json:"isAvailOpacity"`
-	SceneCardAspectRatio string `json:"sceneCardAspectRatio"`
-	SceneCardScaleToFit  bool   `json:"sceneCardScaleToFit"`
-	CardButtonStyle      string `json:"cardButtonStyle"`
-	ActorCardAspectRatio string `json:"actorCardAspectRatio"`
-	ActorCardScaleToFit  bool   `json:"actorCardScaleToFit"`
-	ShowSiteLogo         bool   `json:"showSiteLogo"`
-	DateFormat           string `json:"dateFormat"`
-	AccentColorTags      bool   `json:"accentColorTags"`
-	Theme                string `json:"theme"`
-	ShowUpcoming         bool   `json:"showUpcoming"`
-	UpcomingDays         int    `json:"upcomingDays"`
+	TagSort              string             `json:"tagSort"`
+	SceneHidden          bool               `json:"sceneHidden"`
+	SceneWatchlist       bool               `json:"sceneWatchlist"`
+	SceneFavourite       bool               `json:"sceneFavourite"`
+	SceneWishlist        bool               `json:"sceneWishlist"`
+	SceneWatched         bool               `json:"sceneWatched"`
+	SceneEdit            bool               `json:"sceneEdit"`
+	SceneDuration        bool               `json:"sceneDuration"`
+	SceneScriptSpeed     bool               `json:"sceneScriptSpeed"`
+	SceneCuepoint        bool               `json:"sceneCuepoint"`
+	ShowHspFile          bool               `json:"showHspFile"`
+	ShowSubtitlesFile    bool               `json:"showSubtitlesFile"`
+	SceneTrailerlist     bool               `json:"sceneTrailerlist"`
+	ShowScriptHeatmap    bool               `json:"showScriptHeatmap"`
+	ShowAllHeatmaps      bool               `json:"showAllHeatmaps"`
+	ShowOpenInNewWindow  bool               `json:"showOpenInNewWindow"`
+	UpdateCheck          bool               `json:"updateCheck"`
+	IsAvailOpacity       int                `json:"isAvailOpacity"`
+	SceneCardAspectRatio string             `json:"sceneCardAspectRatio"`
+	SceneCardScaleToFit  bool               `json:"sceneCardScaleToFit"`
+	CardButtonStyle      string             `json:"cardButtonStyle"`
+	GlassCard            map[string]float64 `json:"glassCard"`
+	ActorCardAspectRatio string             `json:"actorCardAspectRatio"`
+	ActorCardScaleToFit  bool               `json:"actorCardScaleToFit"`
+	ShowSiteLogo         bool               `json:"showSiteLogo"`
+	DateFormat           string             `json:"dateFormat"`
+	AccentColorTags      bool               `json:"accentColorTags"`
+	Theme                string             `json:"theme"`
+	ShowUpcoming         bool               `json:"showUpcoming"`
+	HideMaleActors       bool               `json:"hideMaleActors"`
+	UpcomingDays         int                `json:"upcomingDays"`
 }
 
 type RequestSaveOptionsAdvanced struct {
@@ -132,6 +136,8 @@ type RequestSaveOptionsPreviews struct {
 	SnippetAmount int     `json:"snippetAmount"`
 	Resolution    int     `json:"resolution"`
 	ExtraSnippet  bool    `json:"extraSnippet"`
+	Method        string  `json:"method"`
+	Codec         string  `json:"codec"`
 }
 
 type GetStateResponse struct {
@@ -348,6 +354,10 @@ func (i ConfigResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	// "Cuepoints section endpoints"
+	ws.Route(ws.DELETE("/custom-sites/{id}").To(i.deleteCustomSite).
+		Param(ws.PathParameter("id", "site id")).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.PUT("/custom-sites/create").To(i.createCustomSite).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -545,6 +555,7 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.SceneCardAspectRatio = r.SceneCardAspectRatio
 	config.Config.Web.SceneCardScaleToFit = r.SceneCardScaleToFit
 	config.Config.Web.CardButtonStyle = r.CardButtonStyle
+	config.Config.Web.GlassCard = r.GlassCard
 	config.Config.Web.ActorCardAspectRatio = r.ActorCardAspectRatio
 	config.Config.Web.ActorCardScaleToFit = r.ActorCardScaleToFit
 	config.Config.Web.ShowSiteLogo = r.ShowSiteLogo
@@ -552,6 +563,7 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.AccentColorTags = r.AccentColorTags
 	config.Config.Web.Theme = r.Theme
 	config.Config.Web.ShowUpcoming = r.ShowUpcoming
+	config.Config.Web.HideMaleActors = r.HideMaleActors
 	config.Config.Web.UpcomingDays = max(r.UpcomingDays, 0)
 	config.SaveConfig()
 
@@ -944,6 +956,12 @@ func (i ConfigResource) saveOptionsPreviews(req *restful.Request, resp *restful.
 	config.Config.Library.Preview.StartTime = r.StartTime
 	config.Config.Library.Preview.SnippetLength = r.SnippetLength
 	config.Config.Library.Preview.ExtraSnippet = r.ExtraSnippet
+	if tasks.PreviewMethodValid(r.Method) {
+		config.Config.Library.Preview.Method = r.Method
+	}
+	if r.Codec == "h264" || r.Codec == "h265" {
+		config.Config.Library.Preview.Codec = r.Codec
+	}
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
@@ -971,7 +989,7 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 
 	// Generate hash for given parameters
 	hash := sha1.New()
-	hash.Write([]byte(fmt.Sprintf("test-%v-%v-%v-%v-%v-%v", scene.SceneID, r.StartTime, r.SnippetLength, r.SnippetAmount, r.Resolution, r.ExtraSnippet)))
+	hash.Write([]byte(fmt.Sprintf("test-%v-%v-%v-%v-%v-%v-%v-%v", scene.SceneID, r.StartTime, r.SnippetLength, r.SnippetAmount, r.Resolution, r.ExtraSnippet, r.Method, r.Codec)))
 
 	previewFn := fmt.Sprintf("test%x", hash.Sum(nil))
 	destFile := filepath.Join(common.VideoPreviewDir, previewFn+".mp4")
@@ -979,16 +997,7 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 	if _, err := os.Stat(destFile); os.IsNotExist(err) {
 		// Preview file does not exist, generate it
 		go func() {
-			tasks.RenderPreview(
-				files[0].GetPath(),
-				destFile,
-				files[0].VideoProjection,
-				r.StartTime,
-				r.SnippetLength,
-				r.SnippetAmount,
-				r.Resolution,
-				r.ExtraSnippet,
-			)
+			tasks.RenderPreviewWith(r.Method, files[0].GetPath(), destFile, files[0].VideoProjection, tasks.PreviewOptions{StartTime: r.StartTime, SnippetLength: r.SnippetLength, SnippetAmount: r.SnippetAmount, Resolution: r.Resolution, ExtraSnippet: r.ExtraSnippet, Codec: r.Codec})
 
 			common.PublishWS("options.previews.previewReady", map[string]interface{}{"previewFn": previewFn})
 		}()
@@ -1143,10 +1152,51 @@ func (i ConfigResource) createCustomSite(req *restful.Request, resp *restful.Res
 	scraperConfig.CustomScrapers.VrphubScrapers = scrapers["vrphub"]
 	scraperConfig.CustomScrapers.VrpornScrapers = scrapers["vrporn"]
 	scraperConfig.CustomScrapers.RealVRScrapers = scrapers["realvr"]
-	fName := filepath.Join(common.AppDir, "scrapers.json")
-	list, _ := json.MarshalIndent(scraperConfig, "", "  ")
-	os.WriteFile(fName, list, 0644)
+	if err := saveScraperList(scraperConfig); err != nil {
+		resp.WriteErrorString(http.StatusInternalServerError, err.Error())
+		return
+	}
+	scrape.RegisterCustomScrapers()
+	models.InitSites()
 
+	resp.WriteHeader(http.StatusOK)
+}
+
+func saveScraperList(list config.ScraperList) error {
+	data, err := json.MarshalIndent(list, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(common.AppDir, "scrapers.json"), data, 0644)
+}
+
+// deleteCustomSite removes a custom site and its scraper; its scenes, files and actors stay in the library.
+func (i ConfigResource) deleteCustomSite(req *restful.Request, resp *restful.Response) {
+	id := req.PathParameter("id")
+	var list config.ScraperList
+	list.Load()
+	c := &list.CustomScrapers
+	found := false
+	for _, group := range []*[]config.ScraperConfig{&c.PovrScrapers, &c.SlrScrapers, &c.StashDbScrapers, &c.VrphubScrapers, &c.VrpornScrapers, &c.RealVRScrapers} {
+		*group = slices.DeleteFunc(*group, func(s config.ScraperConfig) bool {
+			match := s.ID == id || (group == &c.StashDbScrapers && slugify.Slugify(s.Name) == id)
+			found = found || match
+			return match
+		})
+	}
+	if !found {
+		resp.WriteErrorString(http.StatusNotFound, "no custom site with this id")
+		return
+	}
+	if err := saveScraperList(list); err != nil {
+		resp.WriteErrorString(http.StatusInternalServerError, err.Error())
+		return
+	}
+	models.UnregisterScraper(id)
+	db, _ := models.GetDB()
+	defer db.Close()
+	db.Delete(&models.Site{ID: id})
+	log.Infof("Removed custom site %s; its scenes are kept", id)
 	resp.WriteHeader(http.StatusOK)
 }
 func (i ConfigResource) saveOptionsStorage(req *restful.Request, resp *restful.Response) {

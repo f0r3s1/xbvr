@@ -20,7 +20,7 @@
     </div>
     <span v-show="show_actor_id==='never show, just need the computed show_actor_id to trigger '">{{show_actor_id}}</span>
 
-    <div class="columns is-multiline list-grid">
+    <div class="columns is-multiline list-grid" :class="{ 'is-refreshing': isListReloading && isSlowLoad }">
       <div :class="['column', 'is-multiline', cardSizeClass, 'actor-col']"
            v-for="actor in (showSkeleton ? [] : actors)" :key="actor.id">
         <ActorCard :actor="actor"/>
@@ -115,7 +115,7 @@ export default defineComponent({
       return this.isLoading && !this.isLoadingMore
     },
     showSkeleton () {
-      return this.isListReloading && this.isSlowLoad
+      return this.isListReloading && this.isSlowLoad && this.actors.length === 0
     },
     skeletonCount () {
       const perRow = { 1: 8, 2: 6, 3: 5, 4: 4, 5: 3 }[this.cardSize] || 6
@@ -209,6 +209,10 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.list-grid.is-refreshing {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
   .toolbar-total {
     flex: 1 1 0;
     white-space: nowrap;

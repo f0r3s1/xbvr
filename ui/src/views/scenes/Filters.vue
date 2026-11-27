@@ -60,7 +60,7 @@
             <option value="script_speed_asc">↑ {{ $t("Script speed") }}</option>
             <option value="script_spm_desc">↓ {{ $t("Strokes per minute") }}</option>
             <option value="script_spm_asc">↑ {{ $t("Strokes per minute") }}</option>
-            <option value="scene_id_desc">↓ {{ $t("Scene Id") }}</option>
+            <option value="scene_id_desc">↓ {{ $t("Scene ID") }}</option>
             <option value="site_asc">↑ {{ $t("Site") }}</option>
             <option value="alt_src_desc">↓ {{ $t("Linked to Alternate Sites") }}</option>
             <option value="random">↯ {{ $t("Random") }}</option>

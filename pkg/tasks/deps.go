@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,31 +19,20 @@ import (
 )
 
 func CheckDependencies() {
-	// Check ffprobe
-	ffprobePath := filepath.Join(common.BinDir, "ffprobe")
-	if runtime.GOOS == "windows" {
-		ffprobePath = ffprobePath + ".exe"
+	for _, tool := range []string{"ffprobe", "ffmpeg"} {
+		if _, err := os.Stat(GetBinPath(tool)); os.IsNotExist(err) {
+			log.Infof("%s not installed, downloading now...", tool)
+			downloadFfbinaries(tool)
+		}
 	}
-	if _, err := os.Stat(ffprobePath); os.IsNotExist(err) {
-		log.Info("ffprobe not installed, downloading now...")
-		downloadFfbinaries("ffprobe")
-	}
-
-	// Check ffmpeg
-	ffmpegPath := filepath.Join(common.BinDir, "ffmpeg")
-	if runtime.GOOS == "windows" {
-		ffmpegPath = ffmpegPath + ".exe"
-	}
-	if _, err := os.Stat(ffmpegPath); os.IsNotExist(err) {
-		log.Info("ffmpeg not installed, downloading now...")
-		downloadFfbinaries("ffmpeg")
-	}
-
-	// Set path for go-ffprobe
-	ffprobe.SetFFProbeBinPath(ffprobePath)
+	ffprobe.SetFFProbeBinPath(GetBinPath("ffprobe"))
 }
 
+// GetBinPath prefers the tool installed on the system (the Docker image's ffmpeg supports GPU decoding), else the downloaded copy.
 func GetBinPath(tool string) string {
+	if path, err := exec.LookPath(tool); err == nil {
+		return path
+	}
 	path := filepath.Join(common.BinDir, tool)
 	if runtime.GOOS == "windows" {
 		path = path + ".exe"

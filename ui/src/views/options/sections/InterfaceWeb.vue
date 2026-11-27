@@ -27,7 +27,7 @@
                 </b-select>
               </div>
             </div>
-            <div class="settings-row" style="margin-top: 0.5rem">
+            <div class="settings-row">
               <div class="setting-item">
                 <label class="setting-label">{{ $t('Buttons') }}</label>
                 <b-select size="is-small" v-model="cardButtonStyle">
@@ -36,7 +36,7 @@
                 </b-select>
               </div>
             </div>
-            <div class="settings-row" style="margin-top: 0.5rem">
+            <div class="settings-row">
               <div class="setting-item">
                 <b-switch v-model="sceneCardScaleToFit" type="is-dark" size="is-small">
                   {{ $t('Scale to fit') }}
@@ -54,6 +54,16 @@
                 <b-slider :min="0" :max="100" :step="10" :tooltip="false" v-model="isAvailOpacity" size="is-small"></b-slider>
                 <span class="slider-value">{{ isAvailOpacity }}%</span>
               </div>
+            </div>
+            <div v-if="cardButtonStyle === 'glass'" class="glass-sliders">
+              <div v-for="s in glassSliders" :key="s.key" class="setting-item slider-item">
+                <label class="setting-label">{{ s.label }}</label>
+                <div class="slider-wrap">
+                  <b-slider :min="s.min" :max="s.max" :step="s.step" :tooltip="false" v-model="glassCard[s.key]" size="is-small"></b-slider>
+                  <span class="slider-value">{{ glassCard[s.key] }}</span>
+                </div>
+              </div>
+              <b-button size="is-small" @click="resetGlass">{{ $t('Reset glass') }}</b-button>
             </div>
           </div>
 
@@ -101,7 +111,7 @@
           </div>
 
           <div class="settings-group">
-            <h5 class="group-title">{{ $t('Actor Cards') }}</h5>
+            <h5 class="group-title">{{ $t('Actors') }}</h5>
             <div class="settings-row">
               <div class="setting-item">
                 <label class="setting-label">{{ $t('Aspect Ratio') }}</label>
@@ -114,6 +124,11 @@
               <div class="setting-item">
                 <b-switch v-model="actorCardScaleToFit" type="is-dark" size="is-small">
                   {{ $t('Scale to fit') }}
+                </b-switch>
+              </div>
+              <div class="setting-item">
+                <b-switch v-model="hideMaleActors" type="is-dark" size="is-small">
+                  {{ $t('Hide male actors') }}
                 </b-switch>
               </div>
             </div>
@@ -148,6 +163,8 @@
                   <a href="https://github.com/f0r3s1/xbvr/tree/master/ui/src/locales" target="_blank" rel="noopener">{{ $t('Suggest a fix on GitHub') }}</a>
                 </p>
               </div>
+            </div>
+            <div class="settings-row switch-row">
               <div class="setting-item">
                 <b-switch v-model="accentColorTags" type="is-dark" size="is-small">
                   {{ $t('Accent color tags') }}
@@ -168,6 +185,10 @@
             <div class="preview-card-demo">
               <SceneCard v-if="sampleScene" :item="sampleScene" demo/>
             </div>
+            <div v-if="cardButtonStyle === 'glass'" class="preview-card-demo is-hoverable" @click.capture.stop.prevent>
+              <SceneCard v-if="sampleScene" :item="sampleScene"/>
+              <p class="preview-hint">{{ $t('Hover to try the animation') }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -179,6 +200,7 @@
 <script>
 import OptionsSection from '../OptionsSection.vue'
 import SceneCard from '../../scenes/SceneCard.vue'
+import { glassDefaults } from '@/glassDefaults'
 import { defineComponent } from 'vue';
 
 import ky from 'ky'
@@ -203,21 +225,20 @@ export default defineComponent({
   },
 
   methods: {
+    resetGlass () {
+      this.$store.state.optionsWeb.web.glassCard = { ...glassDefaults }
+    },
     debouncedSave () {
       if (saveTimer) clearTimeout(saveTimer)
       saveTimer = setTimeout(() => {
         this.$store.dispatch('optionsWeb/save')
       }, 600)
     },
+    // a random scene with a preview video, so the full liquid glass animation can be tried on different scenes
     async loadSampleScene () {
+      const pick = async json => ((await ky.post('/api/scene/list', { json: { offset: 0, dlState: 'any', ...json }, timeout: 5000 }).json()).scenes || [])[0]
       try {
-        const data = await ky.post('/api/scene/list', {
-          json: { limit: 1, offset: 0 },
-          timeout: 5000
-        }).json()
-        if (data.scenes && data.scenes.length > 0) {
-          this.sampleScene = data.scenes[0]
-        }
+        this.sampleScene = await pick({ limit: 1, attributes: ['Has Preview'], sort: 'random' }) || await pick({ limit: 1 }) || null
       } catch { /* no scenes available */ }
     }
   },
@@ -325,6 +346,28 @@ export default defineComponent({
       get () { return this.$store.state.optionsWeb.web.sceneCardAspectRatio },
       set (value) { this.$store.state.optionsWeb.web.sceneCardAspectRatio = value }
     },
+    // the liquid glass values in use, missing ones filled from the defaults so every slider has a value
+    glassCard () {
+      const web = this.$store.state.optionsWeb.web
+      if (!web.glassCard) web.glassCard = {}
+      for (const [k, v] of Object.entries(glassDefaults)) if (web.glassCard[k] === undefined) web.glassCard[k] = v
+      return web.glassCard
+    },
+    glassSliders () {
+      return [
+        { key: 'refraction', label: this.$t('Refraction'), min: 0, max: 80, step: 1 },
+        { key: 'saturation', label: this.$t('Saturation (%)'), min: 60, max: 200, step: 1 },
+        { key: 'brightness', label: this.$t('Brightness'), min: 0.5, max: 1.3, step: 0.01 },
+        { key: 'tintDark', label: this.$t('Dark tint, dark theme'), min: 0, max: 0.7, step: 0.01 },
+        { key: 'tintLight', label: this.$t('Dark tint, light theme'), min: 0, max: 0.7, step: 0.01 },
+        { key: 'sheen', label: this.$t('Sheen'), min: 0, max: 0.4, step: 0.01 },
+        { key: 'rim', label: this.$t('Rim highlight'), min: 0, max: 1, step: 0.01 },
+        { key: 'slabRadius', label: this.$t('Glass top radius'), min: 0, max: 24, step: 1 },
+        { key: 'pillRadius', label: this.$t('Button bar radius'), min: 0, max: 18, step: 1 },
+        { key: 'fillet', label: this.$t('Liquid join'), min: 0, max: 24, step: 1 },
+        { key: 'duration', label: this.$t('Animation in (ms)'), min: 80, max: 1000, step: 10 }
+      ]
+    },
     cardButtonStyle: {
       get () { return this.$store.state.optionsWeb.web.cardButtonStyle },
       set (value) { this.$store.state.optionsWeb.web.cardButtonStyle = value }
@@ -357,6 +400,10 @@ export default defineComponent({
       get () { return this.$store.state.optionsWeb.web.updateCheck },
       set (value) { this.$store.state.optionsWeb.web.updateCheck = value }
     },
+    hideMaleActors: {
+      get () { return this.$store.state.optionsWeb.web.hideMaleActors === true },
+      set (value) { this.$store.state.optionsWeb.web.hideMaleActors = value }
+    },
     showUpcoming: {
       get () { return this.$store.state.optionsWeb.web.showUpcoming !== false },
       set (value) { this.$store.state.optionsWeb.web.showUpcoming = value }
@@ -377,8 +424,29 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.glass-sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.4rem 1.25rem;
+  margin-top: 0.75rem;
+}
+.glass-sliders > .button {
+  justify-self: start;
+}
+.preview-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  text-align: center;
+}
+.preview-card-demo + .preview-card-demo {
+  margin-top: 16px;
+}
 .preview-card-demo {
   pointer-events: none;
+}
+.preview-card-demo.is-hoverable {
+  pointer-events: auto;
 }
 /* ── Layout ── */
 .settings-layout {
@@ -415,13 +483,29 @@ export default defineComponent({
 .settings-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.25rem;
+  gap: 0.9rem 1.25rem;
   align-items: center;
+}
+.settings-row + .settings-row,
+.settings-row + .setting-item,
+.settings-row + .glass-sliders {
+  margin-top: 1rem;
 }
 .setting-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.settings-col > .settings-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.switch-row {
+  margin-top: 1rem;
+}
+.toggle-grid :deep(.control-label) {
+  white-space: nowrap;
 }
 .language-item {
   flex-wrap: wrap;
@@ -465,7 +549,7 @@ export default defineComponent({
 }
 .toggle-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 0.5rem 1rem;
 }
 .p-btn {

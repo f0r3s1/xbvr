@@ -59,7 +59,7 @@
               <b-tab-item :label="$t('Player')" v-if="!displayingAlternateSource && fileCount > 0">
                 <!-- keyed per scene: each scene gets a fresh player -->
                 <div class="player-wrapper" :key="'player-' + item.scene_id">
-                  <VrPlayer ref="player" aspect-ratio="16 / 9" :script="playerScriptURL" :scripts="playerScripts" @select-script="id => selectScript({ id })"/>
+                  <VrPlayer ref="player" aspect-ratio="auto" :script="playerScriptURL" :scripts="playerScripts" @select-script="id => selectScript({ id })"/>
                 </div>
                 <div class="skip-controls">
                   <div class="skip-group">
@@ -108,7 +108,7 @@
                   <span v-if="item.duration" class="detail-duration">{{ $t('{n} min', { n: item.duration }) }}</span>
                 </span>
                 <span class="detail-date">
-                  {{ format(parseISO(item.release_date), "yyyy-MM-dd") }}
+                  {{ format(utcDay(item.release_date), "yyyy-MM-dd") }}
                 </span>
               </div>
 
@@ -143,6 +143,7 @@
                   <edit-button :item="item"/>
                   <refresh-button :item="item" v-if="!displayingAlternateSource"/>
                   <rescrape-button :item="item" v-if="!displayingAlternateSource"/>
+                  <regenerate-preview-button :item="item" v-if="!displayingAlternateSource && fileCount > 0"/>
                   <link-stashdb-button :item="item" objectType="scene" />
                   <div v-for="(altsrc, idx) in alternateSourcesWithTitles" :key="idx" class="altsrc-image-wrapper" @click="showExtRefScene(altsrc)">
                     <b-tooltip type="is-light" :label="altsrc.title" :delay="0" append-to-body>
@@ -461,6 +462,7 @@ import { getAlternateSources } from '@/api'
 import VrPlayer from '../../components/VrPlayer.vue'
 import SplitModal from '../../components/SplitModal.vue'
 import { format, parseISO } from 'date-fns'
+import { utcDay } from '@/utcDay'
 import prettyBytes from 'pretty-bytes'
 import VueLoadImage from 'vue-load-image'
 import { GlobalEvents } from 'vue-global-events'
@@ -473,14 +475,16 @@ import WatchedButton from '../../components/WatchedButton'
 import EditButton from '../../components/EditButton'
 import RefreshButton from '../../components/RefreshButton'
 import RescrapeButton from '../../components/RescrapeButton'
+import RegeneratePreviewButton from '../../components/RegeneratePreviewButton.vue'
 import TrailerlistButton from '../../components/TrailerlistButton'
 import HiddenButton from '../../components/HiddenButton'
 import { isAiScript, scriptGenerator, scriptLicense } from '@/scripts'
 import gallery from '@/gallery'
+import { imageURL } from '@/imageURL'
 
 export default {
   name: 'SceneDetails',
-  components: { SplitModal, VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
+  components: { RegeneratePreviewButton, SplitModal, VrPlayer, VueLoadImage, GlobalEvents, StarRating, WatchlistButton, FavouriteButton, LinkStashdbButton, WishlistButton, WatchedButton, EditButton, RefreshButton, RescrapeButton, TrailerlistButton, HiddenButton },
   mixins: [gallery],
   data () {
     return {
@@ -554,10 +558,11 @@ export default {
         item.tags.sort((a, b) => a.name < b.name ? -1 : 1)
       }
       // age at release; an unknown release date (e.g. undated upcoming scenes) falls back to today
-      let releasedate = parseISO(item.release_date)
+      let releasedate = utcDay(item.release_date)
       if (!(releasedate.getFullYear() > 1900)) releasedate = new Date()
-      let imgs = item.cast.map((actor) => {
-        let birthdate = parseISO(actor.birth_date)
+      const hideMale = this.$store.state.optionsWeb.web.hideMaleActors
+      let imgs = item.cast.filter(a => !hideMale || (a.gender || '').toLowerCase() !== 'male').map((actor) => {
+        let birthdate = utcDay(actor.birth_date)
         let label = actor.name
         let age = null
         if (birthdate.getFullYear() > 1900) {
@@ -791,6 +796,7 @@ watch:{
   }
 },
   methods: {
+    utcDay,
     isAiScript,
     scriptGenerator,
     scriptLicense,
@@ -1019,22 +1025,8 @@ watch:{
           this.$store.commit('overlay/showDetails', { scene: data })
       })
     },
-    getImageURL (u, size) {
-      if (u==undefined) {
-        return u
-      }
-      try {
-        if (u.startsWith('http')) {
-          if (u.search("%") == -1) {
-            return '/img/' + size + '/' + encodeURI(u)
-          } else {
-            return '/img/' + size + '/' + encodeURI(decodeURI(u))
-          }
-        }
-      } catch {
-        return u
-      }
-      return u
+    getImageURL (u, size = '1200x') {
+      return imageURL(u, size)
     },
     extractSceneColor (imgEl) {
       try {
@@ -1399,13 +1391,13 @@ watch:{
       });
       if (response.status === 200) {
         this.$store.state.overlay.details.prevscene = this.$store.state.overlay.quickFind.selectedScene;
-        this.$buefy.toast.open({ message: this.$t('The scene was sucessfully relinked to a new Scene'), type: 'is-primary', duration: 3000 });
+        this.$buefy.toast.open({ message: this.$t('The scene was successfully relinked to a new Scene'), type: 'is-primary', duration: 3000 });
       }
     },
     async scrapeScene() {
       this.$buefy.dialog.confirm({
         title: this.$t('Scrape & Create Scene'),
-        message: this.$t('Do you wish to create a seperate XBVR scene from this linked scene {url}', { url: `<strong>${this.$store.state.overlay.details.altsrc.url}</strong>` }),
+        message: this.$t('Do you wish to create a separate XBVR scene from this linked scene {url}', { url: `<strong>${this.$store.state.overlay.details.altsrc.url}</strong>` }),
         type: 'is-info is-wide',
         hasIcon: true,
         id: 'heh',
@@ -1542,9 +1534,20 @@ watch:{
   text-overflow: ellipsis;
 }
 
+/* the player takes all the height the tab has; the controls stay below it */
+.media-tabs :deep(.tab-item:has(.player-wrapper)) {
+  flex-direction: column;
+}
 .player-wrapper {
   width: 100%;
+  flex: 1;
+  min-height: 240px;
   margin-bottom: 8px;
+  display: flex;
+}
+.player-wrapper :deep(.xbvr-skin) {
+  width: 100%;
+  height: 100%;
 }
 
 .shortcut-legend {

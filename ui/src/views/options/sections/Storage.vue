@@ -27,18 +27,18 @@
           {{ prettyBytes(props.row.total_size) }}
         </b-table-column>
         <b-table-column field="last_scan" :label="$t('Last scan')" sortable v-slot="props">
-            <span v-if="props.row.last_scan !== '0001-01-01T00:00:00Z'">
+            <span v-if="hasDate(props.row.last_scan)">
               {{ relativeTime(props.row.last_scan) }}
             </span>
           <span v-else>{{ $t('never') }}</span>
         </b-table-column>
         <b-table-column field="actions" v-slot="props">
           <b-field grouped>
-            <button class="button is-small is-outlined" v-on:click='rescanFolder(props.row)' style="margin-right:1em" :title="$t('rescan folder')">
-              <b-icon pack="mdi" icon="folder-refresh-outline"></b-icon>
+            <button class="button is-small" v-on:click='rescanFolder(props.row)' :title="$t('Rescan folder')">
+              <b-icon pack="mdi" icon="folder-refresh-outline" size="is-small"></b-icon>
             </button>
-            <button class="button is-danger is-small is-outlined" v-on:click='removeFolder(props.row)' :title="$t('remove folder')">
-              <b-icon pack="mdi" icon="close-circle" size="is-small"></b-icon>
+            <button class="button is-danger is-small" v-on:click='removeFolder(props.row)' :title="$t('Remove folder')">
+              <b-icon pack="mdi" icon="delete-outline" size="is-small"></b-icon>
             </button>
           </b-field>
         </b-table-column>
@@ -143,6 +143,7 @@
 </template>
 
 <script>
+import { hasDate } from '@/utcDay'
 import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
 import prettyBytes from 'pretty-bytes'
@@ -170,6 +171,7 @@ export default {
     this.$store.dispatch('optionsStorage/load')
   },
   methods: {
+    hasDate,
     async taskRescan () {
       try {
         await this.$store.dispatch('optionsStorage/save');

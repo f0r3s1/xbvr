@@ -10,7 +10,7 @@
 
     <div class="modal-card stashdb-search">
       <header class="modal-card-head">
-        <p class="modal-card-title">{{ $t('Search Stashdb Scenes') }}</p>
+        <p class="modal-card-title">{{ $t('Search StashDB scenes') }}</p>
         <button class="delete" @click="close" :aria-label="$t('close')"></button>
       </header>
 
@@ -73,6 +73,7 @@
 
 <script>
 import { defineComponent, nextTick } from 'vue';
+import { imageURL } from '@/imageURL'
 
 import ky from 'ky'
 import VueLoadImage from 'vue-load-image'
@@ -141,12 +142,8 @@ export default defineComponent({
           this.close()
         })
     },    
-    getImageURL (u) {        
-      if (u != undefined && u.startsWith('http')) {
-        return '/img/200x/' + u.replace('://', ':/')
-      } else {
-        return u
-      }
+    getImageURL (u, size = '200x') {
+      return imageURL(u, size)
     },
     openDialog(scene) {
         this.isModalActive = true

@@ -74,8 +74,8 @@
                       </button>
                     </b-tooltip>
                   </span>
-                  <small v-if="actor.birth_date != '0001-01-01T00:00:00Z'" class="is-pulled-right">
-                    {{ actor.birth_date.slice(0, 10) }}
+                  <small v-if="hasDate(actor.birth_date)" class="is-pulled-right">
+                    {{ isoDay(actor.birth_date) }}
                   </small>
                 </h3>
                 <div class="columns">
@@ -300,6 +300,7 @@
 </template>
 
 <script>
+import { utcDay, hasDate, isoDay } from '@/utcDay'
 import { defineComponent, nextTick } from 'vue';
 
 import ky from 'ky'
@@ -386,10 +387,10 @@ export default defineComponent({
     },
     actorStats () {
       const scenes = this.actor.scenes || []
-      const latest = scenes.map(s => s.release_date).filter(d => d && !d.startsWith('0001')).sort().pop()
+      const latest = scenes.map(s => s.release_date).filter(hasDate).sort().pop()
       const rated = scenes.filter(s => s.star_rating > 0)
       const born = this.actor.birth_date
-      const age = born && !born.startsWith('0001') ? this.calcAge(born) : null
+      const age = hasDate(born) ? this.calcAge(born) : null
       return [
         ...(age ? [{ label: this.$t('Age'), value: age }] : []),
         { label: this.$t('Scenes'), value: scenes.length },
@@ -403,7 +404,7 @@ export default defineComponent({
     hasDetails () {
       const a = this.actor
       const filled = v => v && v !== '[]'
-      return a.birth_date !== '0001-01-01T00:00:00Z' || (a.start_year + a.end_year) !== 0 || filled(a.nationality) ||
+      return hasDate(a.birth_date) || (a.start_year + a.end_year) !== 0 || filled(a.nationality) ||
         filled(a.ethnicity) || filled(a.hair_color) || filled(a.eye_color) || a.height || a.weight ||
         this.measurements() !== '' || filled(a.breast_type) || filled(a.aliases) || filled(a.tattoos) ||
         filled(a.piercings) || filled(a.biography)
@@ -452,6 +453,8 @@ export default defineComponent({
   },
 
   methods: {
+    hasDate,
+    isoDay,
     measureBio () {
       const el = this.$refs.bio
       this.bioLong = !!el && el.scrollHeight > el.clientHeight + 2
@@ -565,7 +568,7 @@ export default defineComponent({
     if (data) this.showActor(data)
   },
   calcAge(birthdate){       
-    const birthdateObj = new Date(birthdate);
+    const birthdateObj = utcDay(birthdate);
     const now = new Date();
     const diffInMs = now - birthdateObj;
     const msPerYear = 1000 * 60 * 60 * 24 * 365.25; // average milliseconds per year, accounting for leap years

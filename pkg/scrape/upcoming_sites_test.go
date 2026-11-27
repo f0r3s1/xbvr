@@ -93,7 +93,7 @@ func TestParseWankzVRUpcoming(t *testing.T) {
 	if !sc.Upcoming || sc.Released != "2026-11-27" || len(sc.Cast) != 1 || sc.Cast[0] != "Mira Luv" {
 		t.Errorf("upcoming=%v released=%q cast=%v", sc.Upcoming, sc.Released, sc.Cast)
 	}
-	if len(sc.Covers) != 1 || sc.Covers[0] != "https://cdns-i.wankzvr.com/6/6376/6376343/cover/large.jpg" {
+	if len(sc.Covers) != 1 || sc.Covers[0] != "https://images.povr.com/wvr/6/6376/6376343/cover/large.jpg" {
 		t.Errorf("cover: %v", sc.Covers)
 	}
 	// milfvr.com shares the markup; its block was empty when checked, so the wankzvr page stands in.

@@ -44,7 +44,7 @@
             <div class="qf-scene-body">
               <div class="truncate"><strong>{{ props.option.title }}</strong>
                 <b-icon v-if="props.option.is_hidden" pack="mdi" icon="eye-off-outline" size="is-small"/></div>
-              <div class="qf-scene-meta">{{ props.option.site }} · {{ format(parseISO(props.option.release_date), 'yyyy-MM-dd') }}</div>
+              <div class="qf-scene-meta">{{ props.option.site }} · {{ format(utcDay(props.option.release_date), 'yyyy-MM-dd') }}</div>
               <div v-if="matchedCast(props.option).length" class="qf-scene-meta truncate">{{ matchedCast(props.option).join(', ') }}</div>
             </div>
           </div>
@@ -62,10 +62,12 @@
 
 <script>
 import { defineComponent, nextTick } from 'vue';
+import { imageURL } from '@/imageURL'
 
 import ky from 'ky'
 import { loadSites, siteFilterQuery } from './sites'
 import { format, parseISO } from 'date-fns'
+import { utcDay } from '@/utcDay'
 
 export default defineComponent({
   name: 'ModalNewTag',
@@ -134,6 +136,7 @@ export default defineComponent({
   },
 
   methods: {
+    utcDay,
     format,
     parseISO,
     getAsyncData (query) {
@@ -179,12 +182,8 @@ export default defineComponent({
         this.data = groups
       }
     },
-    getImageURL (u) {
-      if (u.startsWith('http')) {
-        return '/img/200x/' + u.replace('://', ':/')
-      } else {
-        return u
-      }
+    getImageURL (u, size = '200x') {
+      return imageURL(u, size)
     },
     matchedCast (scene) {
       const words = (this.queryString || '').toLowerCase().replace(/\+?\w+:/g, ' ').split(/[\s"]+/).filter(w => w.length > 1)
@@ -288,8 +287,19 @@ export default defineComponent({
   .quickfind-input :deep(.autocomplete) {
     width: 100%;
   }
+  /* same look as the settings search: soft fill, search icon, border only on focus */
   .quickfind-input :deep(input) {
     padding-right: 4.5rem;
+    padding-left: 2.4em;
+    border-radius: 8px;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: 0.8em center !important;
+  }
+  .quickfind-input :deep(input:focus) {
+    border-color: rgba(128, 128, 160, 0.45) !important;
   }
   .quickfind-kbd {
     position: absolute;

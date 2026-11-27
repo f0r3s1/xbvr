@@ -31,35 +31,37 @@ type ObjectConfig struct {
 		Password string `default:"" json:"password"`
 	} `json:"security"`
 	Web struct {
-		TagSort              string `default:"by-tag-count" json:"tagSort"`
-		SceneHidden          bool   `default:"true" json:"sceneHidden"`
-		SceneWatchlist       bool   `default:"true" json:"sceneWatchlist"`
-		SceneFavourite       bool   `default:"true" json:"sceneFavourite"`
-		SceneWishlist        bool   `default:"true" json:"sceneWishlist"`
-		SceneWatched         bool   `default:"false" json:"sceneWatched"`
-		SceneEdit            bool   `default:"false" json:"sceneEdit"`
-		SceneDuration        bool   `default:"false" json:"sceneDuration"`
-		SceneScriptSpeed     bool   `default:"false" json:"sceneScriptSpeed"`
-		SceneCuepoint        bool   `default:"true" json:"sceneCuepoint"`
-		ShowHspFile          bool   `default:"true" json:"showHspFile"`
-		ShowSubtitlesFile    bool   `default:"true" json:"showSubtitlesFile"`
-		SceneTrailerlist     bool   `default:"true" json:"sceneTrailerlist"`
-		ShowScriptHeatmap    bool   `default:"true" json:"showScriptHeatmap"`
-		ShowAllHeatmaps      bool   `default:"false" json:"showAllHeatmaps"`
-		ShowOpenInNewWindow  bool   `default:"true" json:"showOpenInNewWindow"`
-		UpdateCheck          bool   `default:"true" json:"updateCheck"`
-		IsAvailOpacity       int    `default:"40" json:"isAvailOpacity"`
-		SceneCardAspectRatio string `default:"16:9" json:"sceneCardAspectRatio"`
-		SceneCardScaleToFit  bool   `default:"false" json:"sceneCardScaleToFit"`
-		CardButtonStyle      string `default:"classic" json:"cardButtonStyle"`
-		ActorCardAspectRatio string `default:"1:1" json:"actorCardAspectRatio"`
-		ActorCardScaleToFit  bool   `default:"true" json:"actorCardScaleToFit"`
-		ShowSiteLogo         bool   `default:"true" json:"showSiteLogo"`
-		DateFormat           string `default:"yyyy-MM-dd" json:"dateFormat"`
-		AccentColorTags      bool   `default:"true" json:"accentColorTags"`
-		Theme                string `default:"auto" json:"theme"`
-		ShowUpcoming         bool   `default:"true" json:"showUpcoming"` // scrape and list scenes sites announce before release
-		UpcomingDays         int    `default:"14" json:"upcomingDays"`   // list upcoming scenes releasing within this many days, 0 = all
+		TagSort              string             `default:"by-tag-count" json:"tagSort"`
+		SceneHidden          bool               `default:"true" json:"sceneHidden"`
+		SceneWatchlist       bool               `default:"true" json:"sceneWatchlist"`
+		SceneFavourite       bool               `default:"true" json:"sceneFavourite"`
+		SceneWishlist        bool               `default:"true" json:"sceneWishlist"`
+		SceneWatched         bool               `default:"false" json:"sceneWatched"`
+		SceneEdit            bool               `default:"false" json:"sceneEdit"`
+		SceneDuration        bool               `default:"false" json:"sceneDuration"`
+		SceneScriptSpeed     bool               `default:"false" json:"sceneScriptSpeed"`
+		SceneCuepoint        bool               `default:"true" json:"sceneCuepoint"`
+		ShowHspFile          bool               `default:"true" json:"showHspFile"`
+		ShowSubtitlesFile    bool               `default:"true" json:"showSubtitlesFile"`
+		SceneTrailerlist     bool               `default:"true" json:"sceneTrailerlist"`
+		ShowScriptHeatmap    bool               `default:"true" json:"showScriptHeatmap"`
+		ShowAllHeatmaps      bool               `default:"false" json:"showAllHeatmaps"`
+		ShowOpenInNewWindow  bool               `default:"true" json:"showOpenInNewWindow"`
+		UpdateCheck          bool               `default:"true" json:"updateCheck"`
+		IsAvailOpacity       int                `default:"40" json:"isAvailOpacity"`
+		SceneCardAspectRatio string             `default:"16:9" json:"sceneCardAspectRatio"`
+		SceneCardScaleToFit  bool               `default:"false" json:"sceneCardScaleToFit"`
+		CardButtonStyle      string             `default:"classic" json:"cardButtonStyle"`
+		GlassCard            map[string]float64 `json:"glassCard"` // liquid glass tuning; missing keys use the UI defaults
+		ActorCardAspectRatio string             `default:"1:1" json:"actorCardAspectRatio"`
+		ActorCardScaleToFit  bool               `default:"true" json:"actorCardScaleToFit"`
+		ShowSiteLogo         bool               `default:"true" json:"showSiteLogo"`
+		DateFormat           string             `default:"yyyy-MM-dd" json:"dateFormat"`
+		AccentColorTags      bool               `default:"true" json:"accentColorTags"`
+		Theme                string             `default:"auto" json:"theme"`
+		HideMaleActors       bool               `default:"false" json:"hideMaleActors"`
+		ShowUpcoming         bool               `default:"true" json:"showUpcoming"` // scrape and list scenes sites announce before release
+		UpcomingDays         int                `default:"14" json:"upcomingDays"`   // list upcoming scenes releasing within this many days, 0 = all
 	} `json:"web"`
 	Advanced struct {
 		ShowInternalSceneId          bool      `default:"false" json:"showInternalSceneId"`
@@ -131,6 +133,8 @@ type ObjectConfig struct {
 			SnippetAmount int     `default:"20" json:"snippetAmount"`
 			Resolution    int     `default:"400" json:"resolution"`
 			ExtraSnippet  bool    `default:"false" json:"extraSnippet"`
+			Method        string  `default:"classic" json:"method"` // preview method for new previews: classic or flat
+			Codec         string  `default:"h265" json:"codec"`     // flat previews: h265 or h264
 		} `json:"preview"`
 		// max size of the on-disk image cache in GB, 0 = unlimited
 		ImageCacheMaxGB int `default:"10" json:"imageCacheMaxGB"`
@@ -162,7 +166,7 @@ var (
 	Config                   ObjectConfig
 	RecentIPAddresses        []string
 	ForbiddenVideoExtensions = []string{".funscript", ".cmscript", ".hsp", ".srt", ".ssa", ".ass"}
-	DefaultVideoExtensions   = []string{".mp4", ".avi", ".wmv", ".mpeg4", ".mov", ".mkv"}
+	DefaultVideoExtensions   = []string{".mp4", ".m4v", ".mkv", ".webm", ".mov", ".avi", ".wmv", ".mpg", ".mpeg", ".mpeg4", ".ts", ".m2ts"}
 )
 
 func LoadConfig() {

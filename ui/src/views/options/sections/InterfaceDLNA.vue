@@ -1,6 +1,6 @@
 <template>
   <OptionsSection :title="$t('DLNA interface')" :loading="isLoading" :value="editable" :save-label="$t('Save and apply changes')" @save="save"
-                  :description="$t('Standard protocol that works with players such as: Skybox, Pigasus, Mobile Station VR, and others.') + ' ' + $t('Since it is broadcasted accross the whole local network, you might want to restrict access to selected IP addresses or disable it completely.')">
+                  :description="$t('Standard protocol that works with players such as: Skybox, Pigasus, Mobile Station VR, and others.') + ' ' + $t('Since it is broadcast across the whole local network, you might want to restrict access to selected IP addresses or disable it completely.')">
     <b-field :label="$t('DLNA server')">
       <b-switch v-model="dlna.enabled">{{ $t('Enabled') }}</b-switch>
     </b-field>

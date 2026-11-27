@@ -1,9 +1,11 @@
 <template>
-  <div class="scene-card" :class="{ 'is-fresh': item.fresh }"
+  <div class="scene-card" :class="{ 'is-fresh': item.fresh, 'is-morph': morphing }"
        @mouseenter="hovering = true; startPreview()" 
-       @mouseleave="hovering = demo; stopPreview()"
+       @mouseleave="hovering = demo; demo || stopPreview()"
        @click="!demo && showDetails(item)">
     
+    <GlassMorph v-if="isGlass && item.has_preview" :active="morphing" :source="() => $refs.previewVideo" :bar="() => $refs.hoverBar" @ready="glassReady = $event"/>
+
     <transition name="fade">
       <div class="preview-overlay" v-if="preview && item.has_preview" @click="showDetails(item)">
         <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop muted></video>
@@ -73,7 +75,7 @@
       </div>
 
 
-      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop @mouseover="anchorTooltip">
+      <div v-if="hovering" ref="hoverBar" class="hover-actions" :class="{ 'is-visible': morphing ? glassReady : hovering, 'is-preview': preview && item.has_preview, 'is-glass': isGlass, 'is-morph': morphing }" @click.stop @mouseover="anchorTooltip">
         <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
         <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
         <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
@@ -82,7 +84,7 @@
         <watched-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatched"/>
         <edit-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneEdit"/>
         <link-stashdb-button :item="item" v-if="!this.stashLinkExists" objectType="scene"/>
-        <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100">
+        <b-tooltip v-for="(altsrc, idx) in alternateSources" :key="idx" type="is-light" :label="altsrc.title" :delay="100" append-to-body>
           <a :href="altsrc.url" target="_blank" class="alt-link" @click.stop>
             <vue-load-image>
               <template #image><img loading="lazy" decoding="async" :src="getImageURL(altsrc.site_icon, '64x')" class="alt-img"/></template>
@@ -119,8 +121,7 @@
       </div>
       <div class="meta-row">
         <span class="site-link">
-          <img v-if="showSiteLogo && siteIconSrc" :key="siteIconSrc" :src="siteIconSrc" class="site-icon" alt="" loading="lazy" decoding="async" @error="siteIconStep++"/>
-          <span v-else-if="showSiteLogo && item.site" class="site-icon site-initial" aria-hidden="true">{{ siteInitial }}</span>
+          <SiteIcon v-if="showSiteLogo && item.site" :site="site" :name="item.site"/>
           <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop>
             <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
           </a>
@@ -129,8 +130,8 @@
             <img loading="lazy" decoding="async" src="https://guidelines.stashdb.org/favicon.ico" class="stashdb-icon" alt="StashDB"/>
           </a>
         </span>
-        <span v-if="item.release_date !== '0001-01-01T00:00:00Z'" class="release-date">
-          {{format(parseISO(item.release_date), dateFormat)}}
+        <span v-if="hasDate(item.release_date)" class="release-date">
+          {{format(utcDay(item.release_date), dateFormat)}}
         </span>
       </div>
     </div>
@@ -139,8 +140,12 @@
 
 <script>
 import { defineComponent } from 'vue';
+import SiteIcon from '@/components/SiteIcon.vue'
+import GlassMorph from '@/components/GlassMorph.vue'
+import { imageURL } from '@/imageURL'
 
 import { format, parseISO } from 'date-fns'
+import { utcDay, hasDate } from '@/utcDay'
 import WatchlistButton from '../../components/WatchlistButton'
 import FavouriteButton from '../../components/FavouriteButton'
 import WishlistButton from '../../components/WishlistButton'
@@ -157,12 +162,13 @@ import { isAiScript } from '@/scripts'
 export default defineComponent({
   name: 'SceneCard',
   props: { item: Object, reRead: Boolean, demo: Boolean },
-  components: { WatchlistButton, FavouriteButton, WishlistButton, WatchedButton, EditButton, LinkStashdbButton, TrailerlistButton, HiddenButton, VueLoadImage },
+  components: { SiteIcon, GlassMorph, WatchlistButton, FavouriteButton, WishlistButton, WatchedButton, EditButton, LinkStashdbButton, TrailerlistButton, HiddenButton, VueLoadImage },
 
   data () {
     return {
       preview: false,
       hovering: this.demo,
+      glassReady: false,
       format,
       parseISO,
       alternateSources: [],
@@ -170,12 +176,12 @@ export default defineComponent({
       loadDirect: false,
       proxyRetried: false,
       imageFailed: false,
-      siteIconStep: 0,
       imageLoaded: false,
     }
   },
 
   mounted () {
+    if (this.demo) this.startPreview()
     this.loadAlternateSources()
   },
 
@@ -243,25 +249,22 @@ export default defineComponent({
     dateFormat () {
       return this.$store.state.optionsWeb.web.dateFormat || 'yyyy-MM-dd'
     },
-    // avatar then logo, each through the image cache and then directly; the letter badge once all fail
-    siteIconCandidates () {
-      const sites = this.$store.state.optionsSites.items
-      const site = sites && sites.find(s => s.id === this.item.scraper_id)
-      const urls = site ? [site.avatar_url, site.logo_url].filter(Boolean) : []
-      return [...new Set(urls.flatMap(u => [this.getImageURL(u, '64x'), u]))]
+    // the liquid glass morph runs over a playing preview; other cards keep the plain glass bar
+    morphing () {
+      return this.isGlass && this.hovering && this.preview && this.item.has_preview
     },
-    siteIconSrc () {
-      return this.siteIconCandidates[this.siteIconStep] || null
+    isGlass () {
+      return this.$store.state.optionsWeb.web.cardButtonStyle === 'glass'
     },
-    siteInitial () {
-      return (this.item.site || '?').trim().charAt(0).toUpperCase()
+    site () {
+      return (this.$store.state.optionsSites.items || []).find(s => s.id === this.item.scraper_id) || null
     },
     // "Upcoming in 5 days"; sites without a date only say "Upcoming"
     upcomingLabel () {
       if (!this.item.is_upcoming) return ''
       const d = this.item.release_date
-      if (!d || d.startsWith('0001-')) return this.$t('Upcoming')
-      const release = parseISO(d.slice(0, 10))
+      if (!hasDate(d)) return this.$t('Upcoming')
+      const release = utcDay(d)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const days = Math.round((release.setHours(0, 0, 0, 0) - today) / 86400000)
@@ -288,6 +291,8 @@ export default defineComponent({
   },
 
   methods: {
+    utcDay,
+    hasDate,
     // a tooltip opens to the right unless it would pass the card's edge
     anchorTooltip (event) {
       const el = event.target.closest('[data-tooltip]')
@@ -370,12 +375,7 @@ export default defineComponent({
       return stashdbSource ? stashdbSource.url : '#'
     },
     getImageURL (u, size = '1200x') {
-      if (!u.startsWith('http')) return u
-      if (u.search("%") == -1) {
-        return `/img/${size}/` + encodeURI(u)
-      } else {
-        return `/img/${size}/` + encodeURI(decodeURI(u))
-      }
+      return imageURL(u, size)
     },
     showDetails (scene) {
       // a card opened from ActorDetails lacks preloaded tags and cast, so reread the scene
@@ -423,7 +423,7 @@ export default defineComponent({
   100% { box-shadow: 0 0 0 2px transparent; }
 }
 
-.scene-card:hover .upcoming-badge {
+.scene-card:has(.hover-actions) .upcoming-badge {
   opacity: 0;
 }
 /* Card Container - Light UI */
@@ -459,6 +459,44 @@ export default defineComponent({
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* liquid glass: the bar sits on the glass shape, which draws its own surface; text stays readable on media */
+.hover-actions.is-morph {
+  left: auto;
+  right: 0;
+  bottom: 0;
+  background: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  padding: 3px 6px;
+  transition: opacity 0.2s ease, transform 0.25s ease;
+  transform: translateY(4px);
+}
+.hover-actions.is-morph.is-visible {
+  transform: none;
+}
+.scene-card.is-morph .info-section {
+  z-index: 22;
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.scene-card.is-morph .info-section::before {
+  display: none;
+}
+/* the morph draws the whole glass; the classic bar's bottom shade would darken the button area twice */
+.scene-card.is-morph .thumbnail-wrapper::after {
+  display: none !important;
+}
+.scene-card.is-morph .scene-title {
+  color: #fff !important;
+}
+.scene-card.is-morph .meta-row,
+.scene-card.is-morph .site-link a,
+.scene-card.is-morph .release-date {
+  color: rgba(255, 255, 255, 0.82) !important;
 }
 
 
@@ -884,10 +922,19 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
 }
 
 /* Preview mode: frosted glass over video */
-.info-section.is-preview {
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+/* over a playing preview the info fades in from above: darkening and blur ramp up, no visible edge */
+.info-section.is-preview::before {
+  content: '';
+  position: absolute;
+  inset: -36px 0 0 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.7) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
 }
 
 
@@ -956,25 +1003,6 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
   align-items: center;
   flex-shrink: 0;
   line-height: 0;
-}
-.site-initial {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  background: #7957d5;
-}
-.site-icon {
-  width: 16px;
-  height: 16px;
-  max-width: 16px;
-  max-height: 16px;
-  border-radius: 2px;
-  object-fit: cover;
-  flex-shrink: 0;
 }
 
 .site-link a {

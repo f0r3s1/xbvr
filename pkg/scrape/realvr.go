@@ -43,7 +43,4 @@ func init() {
 	for _, scraper := range scrapers.XbvrScrapers.RealVRScrapers {
 		addRealVRScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, false, scraper.URL, scraper.MasterSiteId)
 	}
-	for _, scraper := range scrapers.CustomScrapers.RealVRScrapers {
-		addRealVRScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, true, scraper.URL, scraper.MasterSiteId)
-	}
 }

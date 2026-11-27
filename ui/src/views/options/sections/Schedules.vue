@@ -76,7 +76,7 @@ const TASKS = [
   { key: 'rescanSchedule', name: 'Rescan folders' },
   { key: 'previewSchedule', name: 'Preview generation', note: 'CPU heavy. With a time window, no new preview starts after the window ends.' },
   { key: 'actorRescrapeSchedule', name: 'Actor rescrape' },
-  { key: 'stashdbRescrapeSchedule', name: 'Stashdb rescrape', needsStashKey: true },
+  { key: 'stashdbRescrapeSchedule', name: 'StashDB rescrape', needsStashKey: true },
   { key: 'linkScenesSchedule', name: 'Link scenes' },
   { key: 'libraryHealthSchedule', name: 'Library health', note: 'Low power background check; it skips a round while other jobs are busy.' }
 ]

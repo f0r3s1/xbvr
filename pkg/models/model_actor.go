@@ -263,6 +263,13 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 		}
 	}
 
+	if strings.EqualFold(r.DlState.OrElse(""), "available") {
+		tx = tx.Where("actors.avail_count > 0")
+	}
+	if getConfig(commonDb).Web.HideMaleActors {
+		tx = tx.Where("lower(coalesce(actors.gender, '')) <> 'male'")
+	}
+
 	// Attributes: plain ones are OR-ed, "&" (must have) and "!" (must not) are AND-ed.
 	var orConds, andConds []string
 	var orArgs, andArgs []interface{}

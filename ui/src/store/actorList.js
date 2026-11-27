@@ -26,7 +26,7 @@ const defaultFilterState = {
   max_rating: 5,
   min_scene_rating: 0,
   max_scene_rating: 5,
-  sort: 'name_asc'
+  sort: 'scene_available_desc'
 }
 
 const state = {

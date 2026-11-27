@@ -108,9 +108,6 @@ func init() {
 	for _, scraper := range scrapers.XbvrScrapers.StashDbScrapers {
 		addStashScraper(slugify.Slugify(scraper.Name), scraper.Name, scraper.AvatarUrl, scraper.URL, scraper.MasterSiteId)
 	}
-	for _, scraper := range scrapers.CustomScrapers.StashDbScrapers {
-		addStashScraper(slugify.Slugify(scraper.Name), scraper.Name, scraper.AvatarUrl, scraper.URL, scraper.MasterSiteId)
-	}
 }
 func addStashScraper(id string, name string, avatarURL string, stashGuid string, masterSiteId string) {
 	if masterSiteId == "" {

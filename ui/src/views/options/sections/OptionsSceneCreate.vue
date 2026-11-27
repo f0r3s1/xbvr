@@ -30,7 +30,6 @@
       <h4 class="options-subtitle">{{$t('Import scene from TPDB')}}</h4>
       <div class="card">
         <div class="card-content content">
-          <label class="label">{{ $t('API Token') }}</label>
           <b-field :label="$t('TPDB API Token')" label-position="on-border" grouped>
             <b-input v-model="tpdbApiToken" :placeholder="$t('TPDB API Token')" type="search"></b-input>
           </b-field>
@@ -60,7 +59,7 @@
       <div class="card">
         <div class="card-content content">
           <b-field :label="$t('Scene URL')" label-position="on-border">
-            <b-input v-model="scrapeUrl" :placeholder="$t('Scene Url - do not use links requiring a login')" type="url"></b-input>
+            <b-input v-model="scrapeUrl" :placeholder="$t('Scene URL - do not use links requiring a login')" type="url"></b-input>
           </b-field>
           <b-tooltip :label="$t(`Warning: Ensure you are entering a link to a scene (best taken from viewing the scene). Links to something like a Category or Studio list may result in a corrupt scene you cannot delete. DO NOT USE links requiring logons. Use with caution`)" :delay="50" multilined type="is-danger">
             <b-button class="button is-primary" v-on:click="scrapeSingleScene()">{{$t('Scrape')}}</b-button>
@@ -75,10 +74,10 @@
               aria-modal>
         <div class="modal-card" style="width: auto">
           <header class="modal-card-head">
-            <p class="modal-card-title">{{$t('Scene Id Required')}}</p>
+            <p class="modal-card-title">{{$t('Scene ID required')}}</p>
           </header>
           <section class="modal-card-body">
-            <b-field :label="$t('Scene Id')">
+            <b-field :label="$t('Scene ID')">
               <b-input
                 v-model='singleScrapeId'
                 :placeholder="$t('eg 12345 (excl site prefix)')"

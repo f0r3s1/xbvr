@@ -38,7 +38,7 @@ func TestParseVRBangersUpcoming(t *testing.T) {
 	if len(first.Covers) != 1 || first.Covers[0] != "https://content.vrbangers.com/uploads/2026/11/a.jpg" {
 		t.Errorf("cover: %v", first.Covers)
 	}
-	if want := time.Unix(1796000000, 0).Format("2006-01-02"); got[1].Released != want {
+	if want := time.Unix(1796000000, 0).UTC().Format("2006-01-02"); got[1].Released != want {
 		t.Errorf("release date %q, want %q", got[1].Released, want)
 	}
 }
@@ -61,7 +61,7 @@ func TestParseVRSpyUpcoming(t *testing.T) {
 	if sc.HomepageURL != "https://www.vrspy.com/video/test-scene" {
 		t.Errorf("scene URL must match the regular scraper: %q", sc.HomepageURL)
 	}
-	if !sc.Upcoming || sc.Released != time.Unix(1796000000, 0).Format("2006-01-02") {
+	if !sc.Upcoming || sc.Released != time.Unix(1796000000, 0).UTC().Format("2006-01-02") {
 		t.Errorf("upcoming=%v released=%q", sc.Upcoming, sc.Released)
 	}
 	if len(sc.Cast) != 1 || sc.Cast[0] != "Actor One" {

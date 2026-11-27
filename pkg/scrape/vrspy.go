@@ -318,7 +318,7 @@ func parseVRSpyUpcoming(graphqlJSON string) []models.ScrapedScene {
 			Upcoming:    true,
 		}
 		if published := v.Get("publishedDate").Int(); published > 0 {
-			sc.Released = time.Unix(published, 0).Format("2006-01-02")
+			sc.Released = time.Unix(published, 0).UTC().Format("2006-01-02")
 		}
 		v.Get("actors").ForEach(func(_, a gjson.Result) bool {
 			if name := strings.TrimSpace(a.Get("name").String()); name != "" {

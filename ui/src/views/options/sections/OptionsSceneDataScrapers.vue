@@ -16,7 +16,7 @@
         <a class="button is-small" :class="[showAllScrapers ? '' : 'is-info']" v-on:click="toggleEnabledFilter">
           {{showAllScrapers ? $t('Show enabled only') : $t('Show all scrapers')}}
         </a>
-        <b-button size="is-small" icon-left="image-refresh" @click="refreshSiteInfo">
+        <b-button size="is-small" icon-left="image-refresh" :loading="refreshingSites" @click="refreshSiteInfo">
           {{$t('Refresh site info')}}
         </b-button>
         <b-button type="is-primary" size="is-small" icon-left="play" @click="taskScrape('_enabled')">
@@ -31,13 +31,7 @@
       
       <b-table-column field="sitename" :label="$t('Studio')" sortable searchable v-slot="props">
         <div class="studio-cell">
-          <span class="studio-icon image is-24x24">
-            <vue-load-image>
-              <template #image><img :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/></template>
-              <template #preloader><img src="/ui/images/blank.png"/></template>
-              <template #error><img src="/ui/images/blank.png"/></template>
-            </vue-load-image>
-          </span>
+          <SiteIcon :site="props.row" :name="props.row.sitename" :size="24"/>
           <span class="studio-info">
             <b-tooltip class="is-warning" :active="props.row.has_scraper == false" :label="$t('Scraper does not exist')" :delay="250">
               <a @click="navigateToStudio(props.row.name)" :class="[props.row.has_scraper ? 'has-text-link' : 'has-text-danger']" style="cursor: pointer;">
@@ -58,7 +52,7 @@
       
       <b-table-column field="last_update" :label="$t('Last scrape')" sortable v-slot="props">
         <span v-if="!runningScrapers.includes(props.row.id)">
-          <span v-if="props.row.last_update !== '0001-01-01T00:00:00Z'" class="last-scrape">
+          <span v-if="hasDate(props.row.last_update)" class="last-scrape">
             {{ relativeTime(props.row.last_update) }}
           </span>
           <span v-else class="never-scraped">{{$t('Never')}}</span>
@@ -81,7 +75,7 @@
                 <b-icon icon="star" size="is-small"/>
               </span>
             </b-tooltip>
-            <b-tooltip :label="$t('Scrape Stashdb')" :delay="250">
+            <b-tooltip :label="$t('Scrape StashDB')" :delay="250">
               <span class="setting-badge" :class="{ 'is-active': props.row.scrape_stash }" 
                     @click="$store.dispatch('optionsSites/toggleScrapeStash', {id: props.row.id})">
                 <b-icon icon="database" size="is-small"/>
@@ -119,6 +113,11 @@
               </span>
             </b-tooltip>
           </template>
+          <b-tooltip :label="$t('Remove custom site')" :delay="250" v-if="!props.row.is_builtin">
+            <span class="setting-badge remove-badge" @click="removeCustomSite(props.row)">
+              <b-icon icon="delete" size="is-small"/>
+            </span>
+          </b-tooltip>
           <b-tooltip :label="$t('Matching Parameters')" :delay="250" v-if="props.row.master_site_id=='' && props.row.matching_params">
             <span class="setting-badge" @click="editMatchParams(props.row)">
               <b-icon icon="cog" size="is-small"/>
@@ -205,23 +204,26 @@
 </template>
 
 <script>
+import { hasDate } from '@/utcDay'
 import OptionsSection from '../OptionsSection.vue'
 import ky from 'ky'
-import VueLoadImage from 'vue-load-image'
+import SiteIcon from '@/components/SiteIcon.vue'
 import { parseISO } from 'date-fns'
 import { relativeTime } from '@/relativeTime'
+import { imageURL } from '@/imageURL'
 
 export default {
   name: 'OptionsSites',
-  components: { OptionsSection, VueLoadImage },
+  components: { SiteIcon, OptionsSection },
   data () {
     return {
+      refreshingSites: false,
       javrQuery: '',
       tpdbSceneUrl: '',
       isLoading: false,
       sceneUrl: '',
       isSingleScrapeModalActive: false,
-      additionalInfo: [{fieldName: "scene_url", fieldPrompt: "Scene Url", placeholder: "eg https://www.mysite.com/scenes/my scene", fieldValue: '', required: true, type: 'url' }],
+      additionalInfo: [{fieldName: "scene_url", fieldPrompt: "Scene URL", placeholder: "eg https://www.mysite.com/scenes/my scene", fieldValue: '', required: true, type: 'url' }],
       additionalInfoIdx: 0,
       currentScraper: '',
       scraperwarning: '',
@@ -235,26 +237,41 @@ export default {
     this.$store.dispatch('optionsWeb/load')
   },
   methods: {
-    getImageURL (u) {
-      if (u.startsWith('http')) {
-        return '/img/200x/' + u.replace('://', ':/')
-      } else {
-        return u
-      }
+    removeCustomSite (site) {
+      this.$buefy.dialog.confirm({
+        title: this.$t('Remove custom site'),
+        message: this.$t('Remove {name} from the scraper list? Its scenes stay in your library.', { name: site.name }),
+        confirmText: this.$t('Remove'),
+        type: 'is-danger',
+        onConfirm: async () => {
+          await ky.delete(`/api/options/custom-sites/${encodeURIComponent(site.id)}`)
+          this.$store.dispatch('optionsSites/load')
+        }
+      })
+    },
+    hasDate,
+    getImageURL (u, size = '200x') {
+      return imageURL(u, size)
     },
     taskScrape (scraper) {
       ky.get(`/api/task/scrape?site=${scraper}`)
     },
-    refreshSiteInfo () {
-      ky.get('/api/task/refresh-site-metadata')
-      this.$buefy.toast.open({ message: this.$t('Refreshing site info in the background'), type: 'is-info' })
+    async refreshSiteInfo () {
+      this.refreshingSites = true
+      try {
+        await ky.get('/api/task/refresh-site-metadata', { timeout: false })
+        await this.$store.dispatch('optionsSites/load')
+        this.$buefy.toast.open({ message: this.$t('Site info refreshed'), type: 'is-success' })
+      } finally {
+        this.refreshingSites = false
+      }
     },
     taskScrapeQuick (scraper) {
       ky.get(`/api/task/scrape?site=${scraper}&quick=true`)
     },
     taskScrapeScene (scraper) {
       this.currentScraper=scraper      
-      this.additionalInfo = [{fieldName: "scene_url", fieldPrompt: "Scene Url", placeholder: "Enter the url for a VR Scene", fieldValue: '', required: true, type: 'url'}]      
+      this.additionalInfo = [{fieldName: "scene_url", fieldPrompt: "Scene URL", placeholder: "Enter the url for a VR Scene", fieldValue: '', required: true, type: 'url'}]      
       this.scraperwarning = this.$t('Take care to only use scene urls for the {scraper} Scraper', { scraper })
       this.scraperwarning2 = ""
       switch (scraper) {
@@ -508,20 +525,7 @@ export default {
     gap: 0.5rem;
   }
 
-  .studio-icon {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    min-height: 24px;
-  }
 
-  .studio-icon img {
-    border-radius: 4px;
-    width: 24px;
-    height: 24px;
-    object-fit: cover;
-  }
 
   .studio-info {
     display: flex;
@@ -546,6 +550,9 @@ export default {
     white-space: nowrap;
   }
 
+  .setting-badge.remove-badge:hover {
+    color: var(--bulma-danger, #f14668);
+  }
   .custom-tag {
     font-size: 0.7rem;
     color: #fff;

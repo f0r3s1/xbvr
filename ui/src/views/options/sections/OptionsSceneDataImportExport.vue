@@ -31,7 +31,7 @@
           <b-tooltip
             :label="$t('You should exclude Studios from your Custom list (scrapers.json) if sharing data with others')"
             size="is-large" type="is-danger is-light" multilined :delay="100" >
-            <b-switch v-model="onlyIncludeOfficalSites">{{$t("Only include offical studios")}}</b-switch>
+            <b-switch v-model="onlyIncludeOfficalSites">{{$t("Only include official studios")}}</b-switch>
           </b-tooltip>
       </b-field>
       <b-field v-if="isExport && activeSubTab == 0">
@@ -175,8 +175,7 @@
         </b-field>
         <b-button type="is-info is-small" style="margin-bottom: 1em;"  @click="toggleSettingsIncludes()">{{ $t('Toggle Includes') }}</b-button>
       </div>
-      <hr />
-      <b-field v-if="isImport">
+      <b-field v-if="isImport" style="margin-top: 1.25rem">
         <b-tooltip
           :label="$t('Select if import source is a file or url. Large bundle files should be imported via a url.')"
           size="is-large" type="is-primary is-light" multilined :delay="1000">

@@ -57,12 +57,17 @@ export default defineComponent({
 
   beforeRouteEnter (to) {
     return vm => {
+      const store = vm.$store
+      const before = JSON.stringify(store.state.actorList.filters)
       if (to.query !== undefined) {
-        vm.$store.commit('actorList/stateFromQuery', to.query)
+        store.commit('actorList/stateFromQuery', to.query)
       }
-      vm.$store.dispatch('optionsWeb/load')
-      vm.$store.dispatch('actorList/load', { offset: 0 })
-      vm.$store.dispatch('optionsAdvanced/load')
+      store.dispatch('optionsWeb/load')
+      store.dispatch('optionsAdvanced/load')
+      // coming back with the same filters keeps the list as it is
+      if (store.state.actorList.actors.length === 0 || JSON.stringify(store.state.actorList.filters) !== before) {
+        store.dispatch('actorList/load', { offset: 0 })
+      }
     }
   },
 

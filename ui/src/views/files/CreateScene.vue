@@ -15,8 +15,8 @@
             {{ prettyBytes(file.size) }}, {{ file.video_width }}x{{ file.video_height }},
             {{ format(parseISO(file.created_time), "yyyy-MM-dd") }}
           </small>
-          <b-field :label="$t('Scene Id')" label-position="on-border" grouped>
-            <b-tooltip :label="$t('If blank a Scene Id will be generated but cannot be changed later')"  :delay="500" >
+          <b-field :label="$t('Scene ID')" label-position="on-border" grouped>
+            <b-tooltip :label="$t('If blank a Scene ID will be generated but cannot be changed later')"  :delay="500" >
               <b-input v-model="sceneId" :placeholder="$t('Can be empty')" ref="sceneIdInput"></b-input>
             </b-tooltip>
           </b-field>

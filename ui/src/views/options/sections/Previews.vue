@@ -1,12 +1,28 @@
 <template>
   <OptionsSection :title="$t('Previews')" :loading="isLoading" :value="preview" :save-label="$t('Save settings')" @save="saveSettings">
+    <div class="method-row">
+      <b-field :label="$t('Method for new previews')">
+        <b-select v-model="preview.method" size="is-small">
+          <option value="classic">{{ $t('Classic: one eye, cropped') }}</option>
+          <option value="flat">{{ $t('Flat: undistorted trailer, true colours') }}</option>
+          <option value="smart">{{ $t('Smart: flat trailer framed on the people') }}</option>
+        </b-select>
+      </b-field>
+      <b-field v-if="preview.method !== 'classic'" :label="$t('Video format')">
+        <b-select v-model="preview.codec" size="is-small">
+          <option value="h265">{{ $t('H.265 (smaller)') }}</option>
+          <option value="h264">{{ $t('H.264 (plays everywhere)') }}</option>
+        </b-select>
+      </b-field>
+    </div>
+    <p class="method-hint">{{ $t('Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.') }}</p>
     <div class="columns">
       <div class="column">
-        <b-field v-for="s in sliders" :key="s.key" :label="s.label" class="slider-row">
+        <b-field v-for="s in visibleSliders" :key="s.key" :label="s.label" class="slider-row">
           <b-slider :min="s.min" :max="s.max" :step="s.step" :tooltip="false" v-model="preview[s.key]"></b-slider>
           <span class="slider-value">{{ preview[s.key] }}{{ s.unit }}</span>
         </b-field>
-        <b-field>
+        <b-field v-if="preview.method === 'classic'">
           <b-checkbox v-model="preview.extraSnippet">{{ $t('Grab extra snippet from the end of video') }}</b-checkbox>
         </b-field>
       </div>
@@ -42,7 +58,7 @@ export default defineComponent({
   data () {
     return {
       isLoading: true,
-      preview: { startTime: 5, snippetLength: 0.2, snippetAmount: 2, resolution: 300, extraSnippet: false },
+      preview: { startTime: 5, snippetLength: 0.2, snippetAmount: 2, resolution: 300, extraSnippet: false, method: 'classic', codec: 'h265' },
       sliders: [
         { key: 'startTime', label: this.$t('Start time'), min: 5, max: 60, step: 5, unit: 's' },
         { key: 'snippetLength', label: this.$t('Snippet length'), min: 0.2, max: 5, step: 0.2, unit: 's' },
@@ -55,11 +71,15 @@ export default defineComponent({
   async mounted () {
     const data = await getOptionsState()
     const p = data.config.library.preview
-    this.preview = { startTime: p.startTime, snippetLength: p.snippetLength, snippetAmount: p.snippetAmount, resolution: p.resolution, extraSnippet: p.extraSnippet }
+    this.preview = { startTime: p.startTime, snippetLength: p.snippetLength, snippetAmount: p.snippetAmount, resolution: p.resolution, extraSnippet: p.extraSnippet, method: p.method || 'classic', codec: p.codec || 'h265' }
     this.isLoading = false
   },
 
   computed: {
+    // the flat trailer has its own fixed moments, so only the start time and resolution apply to it
+    visibleSliders () {
+      return this.preview.method !== 'classic' ? this.sliders.filter(s => s.key === 'startTime' || s.key === 'resolution') : this.sliders
+    },
     generatingPreview () {
       return this.$store.state.optionsPreviews.generatingPreview
     },
@@ -116,6 +136,16 @@ video {
 }
 .generate {
   margin-top: 1.5rem;
+}
+.method-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+.method-hint {
+  margin: 0.25rem 0 1.25rem;
+  font-size: 0.8rem;
+  opacity: 0.65;
 }
 .generate p {
   margin-bottom: 0.5rem;

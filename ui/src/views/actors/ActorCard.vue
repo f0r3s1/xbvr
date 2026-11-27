@@ -47,7 +47,8 @@
           <vue-load-image v-if="actor.nationality" class="flag-wrap">
             <template #image><img loading="lazy" decoding="async" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() + '.svg')" class="flag" :title="actor.nationality"/></template>
           </vue-load-image>
-          <span>{{ $t('{n} scene | {n} scenes', { n: sceneCount }, sceneCount) }}<template v-if="actor.avail_count > 0"> · {{ $t('{n} available', { n: actor.avail_count }) }}</template></span>
+          <span v-if="actor.avail_count > 0" class="meta-count" :title="$t('{n} available', { n: actor.avail_count })">{{ $t('{available} of {n} scene | {available} of {n} scenes', { available: actor.avail_count, n: sceneCount }, sceneCount) }}</span>
+          <span v-else class="meta-count">{{ $t('{n} scene | {n} scenes', { n: sceneCount }, sceneCount) }}</span>
         </span>
         <span v-if="age !== null" class="actor-age" :title="actor.birth_date.slice(0, 10)">{{ $t('{n} yrs', { n: age }) }}</span>
       </div>
@@ -56,7 +57,9 @@
 </template>
 
 <script>
+import { hasDate, isoDay } from '@/utcDay'
 import { defineComponent } from 'vue';
+import { imageURL } from '@/imageURL'
 
 import ActorFavouriteButton from '../../components/ActorFavouriteButton'
 import ActorWatchlistButton from '../../components/ActorWatchlistButton'
@@ -100,9 +103,8 @@ export default defineComponent({
     },
     age () {
       const b = this.actor.birth_date
-      if (!b || b.startsWith('0001')) return null
-      // birth dates are stored as UTC midnight; compare calendar dates, not local times
-      const [y, m, day] = b.slice(0, 10).split('-').map(Number)
+      if (!hasDate(b)) return null
+      const [y, m, day] = isoDay(b).split('-').map(Number)
       const now = new Date()
       let a = now.getFullYear() - y
       if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < day)) a--
@@ -168,15 +170,8 @@ export default defineComponent({
         this.imageFailed = true
       }
     },
-    getImageURL (u) {
-      if (u=='' || u == undefined) {
-        return "/ui/images/actor_placeholder.svg"
-      }
-      if (u.startsWith('http')) {
-        return '/img/700x/' + u.replace('://', ':/')
-      } else {
-        return u
-      }
+    getImageURL (u, size = '1200x') {
+      return imageURL(u, size)
     },
     showDetails (actor) {
       this.$store.commit('overlay/showActorDetails', { actor: actor })
@@ -388,6 +383,10 @@ export default defineComponent({
   gap: 5px;
   min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.meta-count {
   overflow: hidden;
   text-overflow: ellipsis;
 }

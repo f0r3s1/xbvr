@@ -182,6 +182,10 @@ GO_DOCKER = docker run --rm \
 GO_CDEPS = apt-get update -qq >/dev/null; apt-get install -y -qq pkg-config libayatana-appindicator3-dev libgtk-3-dev >/dev/null 2>&1
 
 .PHONY: test
+.PHONY: check
+check: ## Check pending changes for personal info, long comments and translations, then lint and test (QUICK=1 skips lint/test)
+	@bash scripts/check.sh
+
 test: ## Build, vet and run Go tests in a self-deleting docker container
 	@mkdir -p ui/dist && touch ui/dist/embed_placeholder
 	@$(GO_DOCKER) 'set -e; $(GO_CDEPS); \

@@ -85,7 +85,7 @@
               </small>
             </b-table-column>
             <b-table-column field="release_date" :label="$t('Release date')" sortable nowrap v-slot="props">
-              {{ format(parseISO(props.row.release_date), "yyyy-MM-dd") }}
+              {{ format(utcDay(props.row.release_date), "yyyy-MM-dd") }}
             </b-table-column>
             <b-table-column field="duration" :label="$t('Duration')" sortable nowrap v-slot="props">
               {{ props.row.duration > 0 ? $t('{n} min', { n: props.row.duration }) : ""}}
@@ -111,9 +111,11 @@
 <script>
 import ky from 'ky'
 import { format, parseISO } from 'date-fns'
+import { utcDay } from '@/utcDay'
 import prettyBytes from 'pretty-bytes'
 import VueLoadImage from 'vue-load-image'
 import { GlobalEvents } from 'vue-global-events'
+import { imageURL } from '@/imageURL'
 
 export default {
   name: 'SceneMatch',
@@ -138,6 +140,7 @@ export default {
     this.initView()
   },
   methods: {
+    utcDay,
     initView () {
       const commonWords = [
         '180', '180x180', '2880x1440', '3d', '3dh', '3dv', '30fps', '30m', '360',
@@ -185,12 +188,8 @@ export default {
         this.currentPage = 1
       }
     },
-    getImageURL (u) {
-      if (u.startsWith('http')) {
-        return '/img/200x/' + u.replace('://', ':/')
-      } else {
-        return u
-      }
+    getImageURL (u, size = '200x') {
+      return imageURL(u, size)
     },
     assign: async function assign (scene_id) {
       await ky.post('/api/files/match', {

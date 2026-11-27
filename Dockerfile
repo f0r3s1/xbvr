@@ -42,6 +42,8 @@ RUN apk add --no-cache \
     ffmpeg \
     curl \
     bash
+# Intel GPU driver for hardware video decoding (used when /dev/dri is passed in)
+RUN if [ "$(apk --print-arch)" = x86_64 ]; then apk add --no-cache intel-media-driver; fi
 
 COPY --from=builder /app/xbvr /usr/bin/xbvr
 COPY --from=builder /app/xbvr_data /tmp/xbvr_data

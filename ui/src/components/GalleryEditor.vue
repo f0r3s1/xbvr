@@ -65,6 +65,7 @@
 
 <script>
 import { defineComponent } from 'vue';
+import { imageURL } from '@/imageURL'
 
 import draggable from 'vuedraggable'
 
@@ -155,25 +156,8 @@ export default defineComponent({
     setCover (url) {
       this.$emit('setCover', url)
     },
-    getImageURL (url) {
-      if (!url) return url
-      try {
-        if (url.startsWith('http')) {
-          if (url.indexOf('%') === -1) {
-            return '/img/200x/' + encodeURI(url)
-          } else {
-            return '/img/200x/' + encodeURI(decodeURI(url))
-          }
-        }
-      } catch {
-        // fall through
-      }
-      
-      if (url.includes('\\')) {
-        url = url.replace(/\\/g, '/')
-      }
-      
-      return url
+    getImageURL (u, size = '200x') {
+      return imageURL(u, size)
     },
     handleFileDrop(event) {
       event.preventDefault();

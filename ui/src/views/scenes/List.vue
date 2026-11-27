@@ -42,7 +42,7 @@
       <b-icon pack="mdi" icon="arrow-up" size="is-small"/>
       {{ $t('{n} new scenes', { n: pendingNew }, pendingNew) }}
     </button>
-    <div class="columns is-multiline list-grid">
+    <div class="columns is-multiline list-grid" :class="{ 'is-refreshing': isListReloading && isSlowLoad }">
       <div :class="['column', 'is-multiline', 'card-column', cardSizeClass]"
            v-for="item in (showSkeleton ? [] : items)" :key="item.id">
         <SceneCard :item="item"/>
@@ -189,8 +189,9 @@ export default defineComponent({
     isListReloading () {
       return this.isLoading && !this.isLoadingMore
     },
+    // a reload keeps the cards on screen; skeletons only fill an empty list
     showSkeleton () {
-      return this.isListReloading && this.isSlowLoad
+      return this.isListReloading && this.isSlowLoad && this.items.length === 0
     },
     // Two rows of placeholders for the current card size.
     skeletonCount () {
@@ -297,6 +298,10 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.list-grid.is-refreshing {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
 .new-scenes-pill {
   position: fixed;
   top: calc(3.25rem + var(--list-head-h, 48px) + 10px);

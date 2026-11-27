@@ -163,6 +163,9 @@ func POVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<-
 	return nil
 }
 
+// the network's own image hosts refuse some servers; POVR mirrors the same files
+var povrMirrors = strings.NewReplacer("https://cdns-i.wankzvr.com/", "https://images.povr.com/wvr/", "https://cdns-i.milfvr.com/", "https://images.povr.com/mvr/")
+
 // upcomingHomes lists the Wankz network sites whose homepage carries the hidden upcoming block.
 var upcomingHomes = map[string]string{"wankzvr": "https://www.wankzvr.com/", "milfvr": "https://www.milfvr.com/"}
 
@@ -189,7 +192,7 @@ func parseWankzVRUpcoming(homeHTML string, homeURL string, scraperID string, sit
 			Upcoming:    true,
 		}
 		if cover := item.Find("img.video__cover").AttrOr("data-src", ""); cover != "" {
-			sc.Covers = []string{strings.Replace(cover, "/tiny.jpg", "/large.jpg", 1)}
+			sc.Covers = []string{povrMirrors.Replace(strings.Replace(cover, "/tiny.jpg", "/large.jpg", 1))}
 		}
 		if d, err := time.Parse("2 January, 2006", strings.TrimSpace(item.Find(".card__date").Text())); err == nil {
 			sc.Released = d.Format("2006-01-02")
@@ -234,8 +237,5 @@ func init() {
 	scrapers.Load()
 	for _, scraper := range scrapers.XbvrScrapers.PovrScrapers {
 		addPOVRScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, false, scraper.URL, scraper.MasterSiteId)
-	}
-	for _, scraper := range scrapers.CustomScrapers.PovrScrapers {
-		addPOVRScraper(scraper.ID, scraper.Name, scraper.Company, scraper.AvatarUrl, true, scraper.URL, scraper.MasterSiteId)
 	}
 }

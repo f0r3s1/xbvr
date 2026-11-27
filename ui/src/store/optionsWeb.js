@@ -22,6 +22,7 @@ const state = {
     sceneCardAspectRatio: "16:9",
     sceneCardScaleToFit: false,
     cardButtonStyle: 'classic',
+    glassCard: {},
     actorCardAspectRatio: "1:1",
     actorCardScaleToFit: true,
     showSiteLogo: true,
@@ -30,7 +31,8 @@ const state = {
     updateCheck: true,
     theme: 'auto',
     showUpcoming: true,
-    upcomingDays: 14
+    upcomingDays: 14,
+    hideMaleActors: false
   }
 }
 
@@ -62,6 +64,7 @@ const actions = {
         state.web.sceneCardAspectRatio = data.config.web.sceneCardAspectRatio
         state.web.sceneCardScaleToFit = data.config.web.sceneCardScaleToFit
         state.web.cardButtonStyle = data.config.web.cardButtonStyle || 'classic'
+        state.web.glassCard = data.config.web.glassCard || {}
         state.web.actorCardAspectRatio = data.config.web.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.config.web.actorCardScaleToFit
         state.web.showSiteLogo = data.config.web.showSiteLogo !== false
@@ -69,6 +72,7 @@ const actions = {
         state.web.accentColorTags = data.config.web.accentColorTags !== false
         state.web.showUpcoming = data.config.web.showUpcoming !== false
         state.web.upcomingDays = data.config.web.upcomingDays ?? 14
+        state.web.hideMaleActors = data.config.web.hideMaleActors === true
         const theme = data.config.web.theme || 'auto'
         state.web.theme = theme
         localStorage.setItem('xbvr-theme', theme)
@@ -101,6 +105,7 @@ const actions = {
         state.web.sceneCardAspectRatio = data.sceneCardAspectRatio
         state.web.sceneCardScaleToFit = data.sceneCardScaleToFit
         state.web.cardButtonStyle = data.cardButtonStyle || 'classic'
+        state.web.glassCard = data.glassCard || {}
         state.web.actorCardAspectRatio = data.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.actorCardScaleToFit
         state.web.showSiteLogo = data.showSiteLogo !== false
@@ -108,6 +113,7 @@ const actions = {
         state.web.accentColorTags = data.accentColorTags !== false
         state.web.showUpcoming = data.showUpcoming !== false
         state.web.upcomingDays = data.upcomingDays ?? 14
+        state.web.hideMaleActors = data.hideMaleActors === true
         const theme = data.theme || 'auto'
         state.web.theme = theme
         localStorage.setItem('xbvr-theme', theme)
