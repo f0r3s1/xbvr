@@ -35,6 +35,7 @@ type ImageCache interface {
 type ImageProxyFallbackHandler struct {
 	ImageProxy *imageproxy.Proxy
 	Cache      ImageCache
+	Cached     func(key string) bool
 }
 
 // NewImageProxyFallbackHandler creates a new handler with fallback capability
@@ -225,14 +226,15 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	// Extract the original URL from the request path
 	originalURL := extractOriginalURL(r.URL.Path)
 
-	// SVGs are vector and can't be raster-resized by willnorris/imageproxy, so it
-	// rejects them. Redirect the browser to fetch the original directly.
+	// imageproxy cannot resize SVGs: serve them as they are, cached, or let the browser try the original
 	if originalURL != "" && strings.HasSuffix(strings.ToLower(strings.SplitN(originalURL, "?", 2)[0]), ".svg") {
-		http.Redirect(w, r, originalURL, http.StatusFound)
+		if !h.serveSVG(w, r, fallbackKey, originalURL) {
+			http.Redirect(w, r, originalURL, http.StatusFound)
+		}
 		return
 	}
 
-	if recentlyFailed(fallbackKey) {
+	if recentlyFailed(fallbackKey) && !h.isCached(r) {
 		imageUnavailable(w)
 		return
 	}
@@ -243,7 +245,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		if isImageResponse(capture) {
 			capture.flushToClient()
 		} else {
-			markFailed(fallbackKey)
+			noteFailure(r, fallbackKey, capture.statusCode)
 			imageUnavailable(w)
 		}
 		return
@@ -276,7 +278,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	if isImageResponse(capture) {
 		// Response is a valid image, cache it and send to client
 		h.Cache.Set(cacheKey, capture.body.Bytes())
-		markFailed(fallbackKey)
+		noteFailure(r, fallbackKey, capture.statusCode)
 		imageUnavailable(w)
 		return
 	}
@@ -287,7 +289,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	externalURL := buildExternalProxyURL(originalURL)
 	if externalURL == "" {
-		markFailed(fallbackKey)
+		noteFailure(r, fallbackKey, capture.statusCode)
 		imageUnavailable(w)
 		return
 	}
@@ -299,7 +301,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	resp, err := fetchFromExternalProxy(ctx, externalURL)
 	if err != nil {
 		common.Log.Errorf("Image proxy fallback: failed to fetch from external proxy: %v", err)
-		markFailed(fallbackKey)
+		noteFailure(r, fallbackKey, capture.statusCode)
 		imageUnavailable(w)
 		return
 	}
@@ -307,7 +309,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		common.Log.Errorf("Image proxy fallback: external proxy returned error status: %d", resp.StatusCode)
-		markFailed(fallbackKey)
+		noteFailure(r, fallbackKey, capture.statusCode)
 		imageUnavailable(w)
 		return
 	}
@@ -316,7 +318,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	externalContentType := resp.Header.Get("Content-Type")
 	if !isImageContentType(externalContentType) {
 		common.Log.Errorf("Image proxy fallback: external proxy returned non-image content type: %s", externalContentType)
-		markFailed(fallbackKey)
+		noteFailure(r, fallbackKey, capture.statusCode)
 		imageUnavailable(w)
 		return
 	}
@@ -325,7 +327,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyReadSize))
 	if err != nil {
 		common.Log.Errorf("Image proxy fallback: failed to read external proxy response: %v", err)
-		markFailed(fallbackKey)
+		noteFailure(r, fallbackKey, capture.statusCode)
 		imageUnavailable(w)
 		return
 	}
@@ -350,11 +352,15 @@ func isImageResponse(c *ResponseCapture) bool {
 // imageUnavailable answers a failed image with an empty 502 instead of the site's error page,
 // which could be hundreds of KB per card and kept the browser's few connections busy.
 func imageUnavailable(w http.ResponseWriter) {
-	w.Header().Set("Cache-Control", "public, max-age=600")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusBadGateway)
 }
 
-const failedImageTTL = 10 * time.Minute
+// a site that refuses an image is not asked again for a while; short hiccups are retried soon
+const (
+	refusedImageTTL = 10 * time.Minute
+	failedImageTTL  = time.Minute
+)
 
 var (
 	failedImagesMu sync.Mutex
@@ -372,11 +378,64 @@ func recentlyFailed(key string) bool {
 	return ok
 }
 
-func markFailed(key string) {
+// noteFailure remembers a failed image, except when the browser cancelled the request (scrolled away, gave up).
+func noteFailure(r *http.Request, key string, status int) {
+	if r.Context().Err() != nil {
+		return
+	}
+	ttl := failedImageTTL
+	switch status {
+	case http.StatusForbidden, http.StatusNotFound, http.StatusGone, http.StatusUnavailableForLegalReasons:
+		ttl = refusedImageTTL
+	}
 	failedImagesMu.Lock()
 	defer failedImagesMu.Unlock()
 	if len(failedImages) > 10000 {
 		failedImages = map[string]time.Time{}
 	}
-	failedImages[key] = time.Now().Add(failedImageTTL)
+	failedImages[key] = time.Now().Add(ttl)
+}
+
+const maxSVGSize = 2 << 20
+
+// serveSVG fetches and caches an SVG and serves it sandboxed, so a script inside can never run on this origin.
+func (h *ImageProxyFallbackHandler) serveSVG(w http.ResponseWriter, r *http.Request, key, originalURL string) bool {
+	svg, ok := h.Cache.Get(key)
+	if !ok {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 20*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, originalURL, nil)
+		if err != nil {
+			return false
+		}
+		req.Header.Set("User-Agent", svgUserAgent)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxSVGSize))
+		if err != nil || resp.StatusCode != http.StatusOK || !bytes.Contains(body, []byte("<svg")) {
+			return false
+		}
+		svg = body
+		h.Cache.Set(key, svg)
+	}
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write(svg)
+	return true
+}
+
+const svgUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+// isCached reports whether the resized image is in the image cache, e.g. finished after an earlier attempt gave up.
+func (h *ImageProxyFallbackHandler) isCached(r *http.Request) bool {
+	if h.Cached == nil {
+		return false
+	}
+	req, err := imageproxy.NewRequest(r, h.ImageProxy.DefaultBaseURL)
+	return err == nil && h.Cached(req.String())
 }

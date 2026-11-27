@@ -30,17 +30,27 @@ type Passthrough struct {
 	Cache *Cache
 }
 
-var decodeSlots = make(chan struct{}, max(1, runtime.NumCPU()/2))
+var (
+	decodeSlots = make(chan struct{}, max(1, runtime.NumCPU()/2))
+	workSlots   = make(chan struct{}, 3)
+)
 
 func (t *Passthrough) RoundTrip(req *http.Request) (*http.Response, error) {
-	// the work continues when the browser gives up, so a slow cover is cached for the next visit instead of redone
-	req = req.Clone(context.WithoutCancel(req.Context()))
 	opt := imageproxy.ParseOptions(req.URL.Fragment)
 	key := req.URL.String()
 	sizeOnly := (opt.Width >= 1) != (opt.Height >= 1) && opt == imageproxy.Options{Width: opt.Width, Height: opt.Height, Quality: opt.Quality}
 	if !sizeOnly || t.Cache.Has(key) {
 		return t.Next.RoundTrip(req)
 	}
+
+	// a request abandoned while waiting is dropped; once started it finishes, so the result is cached for the next visit
+	select {
+	case workSlots <- struct{}{}:
+		defer func() { <-workSlots }()
+	case <-req.Context().Done():
+		return nil, req.Context().Err()
+	}
+	req = req.Clone(context.WithoutCancel(req.Context()))
 
 	source, header, err := t.source(req, opt)
 	if err != nil {

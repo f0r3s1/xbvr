@@ -241,10 +241,14 @@ func PruneUpcoming(scraperID string, listedSceneURLs []string) {
 	}
 }
 
-// LatestReleaseDate is the newest release date of a scraper's released scenes (zero when it has none).
-func LatestReleaseDate(scraperID string) time.Time {
+// RecentReleaseDates are the newest release dates of a scraper's released scenes.
+func RecentReleaseDates(scraperID string, n int) []time.Time {
 	db, _ := GetCommonDB()
-	var s Scene
-	db.Select("release_date").Where("scraper_id = ? AND is_upcoming = ?", scraperID, false).Order("release_date desc").First(&s)
-	return s.ReleaseDate
+	var scenes []Scene
+	db.Select("release_date").Where("scraper_id = ? AND is_upcoming = ?", scraperID, false).Order("release_date desc").Limit(n).Find(&scenes)
+	out := make([]time.Time, len(scenes))
+	for i, s := range scenes {
+		out[i] = s.ReleaseDate
+	}
+	return out
 }

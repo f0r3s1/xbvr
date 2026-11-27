@@ -1309,10 +1309,13 @@ export default defineComponent({
   html[data-theme] .hover-actions.is-glass .button:not(.is-outlined) .icon {
     opacity: 1;
   }
-  html[data-theme] .hover-actions.is-glass > :nth-child(-n+3) [data-tooltip]::after,
-  html[data-theme] .hover-actions.is-glass > [data-tooltip]:nth-child(-n+3)::after {
+  .hover-actions [data-tooltip]:not(.tip-right)::after {
     left: 0;
     right: auto;
+  }
+  .hover-actions [data-tooltip].tip-right::after {
+    left: auto;
+    right: 0;
   }
   html[data-theme] .hover-actions.is-glass .button.is-primary { --tint: 167, 139, 250; }
   html[data-theme] .hover-actions.is-glass .button.is-danger { --tint: 251, 113, 133; }

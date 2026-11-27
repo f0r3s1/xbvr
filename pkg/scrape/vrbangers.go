@@ -236,8 +236,8 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 			log.Warnf("%s: could not read the upcoming scenes (the site may refuse direct requests; enable FlareSolverr or the proxy for it in Options > Scrapers): %v", siteID, err)
 		} else {
 			upcoming := parseVRBangersUpcoming(builder, scraperID, siteID, URL, contentBaseURL)
-			if scraperID == "vrbangers" {
-				fillWeeklyDates(upcoming, vrbangersRelease, models.LatestReleaseDate(scraperID), time.Now())
+			if sched, ok := vrbangersSchedules[scraperID]; ok {
+				fillReleaseDates(upcoming, sched, models.RecentReleaseDates(scraperID, 30), time.Now())
 			}
 			emitUpcoming(scraperID, upcoming, out)
 		}
@@ -251,8 +251,21 @@ func VRBangersSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, o
 }
 
 // parseVRBangersUpcoming reads the "upcoming" block of the site's home page builder.
-// VRBangers publishes one scene every Friday at 09:01 Paris time (its API's publishedAt values) and announces them undated
-var vrbangersRelease = weeklyRelease{Day: time.Friday, Hour: 9, Minute: 1, Location: mustLoadLocation("Europe/Paris")}
+// the network publishes at 09:01 Paris time and announces scenes undated; cadence per site from its API's publishedAt values
+var vrbangersSchedules = func() map[string]releaseSchedule {
+	paris := mustLoadLocation("Europe/Paris")
+	weekly := func(every int) releaseSchedule {
+		return releaseSchedule{EveryDays: every, Weekday: time.Friday, Hour: 9, Minute: 1, Location: paris}
+	}
+	return map[string]releaseSchedule{
+		"vrbangers": weekly(7),
+		"vrconk":    weekly(7),
+		"vrbtrans":  weekly(14),
+		"vrbgay":    weekly(14),
+		"blowvr":    weekly(14),
+		"arporn":    {EveryDays: 1, Hour: 9, Minute: 1, Location: paris},
+	}
+}()
 
 func mustLoadLocation(name string) *time.Location {
 	loc, err := time.LoadLocation(name)

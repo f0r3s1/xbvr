@@ -22,7 +22,7 @@
         </b-tooltip>
       </div>
 
-      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
+      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop @mouseover="anchorTooltip">
         <a v-if="colleague != undefined" class="button is-info is-outlined is-small"
            @click="showColleague(actor.name, colleague)" :title="$t('Show Scenes with {name}', { name: actor.name })">
           <b-icon pack="mdi" icon="movie-outline" size="is-small"/>
@@ -75,6 +75,7 @@ export default defineComponent({
       imageLoaded: false,
       imageFailed: false,
       loadDirect: false,
+      proxyRetried: false,
     }
   },
 
@@ -85,6 +86,7 @@ export default defineComponent({
     'actor.image_url' () {
       this.imageFailed = false
       this.loadDirect = false
+      this.proxyRetried = false
     },
   },
 
@@ -135,6 +137,14 @@ export default defineComponent({
   },
 
   methods: {
+    // a tooltip opens to the right unless it would pass the card's edge
+    anchorTooltip (event) {
+      const el = event.target.closest('[data-tooltip]')
+      if (!el) return
+      const card = event.currentTarget.parentElement.getBoundingClientRect()
+      const width = el.getBoundingClientRect().left + parseFloat(getComputedStyle(el, '::after').width) + 16
+      el.classList.toggle('tip-right', width > card.right)
+    },
     // our server is slow on this cover: load the original from its site instead of waiting
     onImageSlow () {
       this.fallBack()
@@ -148,7 +158,12 @@ export default defineComponent({
       if (!this.loadDirect && this.actor.image_url?.startsWith('http')) {
         this.loadDirect = true
         this.imageLoaded = false
-        this.directTimer = setTimeout(() => { if (!this.imageLoaded) this.imageFailed = true }, 20000)
+        this.directTimer = setTimeout(() => { if (!this.imageLoaded) this.fallBack() }, 20000)
+      } else if (this.loadDirect && !this.proxyRetried) {
+        // the server keeps preparing an image the browser gave up on, so ask it once more
+        this.proxyRetried = true
+        clearTimeout(this.directTimer)
+        this.directTimer = setTimeout(() => { this.loadDirect = false }, 4000)
       } else {
         this.imageFailed = true
       }

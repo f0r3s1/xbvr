@@ -93,12 +93,11 @@ function setSource (el, src) {
 export default {
   mounted (el, binding) {
     const job = { el, src: null, queued: false, inFlight: false, visible: false, loadedSrc: null }
-    const done = () => {
+    el.addEventListener('load', () => {
       if (el.getAttribute('src') === job.src) job.loadedSrc = job.src
       finish(job)
-    }
-    el.addEventListener('load', done)
-    el.addEventListener('error', done)
+    })
+    el.addEventListener('error', () => finish(job))
     jobs.set(el, job)
     setSource(el, binding.value)
     observer?.observe(el)

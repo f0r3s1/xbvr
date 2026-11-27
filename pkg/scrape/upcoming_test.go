@@ -69,28 +69,35 @@ func TestParseVRSpyUpcoming(t *testing.T) {
 	}
 }
 
-func TestFillWeeklyDates(t *testing.T) {
+func TestFillReleaseDates(t *testing.T) {
 	at := func(m time.Month, d, h, min int) time.Time { return time.Date(2026, m, d, h, min, 0, 0, time.UTC) }
-	released := at(11, 20, 8, 1)
+	// VRBangers: Fridays, plus a Monday compilation that must not shift the schedule
+	vrb := []time.Time{at(11, 20, 8, 1), at(11, 16, 8, 1), at(11, 13, 8, 1)}
 	cases := []struct {
-		name string
-		now  time.Time
-		want []string
+		name   string
+		site   string
+		recent []time.Time
+		now    time.Time
+		want   []string
 	}{
-		{"thursday evening", at(11, 26, 22, 0), []string{"2026-11-27T08:01:00Z", "2026-12-04T08:01:00Z"}},
-		{"friday before 09:01 Paris", at(11, 27, 7, 30), []string{"2026-11-27T08:01:00Z", "2026-12-04T08:01:00Z"}},
-		{"friday after release", at(11, 27, 9, 0), []string{"2026-12-04T08:01:00Z", "2026-12-11T08:01:00Z"}},
+		{"weekly, thursday evening", "vrbangers", vrb, at(11, 26, 22, 0), []string{"2026-11-27T08:01:00Z", "2026-12-04T08:01:00Z"}},
+		{"weekly, friday before 09:01 Paris", "vrbangers", vrb, at(11, 27, 7, 30), []string{"2026-11-27T08:01:00Z", "2026-12-04T08:01:00Z"}},
+		{"weekly, friday after release", "vrbangers", vrb, at(11, 27, 9, 0), []string{"2026-12-04T08:01:00Z", "2026-12-11T08:01:00Z"}},
+		{"weekly, latest is a monday extra", "vrbangers", []time.Time{at(11, 23, 8, 1), at(11, 20, 8, 1)}, at(11, 24, 12, 0), []string{"2026-11-27T08:01:00Z", "2026-12-04T08:01:00Z"}},
+		{"every other friday", "vrbtrans", []time.Time{at(11, 20, 8, 1)}, at(11, 26, 22, 0), []string{"2026-12-04T08:01:00Z", "2026-12-18T08:01:00Z"}},
+		{"daily", "arporn", []time.Time{at(11, 26, 8, 1)}, at(11, 26, 22, 0), []string{"2026-11-27T08:01:00Z", "2026-11-28T08:01:00Z"}},
+		{"no history yet", "vrbangers", nil, at(11, 26, 22, 0), []string{"2026-11-27T08:01:00Z", "2026-12-04T08:01:00Z"}},
 	}
 	for _, c := range cases {
 		scenes := []models.ScrapedScene{{Title: "a"}, {Title: "b"}}
-		fillWeeklyDates(scenes, vrbangersRelease, released, c.now)
+		fillReleaseDates(scenes, vrbangersSchedules[c.site], c.recent, c.now)
 		if scenes[0].Released != c.want[0] || scenes[1].Released != c.want[1] {
 			t.Errorf("%s: got %s %s", c.name, scenes[0].Released, scenes[1].Released)
 		}
 	}
 	// summer time: 09:01 Paris is 07:01 UTC; a dated announcement keeps its date
 	summer := []models.ScrapedScene{{Title: "a"}, {Title: "dated", Released: "2026-07-20"}}
-	fillWeeklyDates(summer, vrbangersRelease, at(6, 26, 7, 1), at(6, 30, 12, 0))
+	fillReleaseDates(summer, vrbangersSchedules["vrbangers"], []time.Time{at(6, 26, 7, 1)}, at(6, 30, 12, 0))
 	if summer[0].Released != "2026-07-03T07:01:00Z" || summer[1].Released != "2026-07-20" {
 		t.Errorf("summer: got %s %s", summer[0].Released, summer[1].Released)
 	}
@@ -102,7 +109,7 @@ func TestVRBangersUpcomingOrderAndDates(t *testing.T) {
 		{"text":"Sorority Hookup: Sticky Fingers","sort":35,"releaseDate":0,"isActive":true},
 		{"text":"Bikini Car Wash","sort":37,"releaseDate":0,"isActive":true}]}}}`
 	scenes := parseVRBangersUpcoming(builder, "vrbangers", "VRBangers", "https://vrbangers.com/", "https://content.vrbangers.com")
-	fillWeeklyDates(scenes, vrbangersRelease, time.Date(2026, 11, 20, 8, 1, 0, 0, time.UTC), time.Date(2026, 11, 26, 22, 0, 0, 0, time.UTC))
+	fillReleaseDates(scenes, vrbangersSchedules["vrbangers"], []time.Time{time.Date(2026, 11, 20, 8, 1, 0, 0, time.UTC)}, time.Date(2026, 11, 26, 22, 0, 0, 0, time.UTC))
 	want := []string{"Sorority Hookup: Sticky Fingers 2026-11-27T08:01:00Z", "Oohmakase with Lucy Mochi 2026-12-04T08:01:00Z", "Bikini Car Wash 2026-12-11T08:01:00Z"}
 	for i, w := range want {
 		if got := scenes[i].Title + " " + scenes[i].Released; got != w {

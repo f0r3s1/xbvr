@@ -73,7 +73,7 @@
       </div>
 
 
-      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop>
+      <div v-if="hovering" class="hover-actions" :class="{ 'is-visible': hovering, 'is-preview': preview && item.has_preview, 'is-glass': $store.state.optionsWeb.web.cardButtonStyle === 'glass' }" @click.stop @mouseover="anchorTooltip">
         <hidden-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneHidden"/>
         <watchlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneWatchlist"/>
         <trailerlist-button :item="item" v-if="this.$store.state.optionsWeb.web.sceneTrailerlist"/>
@@ -119,14 +119,7 @@
       </div>
       <div class="meta-row">
         <span class="site-link">
-          <vue-load-image v-if="siteIconUrl && showSiteLogo" :key="siteIconUrl">
-            <template #image><img loading="lazy" decoding="async" :src="siteIconUrl" class="site-icon" alt=""/></template>
-            <template #preloader><span class="site-icon site-icon-placeholder"></span></template>
-            <template #error>
-              <img v-if="!siteIconFailed" :src="siteIconOriginal" class="site-icon" alt="" @error="siteIconFailed = true"/>
-              <span v-else class="site-icon site-initial" aria-hidden="true">{{ siteInitial }}</span>
-            </template>
-          </vue-load-image>
+          <img v-if="showSiteLogo && siteIconSrc" :key="siteIconSrc" :src="siteIconSrc" class="site-icon" alt="" loading="lazy" decoding="async" @error="siteIconStep++"/>
           <span v-else-if="showSiteLogo && item.site" class="site-icon site-initial" aria-hidden="true">{{ siteInitial }}</span>
           <a v-if="item.members_url != ''" :href="item.members_url" target="_blank" rel="noreferrer" @click.stop>
             <b-icon pack="mdi" icon="link-lock" custom-size="mdi-14px"/>
@@ -175,8 +168,9 @@ export default defineComponent({
       alternateSources: [],
       stashLinkExists: false,
       loadDirect: false,
+      proxyRetried: false,
       imageFailed: false,
-      siteIconFailed: false,
+      siteIconStep: 0,
       imageLoaded: false,
     }
   },
@@ -249,13 +243,15 @@ export default defineComponent({
     dateFormat () {
       return this.$store.state.optionsWeb.web.dateFormat || 'yyyy-MM-dd'
     },
-    siteIconOriginal () {
+    // avatar then logo, each through the image cache and then directly; the letter badge once all fail
+    siteIconCandidates () {
       const sites = this.$store.state.optionsSites.items
       const site = sites && sites.find(s => s.id === this.item.scraper_id)
-      return (site && (site.avatar_url || site.logo_url)) || null
+      const urls = site ? [site.avatar_url, site.logo_url].filter(Boolean) : []
+      return [...new Set(urls.flatMap(u => [this.getImageURL(u, '64x'), u]))]
     },
-    siteIconUrl () {
-      return this.siteIconOriginal && this.getImageURL(this.siteIconOriginal, '64x') // 16px icon, 64px stays sharp on retina
+    siteIconSrc () {
+      return this.siteIconCandidates[this.siteIconStep] || null
     },
     siteInitial () {
       return (this.item.site || '?').trim().charAt(0).toUpperCase()
@@ -292,6 +288,14 @@ export default defineComponent({
   },
 
   methods: {
+    // a tooltip opens to the right unless it would pass the card's edge
+    anchorTooltip (event) {
+      const el = event.target.closest('[data-tooltip]')
+      if (!el) return
+      const card = event.currentTarget.parentElement.getBoundingClientRect()
+      const width = el.getBoundingClientRect().left + parseFloat(getComputedStyle(el, '::after').width) + 16
+      el.classList.toggle('tip-right', width > card.right)
+    },
     // our server is slow on this cover: load the original from its site instead of waiting
     onImageSlow () {
       this.fallBack()
@@ -305,7 +309,12 @@ export default defineComponent({
       if (!this.loadDirect && this.item.cover_url?.startsWith('http')) {
         this.loadDirect = true
         this.imageLoaded = false
-        this.directTimer = setTimeout(() => { if (!this.imageLoaded) this.imageFailed = true }, 20000)
+        this.directTimer = setTimeout(() => { if (!this.imageLoaded) this.fallBack() }, 20000)
+      } else if (this.loadDirect && !this.proxyRetried) {
+        // the server keeps preparing an image the browser gave up on, so ask it once more
+        this.proxyRetried = true
+        clearTimeout(this.directTimer)
+        this.directTimer = setTimeout(() => { this.loadDirect = false }, 4000)
       } else {
         this.imageFailed = true
         if (this.item && this.item.id) {
@@ -1039,6 +1048,11 @@ html[data-theme="dark"] .status-icon.status-dark:hover { color: #d4d4d8 !importa
 
 .hover-actions :deep([data-tooltip]:hover)::after {
   opacity: 1;
+}
+
+.hover-actions :deep([data-tooltip]:not(.tip-right))::after {
+  left: 0;
+  right: auto;
 }
 
 /* ── Dark Mode ── */

@@ -230,6 +230,7 @@ func StartServer(version, commit, branch, date string) {
 	u, _ := url.Parse("http://127.0.0.1:" + strconv.Itoa(config.Config.Server.Port))
 	p.DefaultBaseURL = u
 	imgFallback := NewImageProxyFallbackHandler(p, diskcache.NewWithDiskv(imgDisk))
+	imgFallback.Cached = imgStore.Has
 	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
 	hmp := NewHeatmapThumbnailProxy(p, diskCache(common.HeatmapThumbnailDir))
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))
