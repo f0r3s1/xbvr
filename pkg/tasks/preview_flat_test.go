@@ -33,7 +33,7 @@ func TestAimFramesSkin(t *testing.T) {
 		}
 	}
 	c := aim(img, wideW, wideH)
-	if c.yaw <= 10 || c.pitch <= -8 || c.hfov < 60 || c.hfov > 100 {
+	if c.yaw <= 10 || c.pitch <= -8 || c.hfov < 75 || c.hfov > 110 {
 		t.Fatalf("camera not aimed at the body on the right: %+v", c)
 	}
 	if aim(make([]byte, wideW*wideH*3), wideW, wideH) != defaultCamera {

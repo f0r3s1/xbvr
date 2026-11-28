@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xbapps/xbvr/pkg/ffprobe"
 )
+
+var gpuFailOnce sync.Once
 
 const (
 	flatMoments    = 4
@@ -20,7 +23,10 @@ type camera struct {
 	yaw, pitch, hfov, vfov float64
 }
 
-var defaultCamera = camera{yaw: 0, pitch: -8, hfov: 90, vfov: 59}
+// trailers are square like classic previews, so they fill the card
+const trailerAspect = 1.0
+
+var defaultCamera = camera{yaw: 0, pitch: -8, hfov: 90, vfov: 90}
 
 // renderFlatPreview makes a short trailer: moments joined by crossfades, one eye shown as an undistorted 90° view.
 func renderFlatPreview(inputFile, destFile, projection string, o PreviewOptions) error {
@@ -58,23 +64,43 @@ func trailerMoments(inputFile string, o PreviewOptions) ([]float64, error) {
 }
 
 // renderTrailer joins the moments with crossfades, each seen through its own camera, in the video's real colours.
+// Moments are cut one at a time into small clips, so only one full-size decoder is ever in memory.
 func renderTrailer(inputFile, destFile, projection string, o PreviewOptions, starts []float64, cams []camera) error {
-	h := o.Resolution
-	w := (h*16/9 + 1) / 2 * 2
-	// each moment is its own input seeking straight to its spot, so only those seconds are decoded
-	var inputs []string
-	var g strings.Builder
+	h := o.Resolution / 2 * 2
+	w := int(float64(h)*trailerAspect) / 2 * 2
+	var clips []string
+	defer func() {
+		for _, c := range clips {
+			os.Remove(c)
+		}
+	}()
 	for k, at := range starts {
-		inputs = append(inputs, "-ss", fmt.Sprintf("%.2f", at), "-t", fmt.Sprintf("%.2f", flatMomentSecs), "-i", inputFile)
-		fmt.Fprintf(&g, "[%d:v]setpts=PTS-STARTPTS,%s,scale=in_color_matrix=bt709:out_color_matrix=bt709,fps=30,format=yuv420p[m%d];", k, view(projection, cams[k], w, h), k)
+		clip := fmt.Sprintf("%s.m%d.mp4", destFile, k)
+		clips = append(clips, clip)
+		vf := view(projection, cams[k], w, h) + ",scale=in_color_matrix=bt709:out_color_matrix=bt709,fps=30,format=yuv420p"
+		if err := runWithGPU([]string{"-y", "-threads", "2", "-ss", fmt.Sprintf("%.2f", at), "-t", fmt.Sprintf("%.2f", flatMomentSecs), "-i", inputFile,
+			"-vf", vf, "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-threads", "2", clip}); err != nil {
+			return err
+		}
 	}
-	prev := "m0"
-	for k := 1; k < len(starts); k++ {
+
+	var g strings.Builder
+	args := []string{"-y"}
+	for k, c := range clips {
+		args = append(args, "-i", c)
+		fmt.Fprintf(&g, "[%d:v]null[m%d];", k, k)
+	}
+	// the end fades back into the opening, whose first frames are trimmed, so the loop has no seam
+	fmt.Fprintf(&g, "[m0]split[a0][h0];[h0]trim=0:%.1f,setpts=PTS-STARTPTS[head];", flatFadeSecs)
+	prev := "a0"
+	for k := 1; k < len(clips); k++ {
 		out := fmt.Sprintf("x%d", k)
 		fmt.Fprintf(&g, "[%s][m%d]xfade=transition=fade:duration=%.1f:offset=%.2f[%s];", prev, k, flatFadeSecs, float64(k)*(flatMomentSecs-flatFadeSecs), out)
 		prev = out
 	}
-	fmt.Fprintf(&g, "[%s]setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[out]", prev)
+	total := float64(len(clips))*flatMomentSecs - float64(len(clips)-1)*flatFadeSecs
+	fmt.Fprintf(&g, "[%s][head]xfade=transition=fade:duration=%.1f:offset=%.2f[loop];", prev, flatFadeSecs, total-flatFadeSecs)
+	fmt.Fprintf(&g, "[loop]trim=start=%.1f,setpts=PTS-STARTPTS,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[out]", flatFadeSecs)
 
 	enc := []string{"-c:v", "libx265", "-crf", "26", "-preset", "fast", "-tag:v", "hvc1", "-x265-params", "log-level=error:pools=2:frame-threads=1"}
 	if o.Codec == "h264" {
@@ -82,10 +108,10 @@ func renderTrailer(inputFile, destFile, projection string, o PreviewOptions, sta
 	}
 	tmp := destFile + ".tmp.mp4"
 	defer os.Remove(tmp)
-	args := append(append([]string{"-y"}, inputs...), "-filter_complex", g.String(), "-map", "[out]", "-an", "-threads", "2")
+	args = append(args, "-filter_complex", g.String(), "-map", "[out]", "-an", "-threads", "2")
 	args = append(args, enc...)
 	args = append(args, "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-movflags", "+faststart", tmp)
-	if err := runWithGPU(args); err != nil {
+	if err := buildCmd(GetBinPath("ffmpeg"), args...).Run(); err != nil {
 		return err
 	}
 	return os.Rename(tmp, destFile)
@@ -138,9 +164,14 @@ func runWithGPU(args []string) error {
 			}
 			gpu = append(gpu, a)
 		}
-		if buildCmd(GetBinPath("ffmpeg"), gpu...).Run() == nil {
+		out, err := buildCmd(GetBinPath("ffmpeg"), gpu...).CombinedOutput()
+		if err == nil {
 			return nil
 		}
+		gpuFailOnce.Do(func() {
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			log.WithField("task", "previews").Warnf("GPU decoding failed, using the CPU: %s", lines[len(lines)-1])
+		})
 	}
 	return buildCmd(GetBinPath("ffmpeg"), args...).Run()
 }

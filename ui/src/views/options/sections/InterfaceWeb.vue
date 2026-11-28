@@ -207,6 +207,7 @@ import ky from 'ky'
 import { availableLocales, chosenLanguage, setLanguage } from '@/i18n'
 
 let saveTimer = null
+let lastSaved = null
 
 export default defineComponent({
   name: 'InterfaceWeb',
@@ -231,6 +232,9 @@ export default defineComponent({
     debouncedSave () {
       if (saveTimer) clearTimeout(saveTimer)
       saveTimer = setTimeout(() => {
+        const snapshot = JSON.stringify(this.$store.state.optionsWeb.web)
+        if (snapshot === lastSaved) return
+        lastSaved = snapshot
         this.$store.dispatch('optionsWeb/save')
       }, 600)
     },

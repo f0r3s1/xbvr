@@ -105,7 +105,8 @@ const actions = {
         state.web.sceneCardAspectRatio = data.sceneCardAspectRatio
         state.web.sceneCardScaleToFit = data.sceneCardScaleToFit
         state.web.cardButtonStyle = data.cardButtonStyle || 'classic'
-        state.web.glassCard = data.glassCard || {}
+        // a new object would count as a change and trigger another save
+        if (JSON.stringify(data.glassCard || {}) !== JSON.stringify(state.web.glassCard || {})) state.web.glassCard = data.glassCard || {}
         state.web.actorCardAspectRatio = data.actorCardAspectRatio
         state.web.actorCardScaleToFit = data.actorCardScaleToFit
         state.web.showSiteLogo = data.showSiteLogo !== false

@@ -75,9 +75,9 @@ func aim(img []byte, w, h int) camera {
 	left, right := yawAt(pick(xs, 0.05)), yawAt(pick(xs, 0.95))
 	top, bottom := pitchAt(pick(ys, 0.03)), pitchAt(pick(ys, 0.97))
 
-	hfov := math.Max((right-left)*1.2, deg(2*math.Atan(16.0/9*math.Tan(rad((top-bottom)*1.15/2)))))
-	hfov = clamp(hfov, 60, 100)
-	vfov := deg(2 * math.Atan(math.Tan(rad(hfov/2))*9/16))
+	hfov := math.Max((right-left)*1.4, deg(2*math.Atan(trailerAspect*math.Tan(rad((top-bottom)*1.3/2)))))
+	hfov = clamp(hfov, 75, 110)
+	vfov := deg(2 * math.Atan(math.Tan(rad(hfov/2))/trailerAspect))
 	pitch := (top + bottom) / 2
 	if top-bottom > vfov*0.9 {
 		pitch = top - vfov*0.45

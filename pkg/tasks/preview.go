@@ -170,6 +170,7 @@ func RegeneratePreview(sceneID uint, method string) error {
 		}
 		tlog.Infof("Rendering %v (%s)", scene.SceneID, method)
 		status("started", "")
+		began := time.Now()
 		used, err := RenderPreviewWith(method, f.GetPath(), filepath.Join(common.VideoPreviewDir, scene.SceneID+".mp4"), f.VideoProjection, PreviewOptionsFromConfig())
 		if err != nil {
 			tlog.Warn(err)
@@ -181,7 +182,7 @@ func RegeneratePreview(sceneID uint, method string) error {
 		scene.Save()
 		models.NotifySceneChanged(scene.ID)
 		status("done", "")
-		tlog.Infof("Preview ready for %v", scene.SceneID)
+		tlog.Infof("Preview ready for %v in %s", scene.SceneID, time.Since(began).Round(time.Second))
 		return nil
 	}
 	status("failed", "no video file")
