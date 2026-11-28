@@ -991,6 +991,8 @@
   "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.": "既存のプレビューはそのまま残ります。別の方式で作り直すには、シーン詳細の「プレビューを再生成」を使います。",
   "Regenerate preview": "プレビューを再生成",
   "current": "現在",
-  "Generating preview in the background": "バックグラウンドでプレビューを生成中",
-  "Smart: flat trailer framed on the people": "スマート：人物に合わせたフラット予告編"
+  "Smart: flat trailer framed on the people": "スマート：人物に合わせたフラット予告編",
+  "Generating preview for {title}…": "{title} のプレビューを生成中…",
+  "Preview ready for {title}": "{title} のプレビューが完成しました",
+  "Preview failed for {title}: {error}": "{title} のプレビューに失敗しました：{error}"
 }

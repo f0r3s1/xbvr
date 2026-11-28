@@ -123,6 +123,11 @@ export default defineComponent({
         this.$store.commit('optionsPreviews/showPreview', { previewFn: eventData.argsDict.previewFn })
       })
 
+      await ws.subscribe('previews.regenerate', ({ argsDict: e }) => {
+        const msg = { started: 'Generating preview for {title}…', done: 'Preview ready for {title}', failed: 'Preview failed for {title}: {error}' }[e.state]
+        if (msg) this.$buefy.toast.open({ message: this.$t(msg, e), type: { started: 'is-info', done: 'is-success', failed: 'is-danger' }[e.state], duration: e.state === 'failed' ? 8000 : 3000 })
+      })
+
       await ws.subscribe('health.progress', (eventData) => {
         this.$store.commit('health/setProgress', eventData.argsDict)
       })

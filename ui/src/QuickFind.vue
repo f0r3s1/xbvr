@@ -135,6 +135,10 @@ export default defineComponent({
     }
   },
 
+  mounted () {
+    const input = this.$refs.autocompleteInput?.$el.querySelector('input')
+    if (input) input.name = 'quickfind'
+  },
   methods: {
     utcDay,
     format,

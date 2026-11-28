@@ -991,6 +991,8 @@
   "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.": "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.",
   "Regenerate preview": "Regenerate preview",
   "current": "current",
-  "Generating preview in the background": "Generating preview in the background",
-  "Smart: flat trailer framed on the people": "Smart: flat trailer framed on the people"
+  "Smart: flat trailer framed on the people": "Smart: flat trailer framed on the people",
+  "Generating preview for {title}…": "Generating preview for {title}…",
+  "Preview ready for {title}": "Preview ready for {title}",
+  "Preview failed for {title}: {error}": "Preview failed for {title}: {error}"
 }

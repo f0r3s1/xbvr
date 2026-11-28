@@ -29,7 +29,6 @@ export default {
   methods: {
     async regenerate (method) {
       await ky.post('/api/task/preview/regenerate', { json: { scene_id: this.item.id, method } })
-      this.$buefy.toast.open({ message: this.$t('Generating preview in the background'), type: 'is-info' })
     }
   }
 }

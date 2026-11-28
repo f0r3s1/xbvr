@@ -991,6 +991,8 @@
   "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.": "Les aperçus existants sont conservés. Pour en refaire un avec une autre méthode, utilise « Régénérer l’aperçu » dans les détails de la scène.",
   "Regenerate preview": "Régénérer l’aperçu",
   "current": "actuel",
-  "Generating preview in the background": "Aperçu en cours de création en arrière-plan",
-  "Smart: flat trailer framed on the people": "Intelligent : bande-annonce plate cadrée sur les personnes"
+  "Smart: flat trailer framed on the people": "Intelligent : bande-annonce plate cadrée sur les personnes",
+  "Generating preview for {title}…": "Création de l’aperçu de {title}…",
+  "Preview ready for {title}": "Aperçu prêt pour {title}",
+  "Preview failed for {title}: {error}": "Échec de l’aperçu de {title} : {error}"
 }

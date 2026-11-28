@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"io"
+	stdlog "log"
 	"os"
 
 	"github.com/gammazero/nexus/v3/client"
@@ -67,4 +68,7 @@ func InitLogging() {
 	} else {
 		Log.Info("Failed to log to file, using default stderr")
 	}
+	// libraries such as the image proxy log through the standard logger; send them to the app log too
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(Log.WriterLevel(logrus.WarnLevel))
 }

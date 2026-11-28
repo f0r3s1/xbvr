@@ -160,22 +160,30 @@ func RegeneratePreview(sceneID uint, method string) error {
 	if err := scene.GetIfExistByPK(sceneID); err != nil {
 		return err
 	}
+	status := func(state, msg string) {
+		common.PublishWS("previews.regenerate", map[string]interface{}{"scene_id": scene.ID, "title": scene.Title, "method": method, "state": state, "error": msg})
+	}
 	files, _ := scene.GetFiles()
 	for _, f := range files {
 		if f.Type != "video" || !f.Exists() {
 			continue
 		}
 		tlog.Infof("Rendering %v (%s)", scene.SceneID, method)
+		status("started", "")
 		used, err := RenderPreviewWith(method, f.GetPath(), filepath.Join(common.VideoPreviewDir, scene.SceneID+".mp4"), f.VideoProjection, PreviewOptionsFromConfig())
 		if err != nil {
 			tlog.Warn(err)
+			status("failed", err.Error())
 			return err
 		}
 		scene.HasVideoPreview = true
 		scene.PreviewMethod = used
 		scene.Save()
+		models.NotifySceneChanged(scene.ID)
+		status("done", "")
 		tlog.Infof("Preview ready for %v", scene.SceneID)
 		return nil
 	}
+	status("failed", "no video file")
 	return fmt.Errorf("scene has no video file")
 }

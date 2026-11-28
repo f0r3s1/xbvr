@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +38,7 @@ type ImageProxyFallbackHandler struct {
 	ImageProxy *imageproxy.Proxy
 	Cache      ImageCache
 	Cached     func(key string) bool
+	Stored     func(key string) ([]byte, bool)
 }
 
 // NewImageProxyFallbackHandler creates a new handler with fallback capability
@@ -223,6 +226,10 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		r.URL.RawPath = withDefaultQuality(r.URL.RawPath)
 	}
 
+	if h.serveStored(w, r) {
+		return
+	}
+
 	// Extract the original URL from the request path
 	originalURL := extractOriginalURL(r.URL.Path)
 
@@ -278,8 +285,7 @@ func (h *ImageProxyFallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	if isImageResponse(capture) {
 		// Response is a valid image, cache it and send to client
 		h.Cache.Set(cacheKey, capture.body.Bytes())
-		noteFailure(r, fallbackKey, capture.statusCode)
-		imageUnavailable(w)
+		capture.flushToClient()
 		return
 	}
 
@@ -352,13 +358,13 @@ func isImageResponse(c *ResponseCapture) bool {
 // imageUnavailable answers a failed image with an empty 502 instead of the site's error page,
 // which could be hundreds of KB per card and kept the browser's few connections busy.
 func imageUnavailable(w http.ResponseWriter) {
-	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Cache-Control", "private, max-age=600")
 	w.WriteHeader(http.StatusBadGateway)
 }
 
 // a site that refuses an image is not asked again for a while; short hiccups are retried soon
 const (
-	refusedImageTTL = 10 * time.Minute
+	refusedImageTTL = 6 * time.Hour
 	failedImageTTL  = time.Minute
 )
 
@@ -366,6 +372,20 @@ var (
 	failedImagesMu sync.Mutex
 	failedImages   = map[string]time.Time{}
 )
+
+// failedImagesSnapshot lists the images being skipped after a failure, for /api/task/debug.
+func failedImagesSnapshot() any {
+	failedImagesMu.Lock()
+	defer failedImagesMu.Unlock()
+	recent := make([]map[string]string, 0, 50)
+	for k, until := range failedImages {
+		if len(recent) == 50 {
+			break
+		}
+		recent = append(recent, map[string]string{"path": strings.TrimPrefix(k, "fallback:"), "retry_after": until.UTC().Format(time.RFC3339)})
+	}
+	return map[string]any{"skipped": len(failedImages), "sample": recent}
+}
 
 func recentlyFailed(key string) bool {
 	failedImagesMu.Lock()
@@ -385,7 +405,8 @@ func noteFailure(r *http.Request, key string, status int) {
 	}
 	ttl := failedImageTTL
 	switch status {
-	case http.StatusForbidden, http.StatusNotFound, http.StatusGone, http.StatusUnavailableForLegalReasons:
+	// imageproxy answers 500 when the site sent an error page instead of an image
+	case http.StatusInternalServerError, http.StatusForbidden, http.StatusNotFound, http.StatusGone, http.StatusUnavailableForLegalReasons:
 		ttl = refusedImageTTL
 	}
 	failedImagesMu.Lock()
@@ -430,6 +451,37 @@ func (h *ImageProxyFallbackHandler) serveSVG(w http.ResponseWriter, r *http.Requ
 }
 
 const svgUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+// serveStored answers straight from the image cache, without going through the proxy, when the image is there.
+func (h *ImageProxyFallbackHandler) serveStored(w http.ResponseWriter, r *http.Request) bool {
+	if h.Stored == nil {
+		return false
+	}
+	req, err := imageproxy.NewRequest(r, h.ImageProxy.DefaultBaseURL)
+	if err != nil {
+		return false
+	}
+	dump, ok := h.Stored(req.String())
+	if !ok {
+		return false
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(dump)), nil)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return false
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || len(body) == 0 {
+		return false
+	}
+	w.Header().Set("Content-Type", http.DetectContentType(body))
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("X-Cache", "HIT")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+	return true
+}
 
 // isCached reports whether the resized image is in the image cache, e.g. finished after an earlier attempt gave up.
 func (h *ImageProxyFallbackHandler) isCached(r *http.Request) bool {

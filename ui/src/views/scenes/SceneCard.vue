@@ -1,5 +1,5 @@
 <template>
-  <div class="scene-card" :class="{ 'is-fresh': item.fresh, 'is-morph': morphing }"
+  <div class="scene-card" :class="{ 'is-fresh': item.fresh, 'is-morph': morphing && glassReady }"
        @mouseenter="hovering = true; startPreview()" 
        @mouseleave="hovering = demo; demo || stopPreview()"
        @click="!demo && showDetails(item)">
@@ -8,7 +8,7 @@
 
     <transition name="fade">
       <div class="preview-overlay" v-if="preview && item.has_preview" @click="showDetails(item)">
-        <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop muted></video>
+        <video ref="previewVideo" :src="`/api/dms/preview/${item.scene_id}?v=${item.preview_method || ''}${Date.parse(item.updated_at) || ''}`" autoplay loop muted></video>
       </div>
     </transition>
 

@@ -991,6 +991,8 @@
   "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.": "Las vistas previas existentes se conservan. Para rehacer una con otro método, usa «Regenerar vista previa» en los detalles de la escena.",
   "Regenerate preview": "Regenerar vista previa",
   "current": "actual",
-  "Generating preview in the background": "Generando la vista previa en segundo plano",
-  "Smart: flat trailer framed on the people": "Inteligente: tráiler plano encuadrado en las personas"
+  "Smart: flat trailer framed on the people": "Inteligente: tráiler plano encuadrado en las personas",
+  "Generating preview for {title}…": "Generando la vista previa de {title}…",
+  "Preview ready for {title}": "Vista previa lista para {title}",
+  "Preview failed for {title}: {error}": "Falló la vista previa de {title}: {error}"
 }

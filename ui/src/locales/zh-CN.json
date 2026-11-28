@@ -991,6 +991,8 @@
   "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.": "现有预览会保留。要用其他方式重做，请在场景详情中使用“重新生成预览”。",
   "Regenerate preview": "重新生成预览",
   "current": "当前",
-  "Generating preview in the background": "正在后台生成预览",
-  "Smart: flat trailer framed on the people": "智能：对准人物的平面预告片"
+  "Smart: flat trailer framed on the people": "智能：对准人物的平面预告片",
+  "Generating preview for {title}…": "正在生成 {title} 的预览…",
+  "Preview ready for {title}": "{title} 的预览已就绪",
+  "Preview failed for {title}: {error}": "{title} 的预览失败：{error}"
 }

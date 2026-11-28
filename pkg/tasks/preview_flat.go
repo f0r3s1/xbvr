@@ -61,9 +61,12 @@ func trailerMoments(inputFile string, o PreviewOptions) ([]float64, error) {
 func renderTrailer(inputFile, destFile, projection string, o PreviewOptions, starts []float64, cams []camera) error {
 	h := o.Resolution
 	w := (h*16/9 + 1) / 2 * 2
+	// each moment is its own input seeking straight to its spot, so only those seconds are decoded
+	var inputs []string
 	var g strings.Builder
 	for k, at := range starts {
-		fmt.Fprintf(&g, "[0]trim=%.2f:%.2f,setpts=PTS-STARTPTS,%s,scale=in_color_matrix=bt709:out_color_matrix=bt709,fps=30,format=yuv420p[m%d];", at, at+flatMomentSecs, view(projection, cams[k], w, h), k)
+		inputs = append(inputs, "-ss", fmt.Sprintf("%.2f", at), "-t", fmt.Sprintf("%.2f", flatMomentSecs), "-i", inputFile)
+		fmt.Fprintf(&g, "[%d:v]setpts=PTS-STARTPTS,%s,scale=in_color_matrix=bt709:out_color_matrix=bt709,fps=30,format=yuv420p[m%d];", k, view(projection, cams[k], w, h), k)
 	}
 	prev := "m0"
 	for k := 1; k < len(starts); k++ {
@@ -73,13 +76,14 @@ func renderTrailer(inputFile, destFile, projection string, o PreviewOptions, sta
 	}
 	fmt.Fprintf(&g, "[%s]setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[out]", prev)
 
-	enc := []string{"-c:v", "libx265", "-crf", "26", "-preset", "medium", "-tag:v", "hvc1", "-x265-params", "log-level=error"}
+	enc := []string{"-c:v", "libx265", "-crf", "26", "-preset", "fast", "-tag:v", "hvc1", "-x265-params", "log-level=error:pools=2:frame-threads=1"}
 	if o.Codec == "h264" {
-		enc = []string{"-c:v", "libx264", "-crf", "23", "-preset", "medium"}
+		enc = []string{"-c:v", "libx264", "-crf", "23", "-preset", "fast"}
 	}
 	tmp := destFile + ".tmp.mp4"
 	defer os.Remove(tmp)
-	args := append([]string{"-y", "-i", inputFile, "-filter_complex", g.String(), "-map", "[out]", "-an"}, enc...)
+	args := append(append([]string{"-y"}, inputs...), "-filter_complex", g.String(), "-map", "[out]", "-an", "-threads", "2")
+	args = append(args, enc...)
 	args = append(args, "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-movflags", "+faststart", tmp)
 	if err := runWithGPU(args); err != nil {
 		return err
@@ -124,10 +128,16 @@ func view(projection string, c camera, w, h int) string {
 	return fmt.Sprintf("v360=input=%s:in_stereo=%s:output=flat:out_stereo=2d:yaw=%.1f:pitch=%.1f:h_fov=%.1f:v_fov=%.1f:w=%d:h=%d", input, stereo, c.yaw, c.pitch, c.hfov, c.vfov, w, h)
 }
 
-// runWithGPU runs ffmpeg decoding on the GPU when one is passed in, and on the CPU otherwise.
+// runWithGPU runs ffmpeg decoding every input on the GPU when one is passed in, and on the CPU otherwise.
 func runWithGPU(args []string) error {
 	if _, err := os.Stat(gpuDevice); err == nil {
-		gpu := append([]string{"-hwaccel", "vaapi", "-hwaccel_device", gpuDevice}, args...)
+		var gpu []string
+		for _, a := range args {
+			if a == "-ss" {
+				gpu = append(gpu, "-hwaccel", "vaapi", "-hwaccel_device", gpuDevice)
+			}
+			gpu = append(gpu, a)
+		}
 		if buildCmd(GetBinPath("ffmpeg"), gpu...).Run() == nil {
 			return nil
 		}

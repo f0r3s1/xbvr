@@ -231,6 +231,8 @@ func StartServer(version, commit, branch, date string) {
 	p.DefaultBaseURL = u
 	imgFallback := NewImageProxyFallbackHandler(p, diskcache.NewWithDiskv(imgDisk))
 	imgFallback.Cached = imgStore.Has
+	imgFallback.Stored = imgStore.Get
+	api.RegisterDebugSource("failed_images", failedImagesSnapshot)
 	r.PathPrefix("/img/").Handler(ForceShortCacheHandler(http.StripPrefix("/img", imgFallback)))
 	hmp := NewHeatmapThumbnailProxy(p, diskCache(common.HeatmapThumbnailDir))
 	r.PathPrefix("/imghm/").Handler(http.StripPrefix("/imghm", hmp))

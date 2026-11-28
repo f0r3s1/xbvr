@@ -59,7 +59,7 @@ var (
 	imageErrors   = map[uint]time.Time{}
 )
 
-const totalHealthSteps = 16
+const totalHealthSteps = 17
 
 // healthBackground is set while the periodic background check runs: it pauses
 // between steps and inside the per-file loop so it never competes for CPU or disk.
@@ -658,8 +658,11 @@ func RunHealthCheck() {
 		return
 	}
 
-	// -- Step 16: Browser-reported broken cover images --
-	publishProgress("Checking browser-reported image errors", 16)
+	publishProgress("Checking repeated images", 16)
+	issues = append(issues, duplicateImageIssues(findDuplicateImages())...)
+
+	// -- Step 17: Browser-reported broken cover images --
+	publishProgress("Checking browser-reported image errors", 17)
 	imageErrorsMu.Lock()
 	reportedErrors := make(map[uint]time.Time, len(imageErrors))
 	for k, v := range imageErrors {
@@ -719,6 +722,9 @@ func RunHealthCheck() {
 
 func FixHealthIssue(action string) error {
 	switch action {
+	case "dedupe-images":
+		go RemoveDuplicateImages()
+
 	case "refresh-status":
 		go RefreshSceneStatuses()
 

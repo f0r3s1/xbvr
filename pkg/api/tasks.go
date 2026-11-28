@@ -73,7 +73,10 @@ func (i TaskResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/status").To(i.status).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
-	ws.Route(ws.GET("/log").To(i.log).
+	ws.Route(ws.GET("/debug").To(i.debug).Filter(requireAPIKey).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	ws.Route(ws.GET("/log").To(i.log).Filter(requireAPIKey).
 		Param(ws.QueryParameter("lines", "number of lines from the end (default 300, max 5000)")).
 		Param(ws.QueryParameter("grep", "only lines containing this text, case-insensitive")).
 		Metadata(restfulspec.KeyOpenAPITags, tags))

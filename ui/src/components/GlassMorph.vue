@@ -1,5 +1,5 @@
 <template>
-  <div class="glass-morph" :class="{ on: active }" aria-hidden="true">
+  <div class="glass-morph" :class="{ on: active && drawn }" aria-hidden="true">
     <div ref="glass" class="glass"><canvas ref="lens" class="lens"/></div>
     <svg class="rim">
       <defs>
@@ -50,6 +50,29 @@ void main(){
   o = vec4(c, 1.0);
 }`
 
+// one shared WebGL context: browsers drop contexts past ~16 and a lost one draws white; cards copy its result
+let shared = null
+function lens () {
+  if (shared) return shared
+  const canvas = document.createElement('canvas')
+  const gl = canvas.getContext('webgl2', { premultipliedAlpha: false })
+  if (!gl) return null
+  canvas.addEventListener('webglcontextlost', () => { shared = null })
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o }
+  const prog = gl.createProgram()
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, '#version 300 es\nin vec2 pos; out vec2 q; void main(){ q = pos * 0.5 + 0.5; gl_Position = vec4(pos, 0.0, 1.0); }'))
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG))
+  gl.linkProgram(prog); gl.useProgram(prog)
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+  const loc = gl.getAttribLocation(prog, 'pos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture())
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v)
+  const loc2 = {}
+  shared = { canvas, gl, U: n => loc2[n] || (loc2[n] = gl.getUniformLocation(prog, n)) }
+  return shared
+}
+
 export default {
   name: 'GlassMorph',
   props: {
@@ -59,7 +82,7 @@ export default {
   },
   emits: ['ready'],
   data () {
-    return { t: 0, fadeId: `glass-rim-${Math.random().toString(36).slice(2, 8)}` }
+    return { t: 0, drawn: false, fadeId: `glass-rim-${Math.random().toString(36).slice(2, 8)}` }
   },
   computed: {
     p () {
@@ -78,34 +101,16 @@ export default {
         cancelAnimationFrame(this.anim)
         this.$emit('ready', false)
         clearTimeout(this.resetTimer)
-        this.resetTimer = setTimeout(() => { if (!this.active) { this.t = 0; this.render(); cancelAnimationFrame(this.loop) } }, 150)
+        this.resetTimer = setTimeout(() => { if (!this.active) { this.t = 0; this.drawn = false; this.render(); cancelAnimationFrame(this.loop) } }, 150)
       },
       immediate: true
     },
     p () { this.render() }
   },
-  mounted () {
-    this.gl = this.setup()
-  },
   beforeUnmount () {
     clearTimeout(this.resetTimer); cancelAnimationFrame(this.anim); cancelAnimationFrame(this.loop)
   },
   methods: {
-    setup () {
-      const gl = this.$refs.lens.getContext('webgl2', { premultipliedAlpha: false })
-      if (!gl) return null
-      const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o }
-      const prog = gl.createProgram()
-      gl.attachShader(prog, sh(gl.VERTEX_SHADER, '#version 300 es\nin vec2 pos; out vec2 q; void main(){ q = pos * 0.5 + 0.5; gl_Position = vec4(pos, 0.0, 1.0); }'))
-      gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG))
-      gl.linkProgram(prog); gl.useProgram(prog)
-      gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
-      const loc = gl.getAttribLocation(prog, 'pos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-      gl.bindTexture(gl.TEXTURE_2D, gl.createTexture())
-      for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v)
-      return { gl, U: n => gl.getUniformLocation(prog, n) }
-    },
     animate (to) {
       cancelAnimationFrame(this.anim)
       const from = this.t, start = performance.now(), dur = this.p.duration * Math.abs(to - from)
@@ -114,7 +119,7 @@ export default {
         const k = Math.min(1, (now - start) / Math.max(1, dur))
         this.t = from + (to - from) * k
         this.render()
-        this.$emit('ready', to === 1 && this.t > 0.75)
+        this.$emit('ready', to === 1 && this.t > 0.75 && this.drawn)
         if (k < 1) this.anim = requestAnimationFrame(step)
         else if (!to) cancelAnimationFrame(this.loop)
       }
@@ -143,29 +148,52 @@ export default {
       const draw = () => { this.drawLens(); this.loop = requestAnimationFrame(draw) }
       this.loop = requestAnimationFrame(draw)
     },
-    drawLens () {
-      const src = this.source(), g = this.geo
-      if (!this.gl || !src || !g) return
-      const sw = src.videoWidth || src.naturalWidth, shh = src.videoHeight || src.naturalHeight
-      if (!sw || (src.readyState !== undefined && src.readyState < 2)) return
-      const { gl, U } = this.gl, c = this.$refs.lens, dpr = devicePixelRatio, P = this.p
-      const cw = Math.round(g.w * dpr), ch = Math.round(g.boxH * dpr)
-      if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
-      gl.viewport(0, 0, cw, ch)
-      // video goes through a 2D canvas: Safari and hardware-decoded video upload white straight into WebGL
-      const fw = Math.min(sw, 640), fh = Math.round(shh * fw / sw)
+    // the glass waits for the video's first real frame; a blank frame from a just-started decoder is skipped
+    pickFrame () {
+      const src = this.source()
+      const sw = src && (src.videoWidth || src.naturalWidth), sh = src && (src.videoHeight || src.naturalHeight)
+      if (!sw || src.readyState < 2 || src.complete === false) return null
+      const fw = Math.min(sw, 640), fh = Math.round(sh * fw / sw)
       const frame = this.frame || (this.frame = document.createElement('canvas'))
       if (frame.width !== fw || frame.height !== fh) { frame.width = fw; frame.height = fh }
-      try {
-        frame.getContext('2d').drawImage(src, 0, 0, fw, fh)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame)
-      } catch { return }
+      try { frame.getContext('2d').drawImage(src, 0, 0, fw, fh) } catch { return null }
+      if (src !== this.goodSource) {
+        if (this.isBlank(frame)) return null
+        this.goodSource = src
+      }
+      return { frame, sw, sh }
+    },
+    isBlank (frame) {
+      const probe = this.probe || (this.probe = document.createElement('canvas'))
+      probe.width = probe.height = 8
+      const ctx = probe.getContext('2d', { willReadFrequently: true })
+      ctx.drawImage(frame, 0, 0, 8, 8)
+      const d = ctx.getImageData(0, 0, 8, 8).data
+      let lo = 255, hi = 0
+      for (let i = 0; i < d.length; i += 4) { const l = d[i] + d[i + 1] + d[i + 2]; lo = Math.min(lo, l); hi = Math.max(hi, l) }
+      return d[3] === 0 || hi - lo < 6
+    },
+    drawLens () {
+      const g = this.geo
+      const L = g && lens()
+      if (!L) return
+      const got = this.pickFrame()
+      if (!got) return
+      const { frame, sw, sh: shh } = got
+      const { gl, U } = L, c = this.$refs.lens, dpr = devicePixelRatio, P = this.p
+      const cw = Math.round(g.w * dpr), ch = Math.round(g.boxH * dpr)
+      if (L.canvas.width !== cw || L.canvas.height !== ch) { L.canvas.width = cw; L.canvas.height = ch }
+      gl.viewport(0, 0, cw, ch)
+      try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame) } catch { return }
       for (const k of ['w', 'cardH', 'boxH', 'y0', 'top', 'xL']) gl.uniform1f(U(k), g[k])
       gl.uniform2f(U('src'), sw, shh)
       gl.uniform1f(U('strength'), P.refraction); gl.uniform1f(U('edge'), 18)
       gl.uniform1f(U('sat'), P.saturation / 100); gl.uniform1f(U('bright'), P.brightness)
       gl.uniform1f(U('tint'), P.tint); gl.uniform1f(U('sheen'), P.sheen)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
+      c.getContext('2d').drawImage(L.canvas, 0, 0)
+      if (!this.drawn) { this.drawn = true; if (this.active && this.t > 0.75) this.$emit('ready', true) }
     }
   }
 }

@@ -991,6 +991,8 @@
   "Existing previews are kept. To remake one with another method, use Regenerate preview in the scene details.": "Bestehende Vorschauen bleiben erhalten. Um eine mit einer anderen Methode neu zu erstellen, nutze „Vorschau neu erstellen“ in den Szenendetails.",
   "Regenerate preview": "Vorschau neu erstellen",
   "current": "aktuell",
-  "Generating preview in the background": "Vorschau wird im Hintergrund erstellt",
-  "Smart: flat trailer framed on the people": "Smart: flacher Trailer, auf die Personen ausgerichtet"
+  "Smart: flat trailer framed on the people": "Smart: flacher Trailer, auf die Personen ausgerichtet",
+  "Generating preview for {title}…": "Vorschau für {title} wird erstellt…",
+  "Preview ready for {title}": "Vorschau für {title} fertig",
+  "Preview failed for {title}: {error}": "Vorschau für {title} fehlgeschlagen: {error}"
 }
