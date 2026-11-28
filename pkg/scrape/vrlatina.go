@@ -31,9 +31,10 @@ func VRLatina(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out ch
 		sc.HomepageURL = strings.Split(e.Request.URL.String(), "?")[0]
 
 		// Title
-		e.ForEach(`div.content-title h2`, func(id int, e *colly.HTMLElement) {
-			sc.Title = strings.TrimSpace(e.Text)
-		})
+		sc.Title = strings.TrimSpace(e.ChildText(`div.content-title h1, div.content-title h2`))
+		if sc.Title == "" {
+			sc.Title = strings.TrimSpace(e.ChildAttr(`meta[property="og:title"]`, "content"))
+		}
 
 		// Covers
 		coverurl := e.ChildAttr(`meta[property="og:image"]`, "content")
