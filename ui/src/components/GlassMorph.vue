@@ -152,7 +152,14 @@ export default {
       const cw = Math.round(g.w * dpr), ch = Math.round(g.boxH * dpr)
       if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
       gl.viewport(0, 0, cw, ch)
-      try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src) } catch { return }
+      // video goes through a 2D canvas: Safari and hardware-decoded video upload white straight into WebGL
+      const fw = Math.min(sw, 640), fh = Math.round(shh * fw / sw)
+      const frame = this.frame || (this.frame = document.createElement('canvas'))
+      if (frame.width !== fw || frame.height !== fh) { frame.width = fw; frame.height = fh }
+      try {
+        frame.getContext('2d').drawImage(src, 0, 0, fw, fh)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame)
+      } catch { return }
       for (const k of ['w', 'cardH', 'boxH', 'y0', 'top', 'xL']) gl.uniform1f(U(k), g[k])
       gl.uniform2f(U('src'), sw, shh)
       gl.uniform1f(U('strength'), P.refraction); gl.uniform1f(U('edge'), 18)
