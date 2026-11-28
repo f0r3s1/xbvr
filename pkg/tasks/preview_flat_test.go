@@ -3,6 +3,8 @@ package tasks
 import (
 	"strings"
 	"testing"
+
+	"github.com/xbapps/xbvr/pkg/models"
 )
 
 func TestFlatViewProjections(t *testing.T) {
@@ -27,17 +29,41 @@ func TestAimFramesSkin(t *testing.T) {
 	for y := 0; y < wideH; y++ {
 		for x := 0; x < wideW; x++ {
 			i := (y*wideW + x) * 3
-			if x > 200 && x < 260 && y > 60 && y < 160 {
+			if x > 200 && x < 260 && y > 110 && y < 200 {
 				img[i], img[i+1], img[i+2] = 220, 170, 140
 			}
 		}
 	}
 	c := aim(img, wideW, wideH)
-	if c.yaw <= 10 || c.pitch <= -8 || c.hfov < 75 || c.hfov > 110 {
+	if c.yaw <= 10 || c.pitch >= -2 || c.pitch <= -50 || c.hfov < 90 || c.hfov > 120 {
 		t.Fatalf("camera not aimed at the body on the right: %+v", c)
+	}
+	ceiling := make([]byte, wideW*wideH*3)
+	for i := 0; i < wideW*30*3; i += 3 {
+		ceiling[i], ceiling[i+1], ceiling[i+2] = 220, 170, 140
+	}
+	if c := aim(ceiling, wideW, wideH); c.pitch > -2 {
+		t.Fatalf("camera looked at the ceiling: %+v", c)
 	}
 	if aim(make([]byte, wideW*wideH*3), wideW, wideH) != defaultCamera {
 		t.Fatal("empty frame should keep the default camera")
+	}
+}
+
+func TestCueMoments(t *testing.T) {
+	cues := []models.SceneCuepoint{{TimeStart: 5, Name: "intro"}, {TimeStart: 100, Name: "standing"}, {TimeStart: 110, Name: "standing"}, {TimeStart: 300, Name: "cowgirl"}, {TimeStart: 600, Name: "cowgirl"}, {TimeStart: 900, Name: "missionary"}, {TimeStart: 1200, Name: "doggy"}, {TimeStart: 1790, Name: "end"}}
+	got := cueMoments(cues, 10, 1710)
+	want := []float64{103, 303, 903, 1203}
+	if len(got) != 4 {
+		t.Fatalf("got %v", got)
+	}
+	for k := range want {
+		if got[k] != want[k] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+	if len(cueMoments(nil, 10, 100)) != 0 {
+		t.Fatal("no cue points should give no moments")
 	}
 }
 

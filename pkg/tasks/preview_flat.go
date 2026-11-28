@@ -2,12 +2,14 @@ package tasks
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/xbapps/xbvr/pkg/ffprobe"
+	"github.com/xbapps/xbvr/pkg/models"
 )
 
 var gpuFailOnce sync.Once
@@ -26,7 +28,8 @@ type camera struct {
 // trailers are square like classic previews, so they fill the card
 const trailerAspect = 1.0
 
-var defaultCamera = camera{yaw: 0, pitch: -8, hfov: 90, vfov: 90}
+// looking a little down and wide keeps people above the glass that covers the bottom of the card
+var defaultCamera = camera{yaw: 0, pitch: -12, hfov: 100, vfov: 100}
 
 // renderFlatPreview makes a short trailer: moments joined by crossfades, one eye shown as an undistorted 90° view.
 func renderFlatPreview(inputFile, destFile, projection string, o PreviewOptions) error {
@@ -41,7 +44,7 @@ func renderFlatPreview(inputFile, destFile, projection string, o PreviewOptions)
 	return renderTrailer(inputFile, destFile, projection, o, starts, cams)
 }
 
-// trailerMoments spreads the moments evenly over the video after the start time.
+// trailerMoments picks where each moment starts: at the scene's cue points when it has some, else evenly spread.
 func trailerMoments(inputFile string, o PreviewOptions) ([]float64, error) {
 	probe, err := ffprobe.GetProbeData(inputFile, 10*time.Second)
 	if err != nil {
@@ -55,12 +58,45 @@ func trailerMoments(inputFile string, o PreviewOptions) ([]float64, error) {
 	if dur-start < flatMomentSecs*flatMoments {
 		return nil, fmt.Errorf("video too short for a trailer preview")
 	}
+	if cues := cueMoments(o.Cuepoints, start, math.Min(dur-flatMomentSecs, dur*0.95)); len(cues) >= 2 {
+		return cues, nil
+	}
 	step := (dur - start - flatMomentSecs) / float64(flatMoments)
 	starts := make([]float64, flatMoments)
 	for k := range starts {
 		starts[k] = start + step*(float64(k)+0.5)
 	}
 	return starts, nil
+}
+
+// cueMoments chooses up to flatMoments cue points spread over the scene, preferring different positions.
+func cueMoments(cues []models.SceneCuepoint, from, to float64) []float64 {
+	const settle = 3.0 // seconds after a cue point, once the position is under way
+	var all, distinct []float64
+	seen := map[string]bool{}
+	for _, c := range cues {
+		at := c.TimeStart + settle
+		if at < from || at > to || (len(all) > 0 && at-all[len(all)-1] < 20) {
+			continue
+		}
+		all = append(all, at)
+		if name := strings.ToLower(strings.TrimSpace(c.Name)); !seen[name] {
+			seen[name] = true
+			distinct = append(distinct, at)
+		}
+	}
+	pool := all
+	if len(distinct) >= flatMoments {
+		pool = distinct
+	}
+	if len(pool) <= flatMoments {
+		return pool
+	}
+	out := make([]float64, flatMoments)
+	for k := range out {
+		out[k] = pool[k*(len(pool)-1)/(flatMoments-1)]
+	}
+	return out
 }
 
 // renderTrailer joins the moments with crossfades, each seen through its own camera, in the video's real colours.

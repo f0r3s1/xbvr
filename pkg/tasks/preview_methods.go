@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"github.com/xbapps/xbvr/pkg/config"
+	"github.com/xbapps/xbvr/pkg/models"
 )
 
 // PreviewOptions are the preview settings every method receives; each method uses what applies to it.
@@ -12,6 +13,7 @@ type PreviewOptions struct {
 	Resolution    int
 	ExtraSnippet  bool
 	Codec         string
+	Cuepoints     []models.SceneCuepoint
 }
 
 type previewMethod func(inputFile, destFile, projection string, o PreviewOptions) error
@@ -39,8 +41,12 @@ func RenderPreviewWith(method, inputFile, destFile, projection string, o Preview
 	return method, previewMethods[method](inputFile, destFile, projection, o)
 }
 
-// PreviewOptionsFromConfig returns the saved preview settings.
-func PreviewOptionsFromConfig() PreviewOptions {
+// PreviewOptionsFromConfig returns the saved preview settings, with the scene's cue points for trailer moments.
+func PreviewOptionsFromConfig(sceneID uint) PreviewOptions {
 	p := config.Config.Library.Preview
-	return PreviewOptions{StartTime: p.StartTime, SnippetLength: p.SnippetLength, SnippetAmount: p.SnippetAmount, Resolution: p.Resolution, ExtraSnippet: p.ExtraSnippet, Codec: p.Codec}
+	o := PreviewOptions{StartTime: p.StartTime, SnippetLength: p.SnippetLength, SnippetAmount: p.SnippetAmount, Resolution: p.Resolution, ExtraSnippet: p.ExtraSnippet, Codec: p.Codec}
+	if db, err := models.GetCommonDB(); err == nil {
+		db.Where("scene_id = ?", sceneID).Order("time_start").Find(&o.Cuepoints)
+	}
+	return o
 }

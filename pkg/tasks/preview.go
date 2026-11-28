@@ -40,7 +40,7 @@ func GeneratePreviews(endTime *time.Time) {
 				if files[i].Type == "video" {
 					tlog.Infof("Rendering %v", scene.SceneID)
 					destFile := filepath.Join(common.VideoPreviewDir, scene.SceneID+".mp4")
-					method, err := RenderPreviewWith(config.Config.Library.Preview.Method, files[i].GetPath(), destFile, files[i].VideoProjection, PreviewOptionsFromConfig())
+					method, err := RenderPreviewWith(config.Config.Library.Preview.Method, files[i].GetPath(), destFile, files[i].VideoProjection, PreviewOptionsFromConfig(scene.ID))
 					if err == nil {
 						scene.HasVideoPreview = true
 						scene.PreviewMethod = method
@@ -171,7 +171,7 @@ func RegeneratePreview(sceneID uint, method string) error {
 		tlog.Infof("Rendering %v (%s)", scene.SceneID, method)
 		status("started", "")
 		began := time.Now()
-		used, err := RenderPreviewWith(method, f.GetPath(), filepath.Join(common.VideoPreviewDir, scene.SceneID+".mp4"), f.VideoProjection, PreviewOptionsFromConfig())
+		used, err := RenderPreviewWith(method, f.GetPath(), filepath.Join(common.VideoPreviewDir, scene.SceneID+".mp4"), f.VideoProjection, PreviewOptionsFromConfig(scene.ID))
 		if err != nil {
 			tlog.Warn(err)
 			status("failed", err.Error())

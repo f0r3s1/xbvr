@@ -52,8 +52,14 @@ func isSkin(r, g, b byte) bool {
 
 // aim frames the skin in a wide frame: the whole body when it fits, otherwise its top so the head stays in.
 func aim(img []byte, w, h int) camera {
+	tanH, tanV := math.Tan(rad(wideHFov/2)), math.Tan(rad(wideVFov/2))
+	yawAt := func(x float64) float64 { return deg(math.Atan((x/float64(w)*2 - 1) * tanH)) }
+	pitchAt := func(y float64) float64 { return deg(math.Atan((1 - y/float64(h)*2) * tanV)) }
 	var xs, ys []int
 	for y := 0; y < h; y++ {
+		if pitchAt(float64(y)) > 20 {
+			continue // ceilings and lamps above the people are often skin coloured
+		}
 		for x := 0; x < w; x++ {
 			i := (y*w + x) * 3
 			if isSkin(img[i], img[i+1], img[i+2]) {
@@ -68,21 +74,19 @@ func aim(img []byte, w, h int) camera {
 	sort.Ints(xs)
 	sort.Ints(ys)
 	pick := func(v []int, q float64) float64 { return float64(v[int(q*float64(len(v)-1))]) + 0.5 }
-
-	tanH, tanV := math.Tan(rad(wideHFov/2)), math.Tan(rad(wideVFov/2))
-	yawAt := func(x float64) float64 { return deg(math.Atan((x/float64(w)*2 - 1) * tanH)) }
-	pitchAt := func(y float64) float64 { return deg(math.Atan((1 - y/float64(h)*2) * tanV)) }
 	left, right := yawAt(pick(xs, 0.05)), yawAt(pick(xs, 0.95))
 	top, bottom := pitchAt(pick(ys, 0.03)), pitchAt(pick(ys, 0.97))
 
-	hfov := math.Max((right-left)*1.4, deg(2*math.Atan(trailerAspect*math.Tan(rad((top-bottom)*1.3/2)))))
-	hfov = clamp(hfov, 75, 110)
+	hfov := math.Max((right-left)*1.6, deg(2*math.Atan(trailerAspect*math.Tan(rad((top-bottom)*1.5/2)))))
+	hfov = clamp(hfov, 90, 120)
 	vfov := deg(2 * math.Atan(math.Tan(rad(hfov/2))/trailerAspect))
-	pitch := (top + bottom) / 2
-	if top-bottom > vfov*0.9 {
-		pitch = top - vfov*0.45
+	// the subject sits in the upper part of the frame, clear of the glass over the card's bottom
+	pitch := (top+bottom)/2 - vfov*0.12
+	if top-bottom > vfov*0.8 {
+		pitch = top - vfov*0.40
 	}
-	return camera{yaw: clamp((left+right)/2, -60, 60), pitch: clamp(pitch, -50, 15), hfov: hfov, vfov: vfov}
+	// a VR scene happens in front of the viewer, so the camera only leans toward the people, never turns sideways
+	return camera{yaw: clamp((left+right)/2*0.5, -25, 25), pitch: clamp(pitch, -50, -2), hfov: hfov, vfov: vfov}
 }
 
 func rad(d float64) float64 { return d * math.Pi / 180 }
