@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"path/filepath"
 	"sort"
+	"time"
 )
 
 const (
@@ -20,6 +22,7 @@ func renderSmartPreview(inputFile, destFile, projection string, o PreviewOptions
 	}
 	input, stereo := lens(projection)
 	cams := make([]camera, len(starts))
+	began := time.Now()
 	for k, at := range starts {
 		cams[k] = defaultCamera
 		if input == "" {
@@ -29,13 +32,14 @@ func renderSmartPreview(inputFile, destFile, projection string, o PreviewOptions
 			cams[k] = aim(img, wideW, wideH)
 		}
 	}
+	log.WithField("task", "previews").Infof("%s: aimed in %s", filepath.Base(destFile), time.Since(began).Round(100*time.Millisecond))
 	return renderTrailer(inputFile, destFile, projection, o, starts, cams)
 }
 
 // grabWide returns one wide, undistorted RGB frame of one eye.
 func grabWide(inputFile, input, stereo string, at float64) ([]byte, error) {
 	vf := fmt.Sprintf("v360=input=%s:in_stereo=%s:output=flat:out_stereo=2d:h_fov=%.0f:v_fov=%.0f:w=%d:h=%d,format=rgb24", input, stereo, wideHFov, wideVFov, wideW, wideH)
-	out, err := buildCmd(GetBinPath("ffmpeg"), "-v", "error", "-ss", fmt.Sprintf("%.2f", at), "-i", inputFile, "-frames:v", "1", "-vf", vf, "-f", "rawvideo", "pipe:1").Output()
+	out, err := buildCmd(GetBinPath("ffmpeg"), "-v", "error", "-skip_frame", "nokey", "-noaccurate_seek", "-ss", fmt.Sprintf("%.2f", at), "-i", inputFile, "-frames:v", "1", "-vf", vf, "-f", "rawvideo", "pipe:1").Output()
 	if err != nil {
 		return nil, err
 	}

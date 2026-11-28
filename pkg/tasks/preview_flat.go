@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/xbapps/xbvr/pkg/ffprobe"
@@ -110,15 +112,16 @@ func renderTrailer(inputFile, destFile, projection string, o PreviewOptions, sta
 			os.Remove(c)
 		}
 	}()
+	began := time.Now()
 	for k, at := range starts {
 		clip := fmt.Sprintf("%s.m%d.mp4", destFile, k)
 		clips = append(clips, clip)
 		vf := view(projection, cams[k], w, h) + ",scale=in_color_matrix=bt709:out_color_matrix=bt709,fps=30,format=yuv420p"
-		if err := runWithGPU([]string{"-y", "-threads", "2", "-ss", fmt.Sprintf("%.2f", at), "-t", fmt.Sprintf("%.2f", flatMomentSecs), "-i", inputFile,
-			"-vf", vf, "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-threads", "2", clip}); err != nil {
+		if err := cutMoment(inputFile, at, vf, clip); err != nil {
 			return err
 		}
 	}
+	cut := time.Since(began)
 
 	var g strings.Builder
 	args := []string{"-y"}
@@ -147,9 +150,11 @@ func renderTrailer(inputFile, destFile, projection string, o PreviewOptions, sta
 	args = append(args, "-filter_complex", g.String(), "-map", "[out]", "-an", "-threads", "2")
 	args = append(args, enc...)
 	args = append(args, "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-movflags", "+faststart", tmp)
+	began = time.Now()
 	if err := buildCmd(GetBinPath("ffmpeg"), args...).Run(); err != nil {
 		return err
 	}
+	log.WithField("task", "previews").Infof("%s: moments cut in %s, joined in %s", filepath.Base(destFile), cut.Round(100*time.Millisecond), time.Since(began).Round(100*time.Millisecond))
 	return os.Rename(tmp, destFile)
 }
 
@@ -190,24 +195,35 @@ func view(projection string, c camera, w, h int) string {
 	return fmt.Sprintf("v360=input=%s:in_stereo=%s:output=flat:out_stereo=2d:yaw=%.1f:pitch=%.1f:h_fov=%.1f:v_fov=%.1f:w=%d:h=%d", input, stereo, c.yaw, c.pitch, c.hfov, c.vfov, w, h)
 }
 
-// runWithGPU runs ffmpeg decoding every input on the GPU when one is passed in, and on the CPU otherwise.
-func runWithGPU(args []string) error {
-	if _, err := os.Stat(gpuDevice); err == nil {
-		var gpu []string
-		for _, a := range args {
-			if a == "-ss" {
-				gpu = append(gpu, "-hwaccel", "vaapi", "-hwaccel_device", gpuDevice)
-			}
-			gpu = append(gpu, a)
-		}
-		out, err := buildCmd(GetBinPath("ffmpeg"), gpu...).CombinedOutput()
+// cutMoment renders one moment into a small clip; on the GPU, frames are halved there before reaching the CPU.
+func cutMoment(inputFile string, at float64, vf, clip string) error {
+	src := []string{"-ss", fmt.Sprintf("%.2f", at), "-t", fmt.Sprintf("%.2f", flatMomentSecs), "-i", inputFile}
+	enc := []string{"-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-threads", "2", clip}
+	if gpuUsable() {
+		args := append([]string{"-y", "-hwaccel", "vaapi", "-hwaccel_device", gpuDevice, "-hwaccel_output_format", "vaapi"}, src...)
+		args = append(append(args, "-vf", "scale_vaapi=w=iw/2:h=ih/2:format=nv12,hwdownload,format=nv12,"+vf), enc...)
+		out, err := buildCmd(GetBinPath("ffmpeg"), args...).CombinedOutput()
 		if err == nil {
 			return nil
 		}
-		gpuFailOnce.Do(func() {
-			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-			log.WithField("task", "previews").Warnf("GPU decoding failed, using the CPU: %s", lines[len(lines)-1])
-		})
+		gpuFailed(out)
 	}
-	return buildCmd(GetBinPath("ffmpeg"), args...).Run()
+	args := append(append([]string{"-y", "-threads", "2"}, src...), "-vf", vf)
+	return buildCmd(GetBinPath("ffmpeg"), append(args, enc...)...).Run()
+}
+
+var gpuBroken atomic.Bool
+
+func gpuUsable() bool {
+	_, err := os.Stat(gpuDevice)
+	return err == nil && !gpuBroken.Load()
+}
+
+// gpuFailed switches previews to the CPU for the rest of the run and logs ffmpeg's reason once.
+func gpuFailed(out []byte) {
+	gpuFailOnce.Do(func() {
+		gpuBroken.Store(true)
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+		log.WithField("task", "previews").Warnf("GPU decoding failed, using the CPU: %s", lines[len(lines)-1])
+	})
 }
